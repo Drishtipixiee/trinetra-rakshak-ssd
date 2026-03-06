@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+/* eslint-disable react/prop-types */
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Shield, Activity, Crosshair, AlertTriangle, Globe,
-  Map as MapIcon, Terminal, Video, Target, Radio, Train, Mountain, Scan, Download
+  Shield, Activity, AlertTriangle,
+  Terminal, Video, Target, Radio, Train, Scan, Download, User
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { MapContainer, TileLayer, Circle, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
 import axios from 'axios';
 
 // --- Subcomponents ---
@@ -30,6 +33,70 @@ const TypewriterText = ({ text, speed = 10, className = '' }) => {
     </span>
   );
 };
+
+const LoginOverlay = ({ onLogin }) => {
+  const [loading, setLoading] = useState(false);
+  const handleAuth = () => {
+    setLoading(true);
+    setTimeout(() => {
+      onLogin();
+    }, 1500);
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+      backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 9999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'radial-gradient(circle at center, rgba(0,20,0,0.95) 0%, rgba(5,8,5,1) 100%)',
+      backdropFilter: 'blur(10px)'
+    }}>
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="glass-panel"
+        style={{
+          width: '500px', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', padding: '3rem',
+          border: '1px solid var(--accent)',
+          boxShadow: '0 0 40px rgba(34, 197, 94, 0.15), inset 0 0 20px rgba(0,0,0,0.8)'
+        }}
+      >
+        <div className="corner-brackets" />
+        <Shield size={56} style={{ color: 'var(--accent)', marginBottom: '1rem', filter: 'drop-shadow(0 0 10px var(--accent-glow))' }} />
+        <h2 style={{ fontSize: '1.8rem', color: 'var(--accent)', letterSpacing: '4px', margin: '0 0 0.5rem 0', textShadow: '0 0 10px var(--accent-glow)' }}>
+          TRINETRA COMMAND
+        </h2>
+        <div style={{ fontSize: '0.8rem', color: 'var(--accent)', opacity: 0.7, letterSpacing: '3px', marginBottom: '2.5rem' }}>
+          SECURE BIOMETRIC PROTOCOL
+        </div>
+
+        <button
+          onClick={handleAuth}
+          disabled={loading}
+          className="nav-btn"
+          style={{
+            width: '100%', padding: '1rem',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.8rem',
+            fontSize: '1rem', fontWeight: 'bold'
+          }}
+        >
+          {loading ? (
+            <>
+              <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} style={{ display: 'flex' }}>
+                <Scan size={20} />
+              </motion.div>
+              [ SCANNING BIOMETRICS... ]
+            </>
+          ) : (
+            <><User size={20} /> [ INITIATE ACCESS ]</>
+          )}
+        </button>
+      </motion.div>
+    </div>
+  );
+};
+
 
 const playTacticalPing = () => {
   try {
@@ -65,9 +132,13 @@ const translateToHindi = (text) => {
 };
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('DASHBOARD');
   const [logs, setLogs] = useState([{ id: 1, text: "[SYS] Backend API Initialized. All subsystems green.", type: "normal" }]);
   const logsEndRef = useRef(null);
+
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
 
   // States
   const [isHindi, setIsHindi] = useState(false);
@@ -87,6 +158,26 @@ export default function App() {
 
   // Global Alert
   const isAlert = borderData.level === 'CRITICAL';
+
+  useEffect(() => {
+    if (activeTab === 'BORDER-SENTRY' && videoRef.current) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        })
+        .catch(err => {
+          console.error("Webcam access denied or unavailable.", err);
+          addLog("[ERR] Failed to access localized optical sensor (Webcam).", "warning");
+        });
+    } else if (activeTab !== 'BORDER-SENTRY' && videoRef.current && videoRef.current.srcObject) {
+      // Optional: Turn off camera when navigating away to save resources
+      const tracks = videoRef.current.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (isAlert) document.body.classList.add('alert-mode');
@@ -262,79 +353,103 @@ export default function App() {
   // Handlers for Geo-Eye Scan
   const triggerGeoScan = () => {
     setGeoData({ changes: [], scanning: true });
-    addLog('[GEO-EYE] Image Subtraction algorithm started...', 'normal');
+    addLog('[GEO-EYE] Image Subtraction algorithm started on coordinates [23.6102, 85.2799]...', 'normal');
 
     // Mocking terrain changes detection over 2 seconds
     setTimeout(() => {
       const changes = [
-        { top: '30%', left: '40%', size: '40px', risk: 85 }, // Illegal Mining pit
-        { top: '60%', left: '70%', size: '20px', risk: 60 }
+        { lat: 23.6152, lng: 85.2859, radius: 400, risk: 85 }, // Illegal Mining pit A
+        { lat: 23.6052, lng: 85.2719, radius: 250, risk: 60 }  // Illegal Mining pit B
       ];
       setGeoData({ changes, scanning: false });
-      addLog(`[GEO-EYE] Scan Complete. Detected ${changes.length} irregular terrain variances (Suspected Mining).`, 'warning');
+      addLog(`[GEO-EYE] Scan Complete. Detected ${changes.length} irregular terrain variances (Suspected Mining / Forest Encroachment).`, 'warning');
     }, 2000);
   };
 
 
-  return (
-    <div className={`hud-container ${isAlert ? 'alert-mode' : ''}`}>
+  if (!isAuthenticated) {
+    return (
+      <LoginOverlay onLogin={() => {
+        setIsAuthenticated(true);
+        addLog("[SYS] Authentication Successful: Officer Drishti Mishra - Sector 7 Access Granted", "safe");
+      }} />
+    );
+  }
 
-      {/* Top Navigation */}
-      <motion.nav
-        className="glass-panel nav-bar"
-        initial={{ y: -50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
+  return (
+    <div className={`hud-container ${isAlert ? 'alert-mode' : ''}`} style={{ display: 'grid', gridTemplateColumns: '260px 1fr 350px', gap: '1.5rem', height: '100vh', padding: '1.5rem', overflow: 'hidden' }}>
+
+      {/* Column 1 (Left): Navigation & System Health */}
+      <motion.div
+        className="glass-panel"
+        initial={{ x: -50, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }}
       >
         <div className="corner-brackets" />
-        <div className="hud-title">
-          <Shield className="icon" size={28} />
-          TRINETRA :: COMMAND
+        <div className="hud-title" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.2rem', paddingBottom: '1rem', borderBottom: '1px solid rgba(34, 197, 94, 0.2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Shield className="icon" size={24} /> TRINETRA</div>
+          <div style={{ fontSize: '0.65rem', color: 'gray', letterSpacing: '2px' }}>MINISTRY OF DEFENCE<br />[ BHARAT / INDIA ]</div>
         </div>
 
-        <div className="nav-links">
+        <div className="nav-links" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {['DASHBOARD', 'BORDER-SENTRY', 'GEO-EYE', 'TRACK-GUARD'].map(tab => (
             <button
               key={tab}
               className={`nav-btn ${activeTab === tab ? 'active' : ''}`}
               onClick={() => setActiveTab(tab)}
+              style={{ width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'flex-start' }}
             >
               {tab}
             </button>
           ))}
+        </div>
 
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <button
             className={`nav-btn btn-safe`}
-            style={{ padding: '0.2rem 0.5rem', marginLeft: '1rem', borderColor: isHindi ? 'var(--accent)' : 'gray', color: isHindi ? 'var(--accent)' : 'gray' }}
+            style={{ width: '100%', borderColor: isHindi ? 'var(--accent)' : 'gray', color: isHindi ? 'var(--accent)' : 'gray' }}
             onClick={() => setIsHindi(!isHindi)}
           >
-            {isHindi ? 'हिंदी' : 'ENG'}
+            {isHindi ? 'भाषा: हिंदी' : 'LANG: ENG'}
+          </button>
+
+          <button
+            className={`nav-btn btn-danger`}
+            style={{ width: '100%', borderColor: 'var(--danger)', color: 'var(--danger)' }}
+            onClick={() => {
+              setBorderData({ distance: 12, speed: 105, riskScore: 98, level: 'CRITICAL', xai: 'MANUAL OVERRIDE: FORCED BREACH DETECTED.', threat: 'TEST_HOSTILE' });
+              addLog("[SYS] MANUAL PROTOCOL 'TEST BREACH' INITIATED. GLOBAL ALERT STATE ACTIVE.", "critical");
+              playTacticalPing();
+            }}
+          >
+            <AlertTriangle size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} />
+            [ TEST BREACH ]
           </button>
 
           <button
             className={`nav-btn ${simActive ? 'btn-danger' : 'btn-safe'}`}
-            style={{ borderColor: simActive ? 'var(--warning)' : 'var(--safe)', color: simActive ? 'var(--warning)' : 'var(--safe)', marginLeft: '1rem' }}
+            style={{ width: '100%', borderColor: simActive ? 'var(--warning)' : 'var(--safe)', color: simActive ? 'var(--warning)' : 'var(--safe)' }}
             onClick={() => !simActive && setSimActive(true)}
           >
             {simActive ? `[ SIM RUNNING: ${simTick}s ]` : '[ START SIMULATION ]'}
           </button>
+
+          <div className="status-indicator" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '10px', padding: '1rem', background: 'rgba(0,0,0,0.5)', borderLeft: `2px solid ${isAlert ? 'var(--danger)' : 'var(--safe)'}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="status-dot" style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: isAlert ? 'var(--danger)' : 'var(--safe)', boxShadow: `0 0 10px ${isAlert ? 'var(--danger)' : 'var(--safe)'}` }}></div>
+              <span style={{ fontSize: '0.8rem', color: isAlert ? 'var(--danger)' : 'var(--safe)', fontWeight: 'bold' }}>
+                {isAlert ? 'DEFCON 1 (CRITICAL)' : 'DEFENSE GRID ONLINE'}
+              </span>
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'gray' }}>SYSTEM HEALTH: {100 - (simTick / 2)}%</div>
+          </div>
         </div>
+      </motion.div>
 
-        <div className="status-indicator" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {isAlert && (
-            <button onClick={handleGenerateReport} className="nav-btn btn-danger" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Download size={14} /> DISPATCH PDF
-            </button>
-          )}
-          <div className="status-dot" style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: isAlert ? 'var(--danger)' : 'var(--safe)', boxShadow: `0 0 10px ${isAlert ? 'var(--danger)' : 'var(--safe)'}` }}></div>
-          {isAlert ? <span style={{ color: 'var(--danger)' }}>DEFCON 1 INTERVENTION REQUIRED</span> : 'DEFENSE GRID ONLINE'}
-        </div>
-      </motion.nav>
-
-      {/* Main Content Area */}
-      <div className="main-content">
-
-        {/* Dynamic View Area */}
-        <div className="view-area">
+      {/* Column 2 (Center): The Main 'Eye' Feed (16:9) */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', height: '100%' }}>
+        <div style={{ width: '100%', aspectRatio: '16/9', position: 'relative', display: 'flex', flexDirection: 'column' }}>
           <AnimatePresence mode='wait'>
 
             {activeTab === 'DASHBOARD' && (
@@ -412,9 +527,13 @@ export default function App() {
                   onMouseLeave={endDrawROI}
                 >
                   <video
-                    src="https://assets.mixkit.co/videos/preview/mixkit-curvy-road-on-a-tree-covered-hill-41537-large.mp4"
-                    autoPlay loop muted playsInline
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6, filter: isAlert ? 'sepia(1) hue-rotate(-50deg) saturate(3)' : 'grayscale(0.5) contrast(1.2)', pointerEvents: 'none' }}
+                    ref={videoRef}
+                    autoPlay playsInline muted
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                  />
+                  <canvas
+                    ref={canvasRef}
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
                   />
 
                   {/* Manual ROI Rendering */}
@@ -471,43 +590,33 @@ export default function App() {
                 <div className="topo-bg" />
                 <div className="corner-brackets" />
                 <div style={{ color: 'var(--accent)', letterSpacing: '2px', display: 'flex', justifyContent: 'space-between' }}>
-                  <span><Scan size={16} style={{ display: 'inline', verticalAlign: 'middle' }} /> SATELLITE TERRAIN HEATMAP (MINING DETECTION)</span>
+                  <span><Scan size={16} style={{ display: 'inline', verticalAlign: 'middle' }} /> GIS: SECTOR-7 COMMAND OVERWATCH [JHARKHAND]</span>
                   <button onClick={triggerGeoScan} disabled={geoData.scanning} style={{ background: geoData.scanning ? 'var(--warning)' : 'transparent', border: '1px solid var(--accent)', color: geoData.scanning ? 'black' : 'var(--accent)', padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>
                     {geoData.scanning ? '[ SCANNING... ]' : '[ RUN SUBTRACTION SCAN ]'}
                   </button>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', flex: 1 }}>
-                  <div style={{ border: '1px solid rgba(34,197,94,0.3)', position: 'relative', background: 'url(https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=800) center/cover', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,10,0,0.6)' }} />
-                    <span style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(0,0,0,0.8)', padding: '2px 5px', fontSize: '0.7rem' }}>T-0 (BASE)</span>
-                  </div>
+                <div style={{ flex: 1, borderRadius: '8px', overflow: 'hidden', border: `2px solid ${geoData.scanning ? 'var(--warning)' : 'var(--glass-border)'}` }}>
+                  <MapContainer center={[23.6102, 85.2799]} zoom={13} style={{ height: '100%', width: '100%', backgroundColor: '#0a0a0a' }}>
+                    <TileLayer
+                      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                      attribution="Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+                    />
 
-                  <div style={{ border: `1px solid ${geoData.scanning ? 'var(--warning)' : 'rgba(34,197,94,0.3)'}`, position: 'relative', background: 'url(https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=800) center/cover', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                    <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,10,0,0.6)' }} />
-
-                    <span style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(0,0,0,0.8)', padding: '2px 5px', fontSize: '0.7rem' }}>T-1 (WITH HEATMAP)</span>
-
-                    {/* Overlay Heatmap Changes */}
                     {geoData.changes.map((change, idx) => (
-                      <motion.div
+                      <Circle
                         key={idx}
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: [1, 1.2, 1], opacity: 0.8 }}
-                        transition={{ duration: 1.5, repeat: Infinity }}
-                        style={{
-                          position: 'absolute',
-                          top: change.top, left: change.left,
-                          width: change.size, height: change.size,
-                          borderRadius: '50%',
-                          backgroundColor: 'red',
-                          filter: 'blur(10px)',
-                          boxShadow: '0 0 20px 10px red'
-                        }}
-                      />
+                        center={[change.lat, change.lng]}
+                        radius={change.radius}
+                        pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.5 }}
+                      >
+                        <Popup>
+                          <strong>CRITICAL RISK: {change.risk}%</strong><br />
+                          Suspected Illegal Mining Encroachment.
+                        </Popup>
+                      </Circle>
                     ))}
-
-                  </div>
+                  </MapContainer>
                 </div>
               </motion.div>
             )}
@@ -565,38 +674,50 @@ export default function App() {
 
           </AnimatePresence>
         </div>
-
-        {/* Right Alert Sidebar */}
-        <motion.div
-          className="glass-panel alert-sidebar"
-          animate={{
-            borderColor: isAlert ? 'var(--danger)' : 'var(--glass-border)',
-            boxShadow: isAlert ? '0 0 20px rgba(220, 38, 38, 0.2), inset 0 0 15px rgba(220, 38, 38, 0.1)' : '0 0 15px rgba(34, 197, 94, 0.1), inset 0 0 20px rgba(0,0,0,0.8)'
-          }}
-        >
-          <div className="corner-brackets" />
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1rem', color: isAlert ? 'var(--danger)' : 'var(--accent)', textShadow: isAlert ? '0 0 5px rgba(220, 38, 38, 0.5)' : '0 0 5px var(--accent-glow)' }}>
-            <Terminal size={18} /> LIVE SYSTEM LOGS
-          </h3>
-
-          <div className="console-font" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, overflowY: 'auto', paddingRight: '5px' }}>
-            <AnimatePresence initial={false}>
-              {logs.map((log) => (
-                <motion.div
-                  key={log.id}
-                  initial={{ opacity: 0, x: -20, height: 0 }} animate={{ opacity: 1, x: 0, height: 'auto' }}
-                  className={`log-entry ${log.type === 'critical' ? 'critical' : log.type === 'warning' ? 'warning' : ''}`}
-                  style={{ fontSize: '0.75rem', wordBreak: 'break-word' }}
-                >
-                  <TypewriterText text={log.text} speed={10} />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-            <div ref={logsEndRef} />
-          </div>
-        </motion.div>
-
       </div>
+
+      {/* Column 3 (Right): Real-time Logs & Incident Report controls */}
+      <motion.div
+        className="glass-panel alert-sidebar"
+        initial={{ x: 50, opacity: 0 }}
+        animate={{
+          x: 0, opacity: 1,
+          borderColor: isAlert ? 'var(--danger)' : 'var(--glass-border)',
+          boxShadow: isAlert ? '0 0 20px rgba(220, 38, 38, 0.2), inset 0 0 15px rgba(220, 38, 38, 0.1)' : '0 0 15px rgba(34, 197, 94, 0.1), inset 0 0 20px rgba(0,0,0,0.8)'
+        }}
+        style={{ width: '100%', display: 'flex', flexDirection: 'column' }}
+      >
+        <div className="corner-brackets" />
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1rem', color: isAlert ? 'var(--danger)' : 'var(--accent)', textShadow: isAlert ? '0 0 5px rgba(220, 38, 38, 0.5)' : '0 0 5px var(--accent-glow)', marginBottom: '1rem' }}>
+          <Terminal size={18} /> INCIDENT & LOGS
+        </h3>
+
+        {isAlert && (
+          <button
+            onClick={handleGenerateReport}
+            className="nav-btn btn-danger"
+            style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '5px', padding: '1rem', marginBottom: '1.5rem', animation: 'pulse 1.5s infinite' }}
+          >
+            <Download size={18} /> DISPATCH INCIDENT PDF
+          </button>
+        )}
+
+        <div className="console-font" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, overflowY: 'auto', paddingRight: '5px' }}>
+          <AnimatePresence initial={false}>
+            {logs.map((log) => (
+              <motion.div
+                key={log.id}
+                initial={{ opacity: 0, x: -20, height: 0 }} animate={{ opacity: 1, x: 0, height: 'auto' }}
+                className={`log-entry ${log.type === 'critical' ? 'critical' : log.type === 'warning' ? 'warning' : ''}`}
+                style={{ fontSize: '0.75rem', wordBreak: 'break-word' }}
+              >
+                <TypewriterText text={log.text} speed={10} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          <div ref={logsEndRef} />
+        </div>
+      </motion.div>
     </div>
   );
 }
