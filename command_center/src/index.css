@@ -346,3 +346,27 @@ body.alert-mode {
   opacity: 0.7;
   text-transform: uppercase;
 }
+
+/* --- Added WebCrypto / TFJS Upgrades (v4.0) --- */
+.radar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(from 0deg, transparent 70%, rgba(34, 197, 94, 0.4) 100%);
+  animation: radar-sweep 4s linear infinite;
+  box-shadow: inset 0 0 50px rgba(34, 197, 94, 0.2);
+}
+
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

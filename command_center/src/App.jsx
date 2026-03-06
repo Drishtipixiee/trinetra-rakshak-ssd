@@ -2,13 +2,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Shield, Activity, AlertTriangle,
-  Terminal, Video, Target, Radio, Train, Scan, Download, User
+  Shield, Activity, AlertTriangle, Fingerprint, Lock,
+  Map as MapIcon, Video, Target, Radio, Scan, Train, Download, Terminal
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { MapContainer, TileLayer, Circle, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
+import { MapContainer, TileLayer, Circle, Popup } from 'react-leaflet';
 import axios from 'axios';
+import * as cocossd from '@tensorflow-models/coco-ssd';
 
 // --- Subcomponents ---
 const TypewriterText = ({ text, speed = 10, className = '' }) => {
@@ -35,12 +35,37 @@ const TypewriterText = ({ text, speed = 10, className = '' }) => {
 };
 
 const LoginOverlay = ({ onLogin }) => {
-  const [loading, setLoading] = useState(false);
-  const handleAuth = () => {
-    setLoading(true);
-    setTimeout(() => {
-      onLogin();
-    }, 1500);
+  const [authStatus, setAuthStatus] = useState('AWAITING_BIOMETRIC');
+
+  const handleWebCryptoAuth = async () => {
+    try {
+      setAuthStatus('GENERATING_KEY');
+
+      // Simulate Public-Key Handshake using Web Crypto API
+      await window.crypto.subtle.generateKey(
+        {
+          name: "RSA-OAEP",
+          modulusLength: 2048,
+          publicExponent: new Uint8Array([1, 0, 1]),
+          hash: "SHA-256",
+        },
+        true,
+        ["encrypt", "decrypt"]
+      );
+
+      setAuthStatus('HANDSHAKE_VERIFIED');
+
+      setTimeout(() => {
+        setAuthStatus('SUCCESS');
+        setTimeout(() => {
+          onLogin();
+        }, 800);
+      }, 1000);
+
+    } catch (e) {
+      console.error(e);
+      setAuthStatus('DENIED');
+    }
   };
 
   return (
@@ -58,40 +83,49 @@ const LoginOverlay = ({ onLogin }) => {
         style={{
           width: '500px', display: 'flex', flexDirection: 'column',
           alignItems: 'center', padding: '3rem',
-          border: '1px solid var(--accent)',
-          boxShadow: '0 0 40px rgba(34, 197, 94, 0.15), inset 0 0 20px rgba(0,0,0,0.8)'
+          border: `1px solid ${authStatus === 'SUCCESS' ? 'var(--safe)' : 'var(--accent)'}`,
+          boxShadow: `0 0 40px ${authStatus === 'SUCCESS' ? 'rgba(34,197,94,0.3)' : 'rgba(34, 197, 94, 0.15)'}, inset 0 0 20px rgba(0,0,0,0.8)`,
+          transition: 'all 0.5s ease'
         }}
       >
         <div className="corner-brackets" />
-        <Shield size={56} style={{ color: 'var(--accent)', marginBottom: '1rem', filter: 'drop-shadow(0 0 10px var(--accent-glow))' }} />
-        <h2 style={{ fontSize: '1.8rem', color: 'var(--accent)', letterSpacing: '4px', margin: '0 0 0.5rem 0', textShadow: '0 0 10px var(--accent-glow)' }}>
+
+        <motion.div
+          animate={authStatus === 'GENERATING_KEY' || authStatus === 'HANDSHAKE_VERIFIED' ? {
+            scale: [1, 1.1, 1],
+            opacity: [0.5, 1, 0.5]
+          } : {}}
+          transition={{ repeat: Infinity, duration: 1 }}
+          style={{ marginBottom: '1.5rem', color: authStatus === 'SUCCESS' ? 'var(--safe)' : 'var(--accent)', filter: `drop-shadow(0 0 10px ${authStatus === 'SUCCESS' ? 'var(--safe)' : 'var(--accent-glow)'})` }}
+        >
+          {authStatus === 'SUCCESS' ? <Lock size={64} /> : <Fingerprint size={64} />}
+        </motion.div>
+
+        <h2 style={{ fontSize: '1.5rem', color: authStatus === 'SUCCESS' ? 'var(--safe)' : 'var(--accent)', letterSpacing: '4px', margin: '0 0 0.5rem 0', textShadow: `0 0 10px ${authStatus === 'SUCCESS' ? 'var(--safe)' : 'var(--accent-glow)'}` }}>
           TRINETRA COMMAND
         </h2>
-        <div style={{ fontSize: '0.8rem', color: 'var(--accent)', opacity: 0.7, letterSpacing: '3px', marginBottom: '2.5rem' }}>
-          SECURE BIOMETRIC PROTOCOL
+
+        <div style={{ fontSize: '0.8rem', color: 'var(--accent)', opacity: 0.7, letterSpacing: '3px', marginBottom: '2.5rem', height: '1rem' }}>
+          {authStatus === 'AWAITING_BIOMETRIC' && 'BIOMETRIC GATEWAY LOCKED'}
+          {authStatus === 'GENERATING_KEY' && 'GENERATING RSA-OAEP 2048-BIT KEY...'}
+          {authStatus === 'HANDSHAKE_VERIFIED' && 'PUBLIC-KEY HANDSHAKE VERIFIED'}
+          {authStatus === 'SUCCESS' && <span style={{ color: 'var(--safe)' }}>OFFICER DRISHTI MISHRA - SECTOR 7 AUTHENTICATED</span>}
         </div>
 
-        <button
-          onClick={handleAuth}
-          disabled={loading}
-          className="nav-btn"
-          style={{
-            width: '100%', padding: '1rem',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.8rem',
-            fontSize: '1rem', fontWeight: 'bold'
-          }}
-        >
-          {loading ? (
-            <>
-              <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} style={{ display: 'flex' }}>
-                <Scan size={20} />
-              </motion.div>
-              [ SCANNING BIOMETRICS... ]
-            </>
-          ) : (
-            <><User size={20} /> [ INITIATE ACCESS ]</>
-          )}
-        </button>
+        {authStatus === 'AWAITING_BIOMETRIC' && (
+          <button
+            onClick={handleWebCryptoAuth}
+            className="nav-btn"
+            style={{
+              width: '100%', padding: '1rem',
+              display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.8rem',
+              fontSize: '1rem', fontWeight: 'bold'
+            }}
+          >
+            <Scan size={20} /> [ INITIATE BIOMETRIC SCAN ]
+          </button>
+        )}
+
       </motion.div>
     </div>
   );
@@ -112,8 +146,8 @@ const playTacticalPing = () => {
     gain.connect(actx.destination);
     osc.start();
     osc.stop(actx.currentTime + 0.5);
-  } catch (e) {
-    console.log("Audio play failed");
+  } catch (err) {
+    console.log("Audio play failed", err);
   }
 };
 
@@ -140,6 +174,10 @@ export default function App() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
+  // TF.js State
+  const [model, setModel] = useState(null);
+  const requestRef = useRef(null);
+
   // States
   const [isHindi, setIsHindi] = useState(false);
   const [simActive, setSimActive] = useState(false);
@@ -160,24 +198,109 @@ export default function App() {
   const isAlert = borderData.level === 'CRITICAL';
 
   useEffect(() => {
+    cocossd.load().then(loadedModel => {
+      setModel(loadedModel);
+      addLog("[SYS] TFJS Object Detection Model Loaded Successfully.", "safe");
+    }).catch(err => {
+      console.error(err);
+      addLog("[ERR] Failed to load local TF.js model.", "critical");
+    });
+  }, []);
+
+  const detectFrame = async () => {
+    if (videoRef.current && canvasRef.current && model && videoRef.current.readyState === 4) {
+      const video = videoRef.current;
+      const predictions = await model.detect(video);
+
+      const ctx = canvasRef.current.getContext('2d');
+      // Match canvas size to video size
+      canvasRef.current.width = video.videoWidth;
+      canvasRef.current.height = video.videoHeight;
+
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+      let maxRisk = 0;
+      let primaryThreat = 'None';
+
+      predictions.forEach(prediction => {
+        // TF.js bounding box: [x, y, width, height]
+        const [x, y, width, height] = prediction.bbox;
+        const text = `${prediction.class} | ${Math.round(prediction.score * 100)}%`;
+
+        // Higher risk for lower confidence or 'person'
+        const baseRisk = prediction.class === 'person' ? 60 : 20;
+        const currentRisk = Math.min(99, baseRisk + (100 - Math.round(prediction.score * 100)));
+
+        if (currentRisk > maxRisk) {
+          maxRisk = currentRisk;
+          primaryThreat = prediction.class.toUpperCase();
+        }
+
+        const color = currentRisk > 75 ? '#dc2626' : currentRisk > 40 ? '#f59e0b' : '#22c55e';
+
+        // Draw bounding box
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+
+        // Adjust X coordinate because we flip the video via CSS
+        const flippedX = ctx.canvas.width - x - width;
+        ctx.strokeRect(flippedX, y, width, height);
+
+        // Draw background block for text
+        ctx.fillStyle = color;
+        ctx.fillRect(flippedX, y - 25, ctx.measureText(text).width + 10, 25);
+
+        // Draw text
+        ctx.fillStyle = '#000000';
+        ctx.font = '16px "Share Tech Mono"';
+        ctx.fillText(text, flippedX + 5, y - 8);
+      });
+
+      if (predictions.length > 0 && Math.random() > 0.9) {
+        // Update fuzzy state dynamically without overwhelming the React render cycle
+        setBorderData(prev => ({
+          ...prev,
+          level: maxRisk > 75 ? 'CRITICAL' : maxRisk > 40 ? 'WARNING' : 'LOW',
+          threat: primaryThreat,
+          riskScore: maxRisk
+        }));
+      }
+
+      requestRef.current = requestAnimationFrame(detectFrame);
+    }
+  };
+
+  useEffect(() => {
     if (activeTab === 'BORDER-SENTRY' && videoRef.current) {
-      navigator.mediaDevices.getUserMedia({ video: true })
+      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
         .then(stream => {
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
+            // Need to wait until video is playing before running detection
+            videoRef.current.onloadeddata = () => {
+              if (model) {
+                detectFrame();
+              }
+            };
           }
         })
         .catch(err => {
           console.error("Webcam access denied or unavailable.", err);
           addLog("[ERR] Failed to access localized optical sensor (Webcam).", "warning");
         });
-    } else if (activeTab !== 'BORDER-SENTRY' && videoRef.current && videoRef.current.srcObject) {
-      // Optional: Turn off camera when navigating away to save resources
-      const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach(track => track.stop());
-      videoRef.current.srcObject = null;
+    } else {
+      // Cleanup webcam and RAF loop
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      if (videoRef.current && videoRef.current.srcObject) {
+        const tracks = videoRef.current.srcObject.getTracks();
+        tracks.forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
     }
-  }, [activeTab]);
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, [activeTab, model]);
 
   useEffect(() => {
     if (isAlert) document.body.classList.add('alert-mode');
@@ -248,14 +371,15 @@ export default function App() {
         const { risk_score, xai_reasoning, threat_class } = res.data;
         const level = risk_score >= 70 ? 'CRITICAL' : risk_score >= 40 ? 'WARNING' : 'LOW';
 
-        setBorderData({
+        setBorderData(prev => ({
+          ...prev,
           distance: newDistance.toFixed(1),
           speed: newSpeed.toFixed(1),
           riskScore: risk_score,
           level: level,
           xai: xai_reasoning,
           threat: threat_class
-        });
+        }));
 
         setThreatHistory(prev => {
           const h = [...prev, { time: `${simTick}s`, val: risk_score }];
@@ -315,7 +439,7 @@ export default function App() {
         setRoiBox(null);
       }, 3000);
     }
-  }, [simTick, simActive]);
+  }, [simTick, simActive, trackData.detected, borderData.level, borderData.speed, borderData.distance]);
 
   // --- Handlers for ROI Drawing ---
   const startDrawROI = (e) => {
@@ -596,11 +720,11 @@ export default function App() {
                   </button>
                 </div>
 
-                <div style={{ flex: 1, borderRadius: '8px', overflow: 'hidden', border: `2px solid ${geoData.scanning ? 'var(--warning)' : 'var(--glass-border)'}` }}>
-                  <MapContainer center={[23.6102, 85.2799]} zoom={13} style={{ height: '100%', width: '100%', backgroundColor: '#0a0a0a' }}>
+                <div style={{ flex: 1, borderRadius: '8px', overflow: 'hidden', border: `2px solid ${geoData.scanning ? 'var(--warning)' : 'var(--glass-border)'}`, position: 'relative' }}>
+                  <MapContainer center={[23.75, 86.41]} zoom={13} style={{ height: '100%', width: '100%', backgroundColor: '#0a0a0a' }}>
                     <TileLayer
                       url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                      attribution="Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+                      attribution="Tiles &copy; Esri &mdash; Source: Esri."
                     />
 
                     {geoData.changes.map((change, idx) => (
@@ -612,11 +736,12 @@ export default function App() {
                       >
                         <Popup>
                           <strong>CRITICAL RISK: {change.risk}%</strong><br />
-                          Suspected Illegal Mining Encroachment.
+                          Suspected Illegal Mining / Heat Anomaly.
                         </Popup>
                       </Circle>
                     ))}
                   </MapContainer>
+                  {geoData.scanning && <div className="radar-overlay"></div>}
                 </div>
               </motion.div>
             )}
