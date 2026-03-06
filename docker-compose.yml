@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+
+  frontend:
+    build: ./command_center
+    ports:
+      - "5173:5173"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./command_center/src:/app/src
+    depends_on:
+      - backend
+
+  mock_stream:
+    build: ./backend
+    command: python -c "import time, requests, random; time.sleep(10); print('Mock Stream Started');\nwhile True:\n  try:\n    res=requests.get('http://backend:5000/api/status')\n  except Exception as e: pass\n  time.sleep(10)"
+    depends_on:
+      - backend

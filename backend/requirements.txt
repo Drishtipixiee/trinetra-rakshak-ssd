@@ -1,0 +1,7 @@
+Flask==3.0.2
+Flask-Cors==4.0.0
+scikit-fuzzy==0.5.0
+networkx==3.6.1
+numpy==2.2.4
+opencv-python==4.9.0.80
+fpdf2>=2.7.0
