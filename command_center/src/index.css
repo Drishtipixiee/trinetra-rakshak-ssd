@@ -1975,3 +1975,314 @@ body.alert-mode .hud-container {
   font-size: 0.75rem;
   color: #ef4444;
 }
+
+/* ═══════════════════════════════════════
+   AI THREAT ANALYST PANEL
+   ═══════════════════════════════════════ */
+
+.ai-analyst-toggle {
+  position: fixed;
+  bottom: 20px;
+  right: 78px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--glass-bg);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  color: #a855f7;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9990;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.ai-analyst-toggle:hover {
+  box-shadow: 0 4px 20px rgba(168, 85, 247, 0.3);
+  transform: scale(1.05);
+}
+
+.ai-analyst-toggle.open {
+  background: #a855f7;
+  color: #000;
+}
+
+.ai-analyst-panel {
+  position: fixed;
+  bottom: 78px;
+  right: 78px;
+  width: 380px;
+  max-height: 520px;
+  background: rgba(5, 5, 15, 0.97);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: 14px;
+  z-index: 9989;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(168, 85, 247, 0.08);
+  backdrop-filter: blur(20px);
+}
+
+.ai-analyst-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: rgba(168, 85, 247, 0.08);
+  border-bottom: 1px solid rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+  font-family: 'Share Tech Mono';
+}
+
+.ai-analyst-close {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-dim);
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.ai-analyst-close:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.ai-analyst-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 200px;
+  max-height: 340px;
+}
+
+.ai-msg {
+  display: flex;
+  gap: 6px;
+  animation: slideInRight 0.3s ease;
+}
+
+.ai-msg.user {
+  flex-direction: row-reverse;
+}
+
+.ai-msg-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a855f7;
+  flex-shrink: 0;
+}
+
+.ai-msg-bubble {
+  max-width: 85%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+.ai-msg.ai .ai-msg-bubble {
+  background: rgba(168, 85, 247, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.12);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.ai-msg.user .ai-msg-bubble {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  color: var(--accent);
+}
+
+.ai-msg-text {
+  word-break: break-word;
+}
+
+.ai-msg-text strong {
+  color: #c084fc;
+}
+
+.ai-msg-time {
+  font-family: 'Share Tech Mono';
+  font-size: 0.45rem;
+  color: var(--text-dim);
+  margin-top: 3px;
+  text-align: right;
+}
+
+.ai-typing {
+  display: flex;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a855f7;
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+
+  30% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+.ai-quick-prompts {
+  display: flex;
+  gap: 4px;
+  padding: 6px 10px;
+  overflow-x: auto;
+  border-top: 1px solid rgba(168, 85, 247, 0.08);
+}
+
+.ai-quick-btn {
+  background: rgba(168, 85, 247, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  font-family: 'Share Tech Mono';
+  font-size: 0.55rem;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.ai-quick-btn:hover {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: #a855f7;
+}
+
+.ai-analyst-input {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border-top: 1px solid rgba(168, 85, 247, 0.1);
+}
+
+.ai-analyst-input input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(168, 85, 247, 0.15);
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: var(--text-main);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.7rem;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.ai-analyst-input input:focus {
+  border-color: #a855f7;
+}
+
+.ai-analyst-input input::placeholder {
+  color: var(--text-dim);
+}
+
+.ai-analyst-input button {
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: #a855f7;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.ai-analyst-input button:hover:not(:disabled) {
+  background: #a855f7;
+  color: #000;
+}
+
+.ai-analyst-input button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════
+   LOGIN FORM
+   ═══════════════════════════════════════ */
+
+.login-input-group {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.login-label {
+  display: block;
+  font-family: 'Share Tech Mono';
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.login-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--accent);
+  font-family: 'Share Tech Mono';
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.login-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.login-input::placeholder {
+  color: rgba(34, 197, 94, 0.3);
+}
+
+.login-error {
+  color: var(--danger);
+  font-family: 'Share Tech Mono';
+  font-size: 0.65rem;
+  text-align: center;
+  margin-top: 8px;
+  letter-spacing: 1px;
+}

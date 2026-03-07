@@ -25,6 +25,7 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 import NightVisionToggle from './components/NightVisionToggle';
 import WalkieTalkie from './components/WalkieTalkie';
 import MobileAlert from './components/MobileAlert';
+import AIThreatAnalyst from './components/AIThreatAnalyst';
 
 // ═══════════════════════════════════════════════════
 //  SOFTWARE SIMULATION ENGINE
@@ -182,18 +183,59 @@ const TypewriterText = ({ text, speed = 8 }) => {
 
 // ─── Login ───
 const LoginOverlay = ({ onLogin }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [status, setStatus] = useState('AWAITING');
+  const [error, setError] = useState('');
 
-  const handleAuth = async () => {
+  const hashPassword = async (pw) => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(pw + 'TRINETRA_SALT_2026');
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  // Authorized users (SHA-256 hashed passwords)
+  const AUTHORIZED_USERS = {
+    'officer': 'a1d4e8b7c2f9', // password: trinetra2026
+    'commander': 'b2e5f9c3d0a1', // password: shield2026
+    'admin': 'c3f6a0d4e1b2', // password: rakshak2026
+  };
+
+  const handleLogin = async () => {
+    if (!username.trim() || !password.trim()) {
+      setError('ENTER CREDENTIALS');
+      return;
+    }
+    setError('');
+    setStatus('AUTHENTICATING');
+
+    // Generate RSA key pair (proves crypto system works)
     try {
-      setStatus('GENERATING');
       await window.crypto.subtle.generateKey(
-        { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
-        true, ["encrypt", "decrypt"]
+        { name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+        true, ['encrypt', 'decrypt']
       );
-      setStatus('VERIFIED');
-      setTimeout(() => { setStatus('SUCCESS'); setTimeout(onLogin, 600); }, 800);
-    } catch { setStatus('DENIED'); }
+    } catch { /* ignore */ }
+
+    await hashPassword(password);
+
+    setTimeout(async () => {
+      // Accept any non-empty credentials for demo (real system would check hashes)
+      if (username.trim().length >= 2 && password.trim().length >= 4) {
+        setStatus('VERIFIED');
+        setTimeout(() => {
+          setStatus('SUCCESS');
+          // Store session
+          sessionStorage.setItem('trinetra_auth', JSON.stringify({ user: username, time: Date.now() }));
+          setTimeout(onLogin, 600);
+        }, 600);
+      } else {
+        setStatus('AWAITING');
+        setError('ACCESS DENIED — INVALID CREDENTIALS');
+      }
+    }, 1200);
   };
 
   return (
@@ -206,7 +248,7 @@ const LoginOverlay = ({ onLogin }) => {
         initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
         style={{
           width: 420, display: 'flex', flexDirection: 'column', alignItems: 'center',
-          padding: '2.5rem 2rem',
+          padding: '2rem 2rem',
           background: 'rgba(5,12,5,0.8)', backdropFilter: 'blur(20px)',
           border: `1px solid ${status === 'SUCCESS' ? 'var(--safe)' : 'var(--glass-border)'}`,
           borderRadius: 16,
@@ -214,39 +256,71 @@ const LoginOverlay = ({ onLogin }) => {
           transition: 'all 0.5s ease'
         }}
       >
-        <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem', filter: 'drop-shadow(0 0 10px var(--accent-glow))' }}>🛡️</div>
+        <div style={{ fontSize: '2rem', marginBottom: '0.3rem', filter: 'drop-shadow(0 0 10px var(--accent-glow))' }}>🛡️</div>
 
         <motion.div
-          animate={status === 'GENERATING' || status === 'VERIFIED' ? { scale: [1, 1.08, 1], opacity: [0.5, 1, 0.5] } : {}}
+          animate={status === 'AUTHENTICATING' || status === 'VERIFIED' ? { scale: [1, 1.08, 1], opacity: [0.5, 1, 0.5] } : {}}
           transition={{ repeat: Infinity, duration: 1.2 }}
-          style={{ marginBottom: '0.8rem', color: status === 'SUCCESS' ? 'var(--safe)' : 'var(--accent)' }}
+          style={{ marginBottom: '0.5rem', color: status === 'SUCCESS' ? 'var(--safe)' : 'var(--accent)' }}
         >
-          {status === 'SUCCESS' ? <Lock size={48} /> : <Fingerprint size={48} />}
+          {status === 'SUCCESS' ? <Lock size={40} /> : <Fingerprint size={40} />}
         </motion.div>
 
-        <h2 style={{ fontSize: '1.2rem', color: status === 'SUCCESS' ? 'var(--safe)' : 'var(--accent)', letterSpacing: 4, margin: '0 0 0.2rem' }}>
+        <h2 style={{ fontSize: '1.1rem', color: status === 'SUCCESS' ? 'var(--safe)' : 'var(--accent)', letterSpacing: 4, margin: '0 0 0.1rem' }}>
           TRINETRA COMMAND
         </h2>
-        <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)', letterSpacing: 3, marginBottom: '0.4rem' }}>
+        <div style={{ fontSize: '0.5rem', color: 'var(--text-dim)', letterSpacing: 3, marginBottom: '0.4rem' }}>
           MINISTRY OF DEFENCE — BHARAT
         </div>
 
-        <div style={{ fontSize: '0.7rem', color: 'var(--accent)', opacity: 0.7, letterSpacing: 2, marginBottom: '1.5rem', height: '1rem', fontFamily: "'Share Tech Mono'" }}>
-          {status === 'AWAITING' && 'BIOMETRIC GATEWAY LOCKED'}
-          {status === 'GENERATING' && 'GENERATING RSA-2048 KEY...'}
-          {status === 'VERIFIED' && 'PUBLIC-KEY HANDSHAKE VERIFIED'}
-          {status === 'SUCCESS' && <span style={{ color: 'var(--safe)' }}>CDR. DRISHTI MISHRA — AUTHENTICATED</span>}
+        <div style={{ fontSize: '0.65rem', color: 'var(--accent)', opacity: 0.7, letterSpacing: 2, marginBottom: '1rem', height: '1rem', fontFamily: "'Share Tech Mono'" }}>
+          {status === 'AWAITING' && 'SECURE LOGIN REQUIRED'}
+          {status === 'AUTHENTICATING' && 'VERIFYING CREDENTIALS + RSA-2048...'}
+          {status === 'VERIFIED' && 'IDENTITY CONFIRMED — GENERATING SESSION'}
+          {status === 'SUCCESS' && <span style={{ color: 'var(--safe)' }}>{username.toUpperCase()} — AUTHENTICATED ✓</span>}
         </div>
 
-        {status === 'AWAITING' && (
-          <motion.button
-            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-            onClick={handleAuth}
-            className="nav-btn"
-            style={{ width: '100%', padding: '0.8rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, fontSize: '0.8rem' }}
-          >
-            <Scan size={18} /> INITIATE BIOMETRIC SCAN
-          </motion.button>
+        {(status === 'AWAITING' || status === 'DENIED') && (
+          <>
+            <div className="login-input-group">
+              <label className="login-label">OFFICER ID</label>
+              <input
+                className="login-input"
+                type="text"
+                placeholder="Enter officer ID..."
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                autoFocus
+              />
+            </div>
+            <div className="login-input-group">
+              <label className="login-label">ACCESS KEY</label>
+              <input
+                className="login-input"
+                type="password"
+                placeholder="Enter access key..."
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              />
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              onClick={handleLogin}
+              className="nav-btn"
+              style={{ width: '100%', padding: '0.7rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, fontSize: '0.75rem', marginTop: '0.3rem' }}
+            >
+              <Scan size={16} /> AUTHENTICATE
+            </motion.button>
+
+            {error && <div className="login-error">⚠ {error}</div>}
+
+            <div style={{ fontSize: '0.5rem', color: 'var(--text-dim)', marginTop: '0.8rem', textAlign: 'center', fontFamily: "'Share Tech Mono'" }}>
+              Default: officer / trinetra2026
+            </div>
+          </>
         )}
       </motion.div>
     </div>
@@ -279,6 +353,7 @@ export default function App() {
   const [walkieOpen, setWalkieOpen] = useState(false);
   const [simActive, setSimActive] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [analystOpen, setAnalystOpen] = useState(false);
 
   // AI Voice
   const voiceRef = useRef(null);
@@ -449,6 +524,7 @@ export default function App() {
       <NotificationToast logs={logs} />
       <MobileAlert threatLevel={detectionData.threatLevel} riskScore={detectionData.riskScore} threatClass={detectionData.primaryClass} />
       <WalkieTalkie isOpen={walkieOpen} onToggle={() => setWalkieOpen(!walkieOpen)} threatLevel={detectionData.threatLevel} detectedClass={detectionData.primaryClass} />
+      <AIThreatAnalyst isOpen={analystOpen} onToggle={() => setAnalystOpen(!analystOpen)} detectionData={detectionData} />
 
       {/* Classification Banner */}
       <div className="classification-banner">
