@@ -1,156 +1,232 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Video, Maximize2, X, AlertTriangle } from 'lucide-react';
+import { Video, Maximize2, X, AlertTriangle, Shield } from 'lucide-react';
 
 const CAMERAS = [
-    { id: 'CAM-01', name: 'GATE ALPHA', sector: 'SEC-7A', status: 'ONLINE', lat: '28.6139°N', lng: '77.2090°E' },
-    { id: 'CAM-02', name: 'PERIMETER NORTH', sector: 'SEC-7B', status: 'ONLINE', lat: '28.6145°N', lng: '77.2078°E' },
-    { id: 'CAM-03', name: 'CORRIDOR-7', sector: 'SEC-7C', status: 'DEGRADED', lat: '28.6128°N', lng: '77.2095°E' },
-    { id: 'CAM-04', name: 'WATCHTOWER-3', sector: 'SEC-7D', status: 'ONLINE', lat: '28.6152°N', lng: '77.2102°E' },
+    {
+        id: 'CAM-01', name: 'MAIN GATE — SEC-7A', coords: 'N28°38\'12" E77°13\'04"',
+        scenario: [
+            { time: [0, 15], detections: [], status: 'CLEAR' },
+            { time: [15, 25], detections: [{ class: 'vehicle', conf: 82, x: 30, y: 40, w: 22, h: 14, risk: 55 }], status: 'VEHICLE APPROACHING' },
+            { time: [25, 40], detections: [{ class: 'person', conf: 91, x: 55, y: 30, w: 10, h: 28, risk: 75 }], status: 'PERSONNEL EXITING VEHICLE' },
+            { time: [40, 60], detections: [], status: 'ACCESS GRANTED' },
+        ]
+    },
+    {
+        id: 'CAM-02', name: 'PERIMETER NORTH', coords: 'N28°38\'18" E77°13\'09"',
+        scenario: [
+            { time: [0, 20], detections: [], status: 'SCANNING' },
+            {
+                time: [20, 35], detections: [
+                    { class: 'person', conf: 68, x: 65, y: 35, w: 8, h: 22, risk: 62 },
+                    { class: 'person', conf: 55, x: 72, y: 38, w: 7, h: 20, risk: 58 },
+                ], status: '⚠ 2 UNKNOWNS DETECTED'
+            },
+            { time: [35, 50], detections: [{ class: 'person', conf: 78, x: 50, y: 30, w: 12, h: 30, risk: 82 }], status: '⚠ BREACH ATTEMPT' },
+            { time: [50, 60], detections: [], status: 'THREAT NEUTRALIZED' },
+        ]
+    },
+    {
+        id: 'CAM-03', name: 'EAST WATCHTOWER', coords: 'N28°38\'15" E77°13\'15"',
+        scenario: [
+            { time: [0, 10], detections: [], status: 'CLEAR' },
+            { time: [10, 30], detections: [{ class: 'animal', conf: 88, x: 40, y: 50, w: 15, h: 10, risk: 20 }], status: 'WILDLIFE (STRAY DOG)' },
+            { time: [30, 45], detections: [], status: 'CLEAR — AUTO-CLASSIFIED' },
+            { time: [45, 60], detections: [{ class: 'drone', conf: 73, x: 50, y: 15, w: 8, h: 5, risk: 90 }], status: '⚠ UAV IN AIRSPACE' },
+        ]
+    },
+    {
+        id: 'CAM-04', name: 'COMMAND BUNKER', coords: 'N28°38\'10" E77°13\'00"',
+        scenario: [
+            { time: [0, 60], detections: [], status: 'SECURE — NO MOVEMENT' },
+        ]
+    },
 ];
 
-const StaticNoise = ({ width = 320, height = 180 }) => {
-    const canvasRef = useRef(null);
+function drawCameraDetections(canvas, detections, tick) {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
 
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        canvas.width = width;
-        canvas.height = height;
+    // Static noise background
+    const imgData = ctx.createImageData(W, H);
+    for (let i = 0; i < imgData.data.length; i += 4) {
+        const v = Math.random() * 20;
+        imgData.data[i] = v; imgData.data[i + 1] = v + 5; imgData.data[i + 2] = v;
+        imgData.data[i + 3] = 255;
+    }
+    ctx.putImageData(imgData, 0, 0);
 
-        let animId;
-        const drawNoise = () => {
-            const imageData = ctx.createImageData(width, height);
-            const data = imageData.data;
-            for (let i = 0; i < data.length; i += 4) {
-                const val = Math.random() * 40;
-                data[i] = val;
-                data[i + 1] = val + Math.random() * 15;
-                data[i + 2] = val;
-                data[i + 3] = 255;
-            }
-            ctx.putImageData(imageData, 0, 0);
+    // Scan line
+    const scanY = (tick * 6) % H;
+    ctx.fillStyle = 'rgba(34,197,94,0.06)';
+    ctx.fillRect(0, scanY, W, 3);
 
-            // Scan line
-            const scanY = (Date.now() / 20) % height;
-            ctx.fillStyle = 'rgba(34, 197, 94, 0.08)';
-            ctx.fillRect(0, scanY, width, 3);
+    // Detections
+    const jitter = Math.sin(tick * 0.5) * 1.5;
+    detections.forEach(det => {
+        const x = (det.x / 100) * W + jitter;
+        const y = (det.y / 100) * H + jitter;
+        const w = (det.w / 100) * W;
+        const h = (det.h / 100) * H;
+        const color = det.risk > 70 ? '#ef4444' : det.risk > 40 ? '#f59e0b' : '#22c55e';
+        const conf = Math.min(99, det.conf + Math.floor(Math.random() * 3 - 1));
 
-            animId = requestAnimationFrame(drawNoise);
-        };
-        drawNoise();
-        return () => cancelAnimationFrame(animId);
-    }, [width, height]);
+        // Box
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
 
-    return <canvas ref={canvasRef} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
-};
+        // Corner marks
+        const cl = Math.min(w, h) * 0.3;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x, y + cl); ctx.lineTo(x, y); ctx.lineTo(x + cl, y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + w - cl, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + cl); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, y + h - cl); ctx.lineTo(x, y + h); ctx.lineTo(x + cl, y + h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + w - cl, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cl); ctx.stroke();
 
-const CameraFeed = ({ camera, onExpand }) => {
-    const [ts, setTs] = useState(Date.now());
+        // Label
+        const label = `${det.class} ${conf}%`;
+        ctx.font = '10px "Share Tech Mono"';
+        const tw = ctx.measureText(label).width + 6;
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y - 14, tw, 13);
+        ctx.fillStyle = '#000';
+        ctx.fillText(label, x + 3, y - 3);
+    });
 
-    useEffect(() => {
-        const t = setInterval(() => setTs(Date.now()), 1000);
-        return () => clearInterval(t);
-    }, []);
-
-    const timeStr = new Date(ts).toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' });
-
-    return (
-        <div className={`cctv-feed ${camera.status === 'DEGRADED' ? 'degraded' : ''}`}>
-            <div className="cctv-noise">
-                <StaticNoise />
-            </div>
-
-            {/* HUD Overlay */}
-            <div className="cctv-overlay">
-                <div className="cctv-top-bar">
-                    <div className="cctv-id">
-                        <div className={`cctv-rec-dot ${camera.status === 'ONLINE' ? 'recording' : 'degraded'}`} />
-                        {camera.id}
-                    </div>
-                    <span className="cctv-status">{camera.status}</span>
-                </div>
-
-                <div className="cctv-bottom-bar">
-                    <div>
-                        <div className="cctv-name">{camera.name}</div>
-                        <div className="cctv-coords">{camera.lat} | {camera.lng}</div>
-                    </div>
-                    <div className="cctv-time">{timeStr}</div>
-                </div>
-
-                {/* Crosshair */}
-                <div className="cctv-crosshair">
-                    <div className="ch-h" />
-                    <div className="ch-v" />
-                </div>
-
-                {camera.status === 'DEGRADED' && (
-                    <div className="cctv-alert-badge">
-                        <AlertTriangle size={14} /> SIGNAL DEGRADED
-                    </div>
-                )}
-            </div>
-
-            <button className="cctv-expand-btn" onClick={() => onExpand(camera)}>
-                <Maximize2 size={14} />
-            </button>
-
-            {/* Scan lines */}
-            <div className="cctv-scanlines" />
-        </div>
-    );
-};
+    // Crosshair
+    ctx.strokeStyle = 'rgba(34,197,94,0.1)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+    ctx.setLineDash([]);
+}
 
 export default function CCTVGrid() {
-    const [expanded, setExpanded] = useState(null);
+    const [expandedCam, setExpandedCam] = useState(null);
+    const [tick, setTick] = useState(0);
+    const canvasRefs = useRef([]);
+    const modalCanvasRef = useRef(null);
+
+    useEffect(() => {
+        const timer = setInterval(() => setTick(t => (t + 1) % 60), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
+        CAMERAS.forEach((cam, i) => {
+            const phase = cam.scenario.find(s => tick >= s.time[0] && tick < s.time[1]);
+            if (phase && canvasRefs.current[i]) {
+                const canvas = canvasRefs.current[i];
+                canvas.width = canvas.parentElement?.clientWidth || 320;
+                canvas.height = canvas.parentElement?.clientHeight || 200;
+                drawCameraDetections(canvas, phase.detections, tick);
+            }
+        });
+
+        // Modal canvas
+        if (expandedCam !== null && modalCanvasRef.current) {
+            const cam = CAMERAS[expandedCam];
+            const phase = cam.scenario.find(s => tick >= s.time[0] && tick < s.time[1]);
+            if (phase) {
+                modalCanvasRef.current.width = 900;
+                modalCanvasRef.current.height = 506;
+                drawCameraDetections(modalCanvasRef.current, phase.detections, tick);
+            }
+        }
+    }, [tick, expandedCam]);
+
+    const getStatus = (cam) => {
+        const phase = cam.scenario.find(s => tick >= s.time[0] && tick < s.time[1]);
+        return phase || cam.scenario[0];
+    };
+
+    const camTime = new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' });
 
     return (
-        <motion.div
-            key="cctv"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.05 }}
-            className="glass-panel"
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+        <motion.div key="cctv" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 4, gap: 4, background: '#000' }}
         >
-            <div className="corner-brackets" />
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', color: 'var(--accent)', letterSpacing: '2px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Video size={16} /> CCTV SURVEILLANCE GRID — {CAMERAS.filter(c => c.status === 'ONLINE').length}/{CAMERAS.length} ACTIVE
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'gray' }}>[ CLICK TO EXPAND ]</div>
-            </div>
-
             <div className="cctv-grid">
-                {CAMERAS.map(cam => (
-                    <CameraFeed key={cam.id} camera={cam} onExpand={setExpanded} />
-                ))}
-            </div>
+                {CAMERAS.map((cam, index) => {
+                    const phase = getStatus(cam);
+                    const hasDetections = phase.detections.length > 0;
+                    const isCritical = phase.detections.some(d => d.risk > 70);
 
-            {/* Expanded View Modal */}
-            <AnimatePresence>
-                {expanded && (
-                    <motion.div
-                        className="cctv-modal"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                    >
-                        <div className="cctv-modal-content">
-                            <div className="cctv-modal-header">
-                                <span>{expanded.id} — {expanded.name} [{expanded.sector}]</span>
-                                <button onClick={() => setExpanded(null)} className="cctv-close-btn"><X size={18} /></button>
-                            </div>
-                            <div className="cctv-modal-feed">
-                                <StaticNoise width={960} height={540} />
-                                <div className="cctv-scanlines" />
-                                <div className="cctv-modal-rec">
-                                    <div className="cctv-rec-dot recording" /> REC — {expanded.sector}
+                    return (
+                        <div key={cam.id}
+                            className={`cctv-feed ${isCritical ? 'critical' : hasDetections ? 'degraded' : ''}`}
+                            onClick={() => setExpandedCam(index)}
+                        >
+                            <canvas ref={el => canvasRefs.current[index] = el} className="cctv-noise" />
+
+                            <div className="cctv-overlay">
+                                <div className="cctv-top-bar">
+                                    <div className="cctv-id">
+                                        <span className={`cctv-rec-dot ${isCritical ? 'degraded' : 'recording'}`} style={isCritical ? { background: '#ef4444', animation: 'blink 0.5s step-end infinite' } : {}} />
+                                        {cam.id}
+                                    </div>
+                                    <div className="cctv-status" style={isCritical ? { color: '#ef4444', background: 'rgba(239,68,68,0.15)' } : hasDetections ? { color: '#f59e0b' } : {}}>
+                                        {phase.status}
+                                    </div>
+                                </div>
+
+                                {hasDetections && (
+                                    <div className="cctv-alert-badge" style={isCritical ? { borderColor: '#ef4444', color: '#ef4444', background: 'rgba(239,68,68,0.15)' } : {}}>
+                                        {isCritical ? <AlertTriangle size={10} /> : <Shield size={10} />}
+                                        {phase.detections.length} TARGET{phase.detections.length > 1 ? 'S' : ''}
+                                    </div>
+                                )}
+
+                                <div className="cctv-crosshair"><div className="ch-h" /><div className="ch-v" /></div>
+
+                                <div className="cctv-bottom-bar">
+                                    <div>
+                                        <div className="cctv-name">{cam.name}</div>
+                                        <div className="cctv-coords">{cam.coords}</div>
+                                    </div>
+                                    <div className="cctv-time">{camTime}</div>
                                 </div>
                             </div>
+
+                            <button className="cctv-expand-btn" onClick={(e) => { e.stopPropagation(); setExpandedCam(index); }}>
+                                <Maximize2 size={12} />
+                            </button>
+                            <div className="cctv-scanlines" />
                         </div>
+                    );
+                })}
+            </div>
+
+            {/* Expanded Modal */}
+            <AnimatePresence>
+                {expandedCam !== null && (
+                    <motion.div className="cctv-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        onClick={() => setExpandedCam(null)}>
+                        <motion.div className="cctv-modal-content" initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+                            onClick={(e) => e.stopPropagation()}>
+                            <div className="cctv-modal-header">
+                                <span>{CAMERAS[expandedCam].id} — {CAMERAS[expandedCam].name}</span>
+                                <span style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>{CAMERAS[expandedCam].coords}</span>
+                                <button className="cctv-close-btn" onClick={() => setExpandedCam(null)}><X size={14} /></button>
+                            </div>
+                            <div className="cctv-modal-feed">
+                                <canvas ref={modalCanvasRef} style={{ width: '100%', height: '100%' }} />
+                                <div className="cctv-modal-rec"><div className="rec-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', animation: 'breathe 1.5s infinite' }} /> REC</div>
+                                <div className="video-scanlines" />
+                                <div style={{ position: 'absolute', bottom: 10, left: 10, display: 'flex', gap: 6 }}>
+                                    <div className="hud-badge info" style={{ fontSize: '0.65rem' }}>{getStatus(CAMERAS[expandedCam]).status}</div>
+                                    {getStatus(CAMERAS[expandedCam]).detections.length > 0 && (
+                                        <div className="hud-badge warning" style={{ fontSize: '0.65rem' }}>
+                                            {getStatus(CAMERAS[expandedCam]).detections.length} DETECTION(S)
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>

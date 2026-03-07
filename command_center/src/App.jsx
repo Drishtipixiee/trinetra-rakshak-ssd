@@ -4,10 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Activity, AlertTriangle, Fingerprint, Lock,
   Map as MapIcon, Video, Target, Radio, Scan, Train, Download, Terminal,
-  BarChart3, Eye, Users, Play, Square
+  BarChart3, Eye, Users, Play, Square, Volume2, VolumeX
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { MapContainer, TileLayer, Circle, Popup } from 'react-leaflet';
+
+// AI Systems
+import AIVoiceSystem, { playSiren, playKlaxon, playDetectionBeep, playSuccessChime } from './components/AIVoiceSystem';
 
 // Components
 import LiveClock from './components/LiveClock';
@@ -250,22 +253,6 @@ const LoginOverlay = ({ onLogin }) => {
   );
 };
 
-// ─── Audio ───
-const playTacticalPing = () => {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.3);
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.start(); osc.stop(ctx.currentTime + 0.3);
-  } catch { /* silent */ }
-};
-
 // ─── Tabs ───
 const TABS = [
   { id: 'LIVE', icon: Video, label: 'LIVE FEED' },
@@ -291,6 +278,14 @@ export default function App() {
   const [isNightMode, setIsNightMode] = useState(false);
   const [walkieOpen, setWalkieOpen] = useState(false);
   const [simActive, setSimActive] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+
+  // AI Voice
+  const voiceRef = useRef(null);
+  useEffect(() => {
+    voiceRef.current = new AIVoiceSystem();
+    return () => voiceRef.current?.destroy();
+  }, []);
 
   // Simulation engine
   const { tick, phase, trackPhase } = useSimulationEngine(simActive);
@@ -348,15 +343,26 @@ export default function App() {
       primaryClass: primary, threatLevel, riskScore: maxRisk, label: phase.label
     });
 
-    // Log on threat level change
+    // Log + AI Voice on threat level change
     if (threatLevel !== prevThreatRef.current) {
       if (threatLevel === 'CRITICAL') {
-        playTacticalPing();
+        playSiren(1500);
         addLog(`[SEC-7] ⚠ CRITICAL: ${personCount} hostile(s) detected | Risk: ${maxRisk}% | AI Confidence: ${maxConf}%`, 'critical');
+        if (voiceRef.current && voiceEnabled) {
+          voiceRef.current.speak(`Critical alert. ${personCount} hostile detected in Sector 7 Alpha. Risk score ${maxRisk} percent. Quick Reaction Force has been alerted. All units respond immediately.`, 'critical');
+        }
       } else if (threatLevel === 'WARNING') {
+        playDetectionBeep();
         addLog(`[SEC-7] WARNING: Movement detected — ${primary} | Risk: ${maxRisk}% | Tracking...`, 'warning');
+        if (voiceRef.current && voiceEnabled) {
+          voiceRef.current.speak(`Warning. Unidentified ${primary.toLowerCase()} detected approaching perimeter. Risk level ${maxRisk} percent. Tracking in progress.`);
+        }
       } else if (prevThreatRef.current !== 'LOW') {
+        playSuccessChime();
         addLog(`[SEC-7] ✓ Threat cleared. Sector secure. Resuming surveillance.`, 'normal');
+        if (voiceRef.current && voiceEnabled) {
+          voiceRef.current.speak('All clear. Threat has been neutralized. Resuming normal surveillance operations.');
+        }
       }
       prevThreatRef.current = threatLevel;
     }
@@ -369,6 +375,10 @@ export default function App() {
 
     if (tp.action && tp.detected !== prevTrackRef.current) {
       addLog(`[TRK-2] ${tp.action}`, tp.detected ? 'warning' : 'normal');
+      if (tp.detected && voiceRef.current && voiceEnabled) {
+        playKlaxon();
+        voiceRef.current.speak(`Track Guard alert. ${tp.object} detected on railway track Kilo Mike 142. Auto brake signal transmitted to Train 12042 Rajdhani Express.`, 'critical');
+      }
     }
     prevTrackRef.current = tp.detected;
 
@@ -709,16 +719,29 @@ export default function App() {
           <div className="sidebar-divider" />
           <SystemVitals />
           <div className="sidebar-divider" />
-          <QuickActions addLog={addLog} playPing={playTacticalPing} />
+          <QuickActions addLog={addLog} playPing={playKlaxon} />
           <div className="sidebar-divider" />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <NightVisionToggle isNightMode={isNightMode} onToggle={() => setIsNightMode(!isNightMode)} />
+            <button
+              className={`nav-btn ${voiceEnabled ? '' : 'btn-danger'}`}
+              style={{ width: '100%', fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, borderColor: voiceEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.2)', color: voiceEnabled ? 'var(--accent)' : 'var(--text-dim)' }}
+              onClick={() => {
+                const newState = !voiceEnabled;
+                setVoiceEnabled(newState);
+                if (voiceRef.current) voiceRef.current.enabled = newState;
+                addLog(`[SYS] AI Voice ${newState ? 'ENABLED' : 'MUTED'}`, 'normal');
+              }}>
+              {voiceEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
+              {voiceEnabled ? 'AI VOICE: ON' : 'AI VOICE: OFF'}
+            </button>
             <button className="nav-btn btn-danger" style={{ width: '100%', fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
               onClick={() => {
                 setDetectionData(prev => ({ ...prev, threatLevel: 'CRITICAL', riskScore: 98, primaryClass: 'TEST_HOSTILE', personCount: 1, label: 'TEST' }));
                 addLog("[SYS] ⚠ TEST BREACH initiated. Alert state active.", "critical");
-                playTacticalPing();
+                playSiren(2000);
+                if (voiceRef.current && voiceEnabled) voiceRef.current.speak('Alert. Test breach protocol activated. All units standby.', 'critical');
               }}>
               <AlertTriangle size={12} /> TEST BREACH
             </button>

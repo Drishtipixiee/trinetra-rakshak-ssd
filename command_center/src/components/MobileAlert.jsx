@@ -1,41 +1,43 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Smartphone, Shield, CheckCheck, X } from 'lucide-react';
+import { Shield, CheckCheck, X, Phone, MapPin, Clock, Send } from 'lucide-react';
+
+const AI_MESSAGES = [
+    { type: 'sms', from: 'TRINETRA AI', body: (cls, risk, sector) => `⚠ CRITICAL ALERT\n${cls} detected at ${sector}.\nRisk Score: ${risk}%\nQRF Alpha dispatched — ETA 4 min.\nRespond ASAP.` },
+    { type: 'sms', from: 'SEC-7 OPS', body: (cls, risk, sector) => `Intel update: ${cls} confirmed at ${sector} via multi-sensor fusion.\nThreat level ELEVATED.\nAll units maintain heightened readiness.` },
+    { type: 'whatsapp', from: 'Cmd. Sharma', body: (cls, risk) => `Threat ${cls} flagged by AI — risk ${risk}%. I am monitoring from HQ. Keep me updated on ground situation. 🔴` },
+];
 
 export default function MobileAlert({ threatLevel, riskScore, threatClass, sector = 'SEC-7A' }) {
     const [alerts, setAlerts] = useState([]);
     const [lastTrigger, setLastTrigger] = useState(0);
+    const [msgIndex, setMsgIndex] = useState(0);
 
     useEffect(() => {
-        // Only trigger on CRITICAL and not too frequently (8 second cooldown)
-        if (threatLevel === 'CRITICAL' && Date.now() - lastTrigger > 8000) {
+        if (threatLevel === 'CRITICAL' && Date.now() - lastTrigger > 6000) {
             setLastTrigger(Date.now());
+            const template = AI_MESSAGES[msgIndex % AI_MESSAGES.length];
+            setMsgIndex(prev => prev + 1);
+
             const newAlert = {
                 id: Date.now(),
                 time: new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' }),
-                message: `⚠ CRITICAL: ${threatClass || 'Unidentified threat'} detected at ${sector}. Risk: ${riskScore}%. QRF alerted. Respond immediately.`,
-                status: 'delivered',
-                from: 'TRINETRA COMMAND'
+                message: template.body(threatClass || 'Hostile', riskScore, sector),
+                status: 'sent',
+                from: template.from,
+                type: template.type
             };
             setAlerts(prev => [...prev.slice(-2), newAlert]);
 
-            // Simulate read receipt
-            setTimeout(() => {
-                setAlerts(prev => prev.map(a =>
-                    a.id === newAlert.id ? { ...a, status: 'read' } : a
-                ));
-            }, 3000);
-
+            // Delivery simulation
+            setTimeout(() => setAlerts(prev => prev.map(a => a.id === newAlert.id ? { ...a, status: 'delivered' } : a)), 1200);
+            setTimeout(() => setAlerts(prev => prev.map(a => a.id === newAlert.id ? { ...a, status: 'read' } : a)), 3500);
             // Auto dismiss
-            setTimeout(() => {
-                setAlerts(prev => prev.filter(a => a.id !== newAlert.id));
-            }, 10000);
+            setTimeout(() => setAlerts(prev => prev.filter(a => a.id !== newAlert.id)), 12000);
         }
-    }, [threatLevel, riskScore, threatClass, sector, lastTrigger]);
+    }, [threatLevel, riskScore, threatClass, sector, lastTrigger, msgIndex]);
 
-    const dismiss = (id) => {
-        setAlerts(prev => prev.filter(a => a.id !== id));
-    };
+    const dismiss = (id) => setAlerts(prev => prev.filter(a => a.id !== id));
 
     if (alerts.length === 0) return null;
 
@@ -49,52 +51,57 @@ export default function MobileAlert({ threatLevel, riskScore, threatClass, secto
                         initial={{ opacity: 0, y: 60, scale: 0.8, rotate: -2 }}
                         animate={{
                             opacity: 1, y: 0, scale: 1, rotate: 0,
-                            x: [0, -3, 3, -2, 2, 0], // vibration
+                            x: [0, -4, 4, -3, 3, -1, 1, 0],
                         }}
                         exit={{ opacity: 0, y: 40, scale: 0.8 }}
                         transition={{
                             type: 'spring', stiffness: 300, damping: 20,
-                            x: { duration: 0.5, ease: 'easeInOut' }
+                            x: { duration: 0.6, ease: 'easeInOut' }
                         }}
                     >
-                        {/* Phone notch */}
                         <div className="phone-notch" />
 
-                        {/* Status bar */}
                         <div className="phone-statusbar">
-                            <span>{alert.time}</span>
-                            <div className="phone-icons">
-                                <span>📶</span>
-                                <span>🔋</span>
-                            </div>
+                            <span>{alert.time} IST</span>
+                            <div className="phone-icons"><span>📶</span><span>🔋 92%</span></div>
                         </div>
 
-                        {/* SMS Notification */}
                         <div className="phone-notification">
                             <div className="phone-notif-header">
-                                <div className="phone-notif-icon">
-                                    <Shield size={16} />
+                                <div className="phone-notif-icon" style={alert.type === 'whatsapp' ? { background: 'rgba(37,211,102,0.2)' } : {}}>
+                                    {alert.type === 'whatsapp' ? <Send size={14} style={{ color: '#25D366' }} /> : <Shield size={14} />}
                                 </div>
-                                <div className="phone-notif-from">{alert.from}</div>
-                                <button className="phone-close" onClick={() => dismiss(alert.id)}>
-                                    <X size={12} />
-                                </button>
+                                <div>
+                                    <div className="phone-notif-from">{alert.from}</div>
+                                    <div style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                        {alert.type === 'whatsapp' ? 'WhatsApp' : 'SMS'} • <MapPin size={8} /> {sector}
+                                    </div>
+                                </div>
+                                <button className="phone-close" onClick={() => dismiss(alert.id)}><X size={12} /></button>
                             </div>
-                            <div className="phone-notif-body">
+
+                            <div className="phone-notif-body" style={{ whiteSpace: 'pre-line' }}>
                                 {alert.message}
                             </div>
+
                             <div className="phone-notif-footer">
                                 <div className="phone-receipt">
-                                    <CheckCheck size={12} />
-                                    <span>{alert.status === 'read' ? 'Read' : 'Delivered'}</span>
+                                    <CheckCheck size={12} style={{ color: alert.status === 'read' ? '#53bdeb' : alert.status === 'delivered' ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)' }} />
+                                    <span style={{ color: alert.status === 'read' ? '#53bdeb' : 'rgba(255,255,255,0.4)' }}>
+                                        {alert.status === 'read' ? 'Read' : alert.status === 'delivered' ? 'Delivered' : 'Sent'}
+                                    </span>
                                 </div>
-                                <span className="phone-notif-time">{alert.time} IST</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                                    <Clock size={9} style={{ color: 'rgba(255,255,255,0.3)' }} />
+                                    <span className="phone-notif-time">{alert.time}</span>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Quick reply simulation */}
                         <div className="phone-reply">
-                            <div className="phone-reply-input">Slide to respond...</div>
+                            <div className="phone-reply-input">
+                                <Phone size={10} style={{ opacity: 0.4 }} /> Tap to call command...
+                            </div>
                         </div>
                     </motion.div>
                 ))}
