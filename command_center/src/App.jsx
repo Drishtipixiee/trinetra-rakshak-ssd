@@ -1,848 +1,750 @@
 /* eslint-disable react/prop-types */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Activity, AlertTriangle, Fingerprint, Lock,
-  Map as MapIcon, Video, Target, Radio, Scan, Train, Download, Terminal
+  Map as MapIcon, Video, Target, Radio, Scan, Train, Download, Terminal,
+  BarChart3, Eye, Users, Play, Square
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { MapContainer, TileLayer, Circle, Popup } from 'react-leaflet';
-import axios from 'axios';
-import * as cocossd from '@tensorflow-models/coco-ssd';
 
-// --- Subcomponents ---
-const TypewriterText = ({ text, speed = 10, className = '' }) => {
+// Components
+import LiveClock from './components/LiveClock';
+import SystemVitals from './components/SystemVitals';
+import CCTVGrid from './components/CCTVGrid';
+import IncidentTimeline from './components/IncidentTimeline';
+import NotificationToast from './components/NotificationToast';
+import PersonnelRoster from './components/PersonnelRoster';
+import QuickActions from './components/QuickActions';
+import WeatherWidget from './components/WeatherWidget';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
+import NightVisionToggle from './components/NightVisionToggle';
+import WalkieTalkie from './components/WalkieTalkie';
+import MobileAlert from './components/MobileAlert';
+
+// ═══════════════════════════════════════════════════
+//  SOFTWARE SIMULATION ENGINE
+//  No external AI model needed — generates realistic
+//  detection events based on scenario scripts
+// ═══════════════════════════════════════════════════
+
+const DETECTION_SCENARIOS = [
+  // Phase 1: Calm (0-10s)
+  { time: [0, 10], detections: [], label: 'SCANNING' },
+  // Phase 2: First sighting (10-18s)
+  {
+    time: [10, 18], detections: [
+      { class: 'person', confidence: 72, x: 60, y: 35, w: 12, h: 28, risk: 45 }
+    ], label: 'CONTACT'
+  },
+  // Phase 3: Approaching (18-28s)
+  {
+    time: [18, 28], detections: [
+      { class: 'person', confidence: 87, x: 45, y: 25, w: 15, h: 35, risk: 68 },
+      { class: 'backpack', confidence: 61, x: 48, y: 30, w: 6, h: 8, risk: 30 }
+    ], label: 'TRACKING'
+  },
+  // Phase 4: Critical zone (28-38s)
+  {
+    time: [28, 38], detections: [
+      { class: 'person', confidence: 94, x: 35, y: 18, w: 20, h: 45, risk: 88 },
+      { class: 'person', confidence: 78, x: 65, y: 30, w: 14, h: 32, risk: 72 },
+    ], label: 'MULTI-TARGET'
+  },
+  // Phase 5: De-escalation (38-48s)
+  {
+    time: [38, 48], detections: [
+      { class: 'person', confidence: 65, x: 70, y: 40, w: 10, h: 25, risk: 35 }
+    ], label: 'RETREATING'
+  },
+  // Phase 6: Clear (48-60s)
+  { time: [48, 60], detections: [], label: 'ALL CLEAR' },
+];
+
+const TRACK_SCENARIO = [
+  { time: [0, 8], detected: false, object: 'None', trainSpeed: 80, distance: 2000, action: null },
+  { time: [8, 12], detected: true, object: 'Wild Elephant', trainSpeed: 80, distance: 1200, action: 'WILDLIFE DETECTED on track KM-142. Class: Elephant.' },
+  { time: [12, 18], detected: true, object: 'Wild Elephant', trainSpeed: 80, distance: 800, action: null },
+  { time: [18, 22], detected: true, object: 'Wild Elephant', trainSpeed: 45, distance: 500, action: 'Auto-brake signal transmitted to Train #12042 Rajdhani Express.' },
+  { time: [22, 28], detected: true, object: 'Wild Elephant', trainSpeed: 15, distance: 200, action: 'Train decelerating. Elephant moving off track.' },
+  { time: [28, 35], detected: false, object: 'None (Cleared)', trainSpeed: 30, distance: 150, action: 'Track cleared. Resuming normal speed.' },
+  { time: [35, 60], detected: false, object: 'None', trainSpeed: 80, distance: 2000, action: null },
+];
+
+function useSimulationEngine(isActive) {
+  const [tick, setTick] = useState(0);
+  const [phase, setPhase] = useState(DETECTION_SCENARIOS[0]);
+  const [trackPhase, setTrackPhase] = useState(TRACK_SCENARIO[0]);
+
+  useEffect(() => {
+    if (!isActive) { setTick(0); return; }
+    const timer = setInterval(() => setTick(t => (t + 1) % 60), 1000);
+    return () => clearInterval(timer);
+  }, [isActive]);
+
+  useEffect(() => {
+    const currentPhase = DETECTION_SCENARIOS.find(s => tick >= s.time[0] && tick < s.time[1]);
+    if (currentPhase) setPhase(currentPhase);
+
+    const currentTrack = TRACK_SCENARIO.find(s => tick >= s.time[0] && tick < s.time[1]);
+    if (currentTrack) setTrackPhase(currentTrack);
+  }, [tick]);
+
+  return { tick, phase, trackPhase };
+}
+
+// ─── Canvas Renderer for simulated detections ───
+function drawSimulatedDetections(canvas, detections, tick) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Subtle movement noise based on tick
+  const jitter = () => (Math.sin(tick * 0.7 + Math.random()) * 2);
+
+  detections.forEach(det => {
+    const x = (det.x / 100) * W + jitter();
+    const y = (det.y / 100) * H + jitter();
+    const w = (det.w / 100) * W;
+    const h = (det.h / 100) * H;
+    const conf = det.confidence + Math.floor(Math.random() * 4 - 2);
+    const label = `${det.class} ${Math.min(99, Math.max(50, conf))}%`;
+
+    const color = det.risk > 70 ? '#ef4444' : det.risk > 40 ? '#f59e0b' : '#22c55e';
+
+    // Main bounding box
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([]);
+    ctx.strokeRect(x, y, w, h);
+
+    // Corner brackets (tactical look)
+    const cl = Math.min(w, h) * 0.25;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = color;
+    // Top-left
+    ctx.beginPath(); ctx.moveTo(x, y + cl); ctx.lineTo(x, y); ctx.lineTo(x + cl, y); ctx.stroke();
+    // Top-right
+    ctx.beginPath(); ctx.moveTo(x + w - cl, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + cl); ctx.stroke();
+    // Bottom-left
+    ctx.beginPath(); ctx.moveTo(x, y + h - cl); ctx.lineTo(x, y + h); ctx.lineTo(x + cl, y + h); ctx.stroke();
+    // Bottom-right
+    ctx.beginPath(); ctx.moveTo(x + w - cl, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cl); ctx.stroke();
+
+    // Label
+    ctx.font = '13px "Share Tech Mono"';
+    const textW = ctx.measureText(label).width + 10;
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y - 20, textW, 18);
+    ctx.fillStyle = '#000';
+    ctx.fillText(label, x + 5, y - 6);
+
+    // Risk bar below box
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(x, y + h + 4, w, 6);
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y + h + 4, w * (det.risk / 100), 6);
+  });
+
+  // Scan line effect
+  const scanY = (tick * 8) % H;
+  ctx.fillStyle = 'rgba(34, 197, 94, 0.04)';
+  ctx.fillRect(0, scanY, W, 4);
+
+  // Crosshair center
+  ctx.strokeStyle = 'rgba(34, 197, 94, 0.15)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([8, 4]);
+  ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ─── Typewriter ───
+const TypewriterText = ({ text, speed = 8 }) => {
   const [displayedText, setDisplayedText] = useState('');
   useEffect(() => {
     setDisplayedText('');
     let i = 0;
     const timer = setInterval(() => {
-      if (i < text.length) {
-        setDisplayedText((prev) => prev + text.charAt(i));
-        i++;
-      } else {
-        clearInterval(timer);
-      }
+      if (i < text.length) { setDisplayedText(prev => prev + text.charAt(i)); i++; }
+      else clearInterval(timer);
     }, speed);
     return () => clearInterval(timer);
   }, [text, speed]);
-  return (
-    <span className={className}>
-      {displayedText}
-      {displayedText.length < text.length && <span className="typewriter-cursor" />}
-    </span>
-  );
+  return <span>{displayedText}{displayedText.length < text.length && <span className="typewriter-cursor" />}</span>;
 };
 
+// ─── Login ───
 const LoginOverlay = ({ onLogin }) => {
-  const [authStatus, setAuthStatus] = useState('AWAITING_BIOMETRIC');
+  const [status, setStatus] = useState('AWAITING');
 
-  const handleWebCryptoAuth = async () => {
+  const handleAuth = async () => {
     try {
-      setAuthStatus('GENERATING_KEY');
-
-      // Simulate Public-Key Handshake using Web Crypto API
+      setStatus('GENERATING');
       await window.crypto.subtle.generateKey(
-        {
-          name: "RSA-OAEP",
-          modulusLength: 2048,
-          publicExponent: new Uint8Array([1, 0, 1]),
-          hash: "SHA-256",
-        },
-        true,
-        ["encrypt", "decrypt"]
+        { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+        true, ["encrypt", "decrypt"]
       );
-
-      setAuthStatus('HANDSHAKE_VERIFIED');
-
-      setTimeout(() => {
-        setAuthStatus('SUCCESS');
-        setTimeout(() => {
-          onLogin();
-        }, 800);
-      }, 1000);
-
-    } catch (e) {
-      console.error(e);
-      setAuthStatus('DENIED');
-    }
+      setStatus('VERIFIED');
+      setTimeout(() => { setStatus('SUCCESS'); setTimeout(onLogin, 600); }, 800);
+    } catch { setStatus('DENIED'); }
   };
 
   return (
     <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 9999,
+      position: 'fixed', inset: 0, zIndex: 9999,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'radial-gradient(circle at center, rgba(0,20,0,0.95) 0%, rgba(5,8,5,1) 100%)',
-      backdropFilter: 'blur(10px)'
+      background: 'radial-gradient(ellipse at center, rgba(5,20,5,0.97) 0%, #020502 100%)',
     }}>
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="glass-panel"
+        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
         style={{
-          width: '500px', display: 'flex', flexDirection: 'column',
-          alignItems: 'center', padding: '3rem',
-          border: `1px solid ${authStatus === 'SUCCESS' ? 'var(--safe)' : 'var(--accent)'}`,
-          boxShadow: `0 0 40px ${authStatus === 'SUCCESS' ? 'rgba(34,197,94,0.3)' : 'rgba(34, 197, 94, 0.15)'}, inset 0 0 20px rgba(0,0,0,0.8)`,
+          width: 420, display: 'flex', flexDirection: 'column', alignItems: 'center',
+          padding: '2.5rem 2rem',
+          background: 'rgba(5,12,5,0.8)', backdropFilter: 'blur(20px)',
+          border: `1px solid ${status === 'SUCCESS' ? 'var(--safe)' : 'var(--glass-border)'}`,
+          borderRadius: 16,
+          boxShadow: `0 0 60px ${status === 'SUCCESS' ? 'rgba(34,197,94,0.2)' : 'rgba(34,197,94,0.08)'}`,
           transition: 'all 0.5s ease'
         }}
       >
-        <div className="corner-brackets" />
+        <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem', filter: 'drop-shadow(0 0 10px var(--accent-glow))' }}>🛡️</div>
 
         <motion.div
-          animate={authStatus === 'GENERATING_KEY' || authStatus === 'HANDSHAKE_VERIFIED' ? {
-            scale: [1, 1.1, 1],
-            opacity: [0.5, 1, 0.5]
-          } : {}}
-          transition={{ repeat: Infinity, duration: 1 }}
-          style={{ marginBottom: '1.5rem', color: authStatus === 'SUCCESS' ? 'var(--safe)' : 'var(--accent)', filter: `drop-shadow(0 0 10px ${authStatus === 'SUCCESS' ? 'var(--safe)' : 'var(--accent-glow)'})` }}
+          animate={status === 'GENERATING' || status === 'VERIFIED' ? { scale: [1, 1.08, 1], opacity: [0.5, 1, 0.5] } : {}}
+          transition={{ repeat: Infinity, duration: 1.2 }}
+          style={{ marginBottom: '0.8rem', color: status === 'SUCCESS' ? 'var(--safe)' : 'var(--accent)' }}
         >
-          {authStatus === 'SUCCESS' ? <Lock size={64} /> : <Fingerprint size={64} />}
+          {status === 'SUCCESS' ? <Lock size={48} /> : <Fingerprint size={48} />}
         </motion.div>
 
-        <h2 style={{ fontSize: '1.5rem', color: authStatus === 'SUCCESS' ? 'var(--safe)' : 'var(--accent)', letterSpacing: '4px', margin: '0 0 0.5rem 0', textShadow: `0 0 10px ${authStatus === 'SUCCESS' ? 'var(--safe)' : 'var(--accent-glow)'}` }}>
+        <h2 style={{ fontSize: '1.2rem', color: status === 'SUCCESS' ? 'var(--safe)' : 'var(--accent)', letterSpacing: 4, margin: '0 0 0.2rem' }}>
           TRINETRA COMMAND
         </h2>
-
-        <div style={{ fontSize: '0.8rem', color: 'var(--accent)', opacity: 0.7, letterSpacing: '3px', marginBottom: '2.5rem', height: '1rem' }}>
-          {authStatus === 'AWAITING_BIOMETRIC' && 'BIOMETRIC GATEWAY LOCKED'}
-          {authStatus === 'GENERATING_KEY' && 'GENERATING RSA-OAEP 2048-BIT KEY...'}
-          {authStatus === 'HANDSHAKE_VERIFIED' && 'PUBLIC-KEY HANDSHAKE VERIFIED'}
-          {authStatus === 'SUCCESS' && <span style={{ color: 'var(--safe)' }}>OFFICER DRISHTI MISHRA - SECTOR 7 AUTHENTICATED</span>}
+        <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)', letterSpacing: 3, marginBottom: '0.4rem' }}>
+          MINISTRY OF DEFENCE — BHARAT
         </div>
 
-        {authStatus === 'AWAITING_BIOMETRIC' && (
-          <button
-            onClick={handleWebCryptoAuth}
-            className="nav-btn"
-            style={{
-              width: '100%', padding: '1rem',
-              display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.8rem',
-              fontSize: '1rem', fontWeight: 'bold'
-            }}
-          >
-            <Scan size={20} /> [ INITIATE BIOMETRIC SCAN ]
-          </button>
-        )}
+        <div style={{ fontSize: '0.7rem', color: 'var(--accent)', opacity: 0.7, letterSpacing: 2, marginBottom: '1.5rem', height: '1rem', fontFamily: "'Share Tech Mono'" }}>
+          {status === 'AWAITING' && 'BIOMETRIC GATEWAY LOCKED'}
+          {status === 'GENERATING' && 'GENERATING RSA-2048 KEY...'}
+          {status === 'VERIFIED' && 'PUBLIC-KEY HANDSHAKE VERIFIED'}
+          {status === 'SUCCESS' && <span style={{ color: 'var(--safe)' }}>CDR. DRISHTI MISHRA — AUTHENTICATED</span>}
+        </div>
 
+        {status === 'AWAITING' && (
+          <motion.button
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+            onClick={handleAuth}
+            className="nav-btn"
+            style={{ width: '100%', padding: '0.8rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, fontSize: '0.8rem' }}
+          >
+            <Scan size={18} /> INITIATE BIOMETRIC SCAN
+          </motion.button>
+        )}
       </motion.div>
     </div>
   );
 };
 
-
+// ─── Audio ───
 const playTacticalPing = () => {
   try {
-    const actx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = actx.createOscillator();
-    const gain = actx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(800, actx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(150, actx.currentTime + 0.5);
-    gain.gain.setValueAtTime(0.2, actx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + 0.5);
-    osc.connect(gain);
-    gain.connect(actx.destination);
-    osc.start();
-    osc.stop(actx.currentTime + 0.5);
-  } catch (err) {
-    console.log("Audio play failed", err);
-  }
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.3);
+  } catch { /* silent */ }
 };
 
-const translateToHindi = (text) => {
-  if (!text) return "";
-  let translated = text;
-  translated = translated.replace("CRITICAL", "गंभीर");
-  translated = translated.replace("WARNING", "चेतावनी");
-  translated = translated.replace("SAFE", "सुरक्षित");
-  translated = translated.replace("High-speed entity", "तेज गति वाली वस्तु");
-  translated = translated.replace("critical proximity to Danger Zone", "खतरे के क्षेत्र के बेहद करीब");
-  translated = translated.replace("approaching perimeter", "सीमा के पास आ रहा है");
-  translated = translated.replace("low-visibility/stealth conditions", "कम दृश्यता/चुपके से");
-  translated = translated.replace("Calculated Risk:", "अनुमानित जोखिम:");
-  return translated;
-};
+// ─── Tabs ───
+const TABS = [
+  { id: 'LIVE', icon: Video, label: 'LIVE FEED' },
+  { id: 'CCTV', icon: Users, label: 'CCTV' },
+  { id: 'GEO-EYE', icon: MapIcon, label: 'GEO-EYE' },
+  { id: 'TRACK-GUARD', icon: Train, label: 'TRACK' },
+  { id: 'ANALYTICS', icon: BarChart3, label: 'ANALYTICS' },
+];
+
+// ════════════════════════════════════════
+//  MAIN APP
+// ════════════════════════════════════════
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState('DASHBOARD');
-  const [logs, setLogs] = useState([{ id: 1, text: "[SYS] Backend API Initialized. All subsystems green.", type: "normal" }]);
+  const [activeTab, setActiveTab] = useState('LIVE');
+  const [logs, setLogs] = useState([{ id: 1, text: "[SYS] All subsystems initialized. Defense grid online.", type: "normal" }]);
   const logsEndRef = useRef(null);
 
-  const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // TF.js State
-  const [model, setModel] = useState(null);
-  const requestRef = useRef(null);
-
-  // States
-  const [isHindi, setIsHindi] = useState(false);
+  // Modes
+  const [isNightMode, setIsNightMode] = useState(false);
+  const [walkieOpen, setWalkieOpen] = useState(false);
   const [simActive, setSimActive] = useState(false);
-  const [simTick, setSimTick] = useState(0);
 
-  // ROI State
-  const [roiBox, setRoiBox] = useState(null);
-  const [isDrawingROI, setIsDrawingROI] = useState(false);
-  const [drawStart, setDrawStart] = useState({ x: 0, y: 0 });
+  // Simulation engine
+  const { tick, phase, trackPhase } = useSimulationEngine(simActive);
 
-  // Sensors
-  const [borderData, setBorderData] = useState({ distance: 100, speed: 0, riskScore: 0, level: 'LOW', xai: '', threat: 'Unknown' });
-  const [trackData, setTrackData] = useState({ detected: false, object: 'None', trainSpeed: 80, distance: 1000, timeToImpact: 99 });
+  // Detection state
+  const [detectionData, setDetectionData] = useState({
+    objectCount: 0, personCount: 0, maxConfidence: 0,
+    primaryClass: 'None', threatLevel: 'LOW', riskScore: 0, label: 'IDLE'
+  });
+
+  // Track data from simulation
+  const [trackData, setTrackData] = useState({ detected: false, object: 'None', trainSpeed: 80, distance: 2000, timeToImpact: 99 });
   const [geoData, setGeoData] = useState({ changes: [], scanning: false });
-  const [threatHistory, setThreatHistory] = useState([{ time: '0s', val: 0 }]);
+  const [threatHistory, setThreatHistory] = useState([{ time: '00:00', val: 0 }]);
 
-  // Global Alert
-  const isAlert = borderData.level === 'CRITICAL';
+  const prevThreatRef = useRef('LOW');
+  const prevTrackRef = useRef(false);
 
+  const isAlert = detectionData.threatLevel === 'CRITICAL';
+
+  // ─── Night Vision ───
   useEffect(() => {
-    cocossd.load().then(loadedModel => {
-      setModel(loadedModel);
-      addLog("[SYS] TFJS Object Detection Model Loaded Successfully.", "safe");
-    }).catch(err => {
-      console.error(err);
-      addLog("[ERR] Failed to load local TF.js model.", "critical");
-    });
-  }, []);
+    document.body.classList.toggle('night-mode', isNightMode);
+    return () => document.body.classList.remove('night-mode');
+  }, [isNightMode]);
 
-  const detectFrame = async () => {
-    if (videoRef.current && canvasRef.current && model && videoRef.current.readyState === 4) {
-      const video = videoRef.current;
-      const predictions = await model.detect(video);
-
-      const ctx = canvasRef.current.getContext('2d');
-      // Match canvas size to video size
-      canvasRef.current.width = video.videoWidth;
-      canvasRef.current.height = video.videoHeight;
-
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
-      let maxRisk = 0;
-      let primaryThreat = 'None';
-
-      predictions.forEach(prediction => {
-        // TF.js bounding box: [x, y, width, height]
-        const [x, y, width, height] = prediction.bbox;
-        const text = `${prediction.class} | ${Math.round(prediction.score * 100)}%`;
-
-        // Higher risk for lower confidence or 'person'
-        const baseRisk = prediction.class === 'person' ? 60 : 20;
-        const currentRisk = Math.min(99, baseRisk + (100 - Math.round(prediction.score * 100)));
-
-        if (currentRisk > maxRisk) {
-          maxRisk = currentRisk;
-          primaryThreat = prediction.class.toUpperCase();
-        }
-
-        const color = currentRisk > 75 ? '#dc2626' : currentRisk > 40 ? '#f59e0b' : '#22c55e';
-
-        // Draw bounding box
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 3;
-
-        // Adjust X coordinate because we flip the video via CSS
-        const flippedX = ctx.canvas.width - x - width;
-        ctx.strokeRect(flippedX, y, width, height);
-
-        // Draw background block for text
-        ctx.fillStyle = color;
-        ctx.fillRect(flippedX, y - 25, ctx.measureText(text).width + 10, 25);
-
-        // Draw text
-        ctx.fillStyle = '#000000';
-        ctx.font = '16px "Share Tech Mono"';
-        ctx.fillText(text, flippedX + 5, y - 8);
-      });
-
-      if (predictions.length > 0 && Math.random() > 0.9) {
-        // Update fuzzy state dynamically without overwhelming the React render cycle
-        setBorderData(prev => ({
-          ...prev,
-          level: maxRisk > 75 ? 'CRITICAL' : maxRisk > 40 ? 'WARNING' : 'LOW',
-          threat: primaryThreat,
-          riskScore: maxRisk
-        }));
-      }
-
-      requestRef.current = requestAnimationFrame(detectFrame);
-    }
-  };
-
+  // ─── Alert Mode ───
   useEffect(() => {
-    if (activeTab === 'BORDER-SENTRY' && videoRef.current) {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then(stream => {
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            // Need to wait until video is playing before running detection
-            videoRef.current.onloadeddata = () => {
-              if (model) {
-                detectFrame();
-              }
-            };
-          }
-        })
-        .catch(err => {
-          console.error("Webcam access denied or unavailable.", err);
-          addLog("[ERR] Failed to access localized optical sensor (Webcam).", "warning");
-        });
-    } else {
-      // Cleanup webcam and RAF loop
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
-      if (videoRef.current && videoRef.current.srcObject) {
-        const tracks = videoRef.current.srcObject.getTracks();
-        tracks.forEach(track => track.stop());
-        videoRef.current.srcObject = null;
-      }
-    }
-    return () => {
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    };
-  }, [activeTab, model]);
-
-  useEffect(() => {
-    if (isAlert) document.body.classList.add('alert-mode');
-    else document.body.classList.remove('alert-mode');
+    document.body.classList.toggle('alert-mode', isAlert);
     return () => document.body.classList.remove('alert-mode');
   }, [isAlert]);
 
+  // ─── Auto-scroll ───
   useEffect(() => {
-    if (logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    if (logsEndRef.current) logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
-  const addLog = (text, type = 'normal') => {
-    setLogs(prev => [...prev.slice(-49), { id: Date.now() + Math.random(), text, type }]);
-  };
+  const addLog = useCallback((text, type = 'normal') => {
+    setLogs(prev => [...prev.slice(-30), { id: Date.now() + Math.random(), text, type }]);
+  }, []);
 
-  const handleGenerateReport = async () => {
-    try {
-      addLog("[SYS] Generating Official Incident Report...", "normal");
-      const res = await axios.post('http://localhost:5000/api/generate_report', {
-        threat_info: borderData.threat,
-        sector: "SEC-7 (Border-Sentry)",
-        risk_score: borderData.riskScore,
-        gps: "Lat: 28.6139, Lon: 77.2090"
-      }, { responseType: 'blob' });
-
-      // Create blob link to download
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `incident_report_${Date.now()}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      addLog("[SYS] Report Downloaded Successfully.", "safe");
-    } catch (err) {
-      addLog(`[ERR] Failed to generate report: ${err.message}`, "critical");
-    }
-  };
-
-  // --- Main Simulation Loop ---
-  useEffect(() => {
-    let interval;
-    if (simActive) {
-      interval = setInterval(() => {
-        setSimTick(t => t + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [simActive]);
-
+  // ═══ MAIN SIMULATION EFFECT ═══
   useEffect(() => {
     if (!simActive) return;
 
-    // Simulate approaching threat in Border-Sentry over 20 ticks
-    if (simTick >= 2 && simTick <= 20) {
-      const newSpeed = Math.min(85, borderData.speed + 4 + Math.random() * 5); // Accelerates
-      const newDistance = Math.max(10, borderData.distance - (newSpeed / 5)); // Distance drops
+    const dets = phase.detections;
+    const maxRisk = dets.length > 0 ? Math.max(...dets.map(d => d.risk)) : 0;
+    const personCount = dets.filter(d => d.class === 'person').length;
+    const maxConf = dets.length > 0 ? Math.max(...dets.map(d => d.confidence)) : 0;
+    const primary = personCount > 0 ? 'PERSON' : dets.length > 0 ? dets[0].class.toUpperCase() : 'None';
+    const threatLevel = maxRisk > 70 ? 'CRITICAL' : maxRisk > 35 ? 'WARNING' : 'LOW';
 
-      // Call Backend API
-      axios.post('http://localhost:5000/api/evaluate_threat', {
-        velocity: newSpeed,
-        proximity: newDistance,
-        visibility: 30, // Low visibility for higher risk
-        sensor: "Border-Sentry"
-      }).then(res => {
-        const { risk_score, xai_reasoning, threat_class } = res.data;
-        const level = risk_score >= 70 ? 'CRITICAL' : risk_score >= 40 ? 'WARNING' : 'LOW';
-
-        setBorderData(prev => ({
-          ...prev,
-          distance: newDistance.toFixed(1),
-          speed: newSpeed.toFixed(1),
-          riskScore: risk_score,
-          level: level,
-          xai: xai_reasoning,
-          threat: threat_class
-        }));
-
-        setThreatHistory(prev => {
-          const h = [...prev, { time: `${simTick}s`, val: risk_score }];
-          return h.length > 10 ? h.slice(1) : h;
-        });
-
-        // Logs based on level triggers
-        if (level === 'CRITICAL' && borderData.level !== 'CRITICAL') {
-          playTacticalPing();
-          addLog(`[SEC-7] CRITICAL THREAT: ${threat_class} | Risk: ${risk_score}%`, 'critical');
-        } else if (level === 'WARNING' && borderData.level === 'LOW') {
-          addLog(`[SEC-7] UNKNOWN THREAT | Conf: 92% | Risk: ${risk_score}% | Spd: ${newSpeed.toFixed(0)}km/h`, 'warning');
-        } else if (simTick % 5 === 0 && level === 'LOW') {
-          addLog(`[SEC-7] Auto-Scan | Conf: 88% | Risk: ${risk_score}% (LOW)`, 'normal');
-        }
-      }).catch(err => {
-        console.error("API Error", err);
-      });
-    }
-
-    // Simulate Track Guard Obstruction at tick 5
-    if (simTick === 5) {
-      // Train is at 1000m, speed 80km/h = ~22 m/s. ETI = Distance / Speed
-      const speedMs = 80 * (5 / 18);
-      const eti = Math.round(1000 / speedMs);
-
-      setTrackData({ detected: true, object: 'Wild Elephant', trainSpeed: 80, distance: 1000, timeToImpact: eti });
-      addLog(`[TRK-2] WILDLIFE DETECTED | Class: Elephant | Distance: 1000m`, 'warning');
-    }
-
-    // Track Guard ETI updates
-    if (simTick > 5 && trackData.detected) {
-      setTrackData(prev => {
-        const speedMs = prev.trainSpeed * (5 / 18);
-        const newDist = Math.max(0, prev.distance - speedMs);
-        const currentEti = Math.round(newDist / speedMs);
-
-        if (simTick === 12) addLog(`[TRK-2] Auto-Brake Signal Sent to Train #12042`, 'normal');
-        if (simTick === 15) {
-          // Train slowing down
-          return { ...prev, trainSpeed: 30, distance: newDist, timeToImpact: Math.round(newDist / (30 * (5 / 18))) };
-        }
-        return { ...prev, distance: newDist, timeToImpact: currentEti };
-      });
-    }
-
-    // End simulation
-    if (simTick > 25) {
-      setSimActive(false);
-      addLog("[SYS] Simulation complete. Resetting sensors.", "normal");
-      setTimeout(() => {
-        setSimTick(0);
-        setBorderData({ distance: 100, speed: 0, riskScore: 0, level: 'LOW', xai: '', threat: 'Unknown' });
-        setTrackData({ detected: false, object: 'None', trainSpeed: 80, distance: 1000, timeToImpact: 99 });
-        setGeoData({ changes: [], scanning: false });
-        setThreatHistory([{ time: '0s', val: 0 }]);
-        setRoiBox(null);
-      }, 3000);
-    }
-  }, [simTick, simActive, trackData.detected, borderData.level, borderData.speed, borderData.distance]);
-
-  // --- Handlers for ROI Drawing ---
-  const startDrawROI = (e) => {
-    const rect = e.target.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setDrawStart({ x, y });
-    setIsDrawingROI(true);
-    setRoiBox({ x, y, w: 0, h: 0 });
-  };
-
-  const drawROI = (e) => {
-    if (!isDrawingROI) return;
-    const rect = e.target.getBoundingClientRect();
-    const currentX = e.clientX - rect.left;
-    const currentY = e.clientY - rect.top;
-
-    setRoiBox({
-      x: Math.min(drawStart.x, currentX),
-      y: Math.min(drawStart.y, currentY),
-      w: Math.abs(currentX - drawStart.x),
-      h: Math.abs(currentY - drawStart.y)
+    setDetectionData({
+      objectCount: dets.length, personCount, maxConfidence: maxConf,
+      primaryClass: primary, threatLevel, riskScore: maxRisk, label: phase.label
     });
-  };
 
-  const endDrawROI = () => {
-    setIsDrawingROI(false);
-    if (roiBox && roiBox.w > 20) {
-      addLog(`[SEC-7] Virtual ROI Zone Established at [${roiBox.x.toFixed(0)}, ${roiBox.y.toFixed(0)}]`, "safe");
-    } else {
-      setRoiBox(null); // Too small
+    // Log on threat level change
+    if (threatLevel !== prevThreatRef.current) {
+      if (threatLevel === 'CRITICAL') {
+        playTacticalPing();
+        addLog(`[SEC-7] ⚠ CRITICAL: ${personCount} hostile(s) detected | Risk: ${maxRisk}% | AI Confidence: ${maxConf}%`, 'critical');
+      } else if (threatLevel === 'WARNING') {
+        addLog(`[SEC-7] WARNING: Movement detected — ${primary} | Risk: ${maxRisk}% | Tracking...`, 'warning');
+      } else if (prevThreatRef.current !== 'LOW') {
+        addLog(`[SEC-7] ✓ Threat cleared. Sector secure. Resuming surveillance.`, 'normal');
+      }
+      prevThreatRef.current = threatLevel;
     }
-  };
 
-  // Handlers for Geo-Eye Scan
+    // Track guard updates
+    const tp = trackPhase;
+    const speedMs = tp.trainSpeed * (5 / 18);
+    const eti = speedMs > 0 ? Math.round(tp.distance / speedMs) : 99;
+    setTrackData({ detected: tp.detected, object: tp.object, trainSpeed: tp.trainSpeed, distance: tp.distance, timeToImpact: eti });
+
+    if (tp.action && tp.detected !== prevTrackRef.current) {
+      addLog(`[TRK-2] ${tp.action}`, tp.detected ? 'warning' : 'normal');
+    }
+    prevTrackRef.current = tp.detected;
+
+    // Update threat history every 3 ticks
+    if (tick % 3 === 0) {
+      const timeStr = new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' }).slice(3, 8);
+      setThreatHistory(prev => {
+        const h = [...prev, { time: timeStr, val: maxRisk }];
+        return h.length > 20 ? h.slice(1) : h;
+      });
+    }
+
+    // Draw detections on canvas
+    if (canvasRef.current) {
+      canvasRef.current.width = canvasRef.current.parentElement?.clientWidth || 960;
+      canvasRef.current.height = canvasRef.current.parentElement?.clientHeight || 540;
+      drawSimulatedDetections(canvasRef.current, dets, tick);
+    }
+
+  }, [tick, simActive, phase, trackPhase, addLog]);
+
+  // Reset when sim stops
+  useEffect(() => {
+    if (!simActive) {
+      setDetectionData({ objectCount: 0, personCount: 0, maxConfidence: 0, primaryClass: 'None', threatLevel: 'LOW', riskScore: 0, label: 'IDLE' });
+      prevThreatRef.current = 'LOW';
+      prevTrackRef.current = false;
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+    }
+  }, [simActive]);
+
+  // ─── Geo Scan ───
   const triggerGeoScan = () => {
     setGeoData({ changes: [], scanning: true });
-    addLog('[GEO-EYE] Image Subtraction algorithm started on coordinates [23.6102, 85.2799]...', 'normal');
-
-    // Mocking terrain changes detection over 2 seconds
+    addLog('[GEO-EYE] Terrain subtraction scan initiated on Jharkhand mining corridor [23.6102, 85.2799]...', 'normal');
     setTimeout(() => {
-      const changes = [
-        { lat: 23.6152, lng: 85.2859, radius: 400, risk: 85 }, // Illegal Mining pit A
-        { lat: 23.6052, lng: 85.2719, radius: 250, risk: 60 }  // Illegal Mining pit B
-      ];
-      setGeoData({ changes, scanning: false });
-      addLog(`[GEO-EYE] Scan Complete. Detected ${changes.length} irregular terrain variances (Suspected Mining / Forest Encroachment).`, 'warning');
-    }, 2000);
+      setGeoData({
+        changes: [
+          { lat: 23.6152, lng: 85.2859, radius: 400, risk: 85 },
+          { lat: 23.6052, lng: 85.2719, radius: 250, risk: 60 },
+          { lat: 23.6200, lng: 85.2900, radius: 180, risk: 45 }
+        ], scanning: false
+      });
+      addLog(`[GEO-EYE] 3 terrain anomalies detected — suspected illegal mining & deforestation.`, 'warning');
+    }, 2500);
   };
 
-
+  // ─── Pre-auth ───
   if (!isAuthenticated) {
-    return (
-      <LoginOverlay onLogin={() => {
-        setIsAuthenticated(true);
-        addLog("[SYS] Authentication Successful: Officer Drishti Mishra - Sector 7 Access Granted", "safe");
-      }} />
-    );
+    return <LoginOverlay onLogin={() => {
+      setIsAuthenticated(true);
+      addLog("[SYS] ✓ Officer Drishti Mishra authenticated — Sector 7 access granted.", "safe");
+      addLog("[SYS] Software simulation engine ready. Press START to begin live scenario.", "normal");
+    }} />;
   }
 
+  // ════════════════════════════════════════
+  //  RENDER
+  // ════════════════════════════════════════
+
   return (
-    <div className={`hud-container ${isAlert ? 'alert-mode' : ''}`} style={{ display: 'grid', gridTemplateColumns: '260px 1fr 350px', gap: '1.5rem', height: '100vh', padding: '1.5rem', overflow: 'hidden' }}>
+    <div className={`hud-container ${isAlert ? 'alert-mode' : ''}`}>
 
-      {/* Column 1 (Left): Navigation & System Health */}
-      <motion.div
-        className="glass-panel"
-        initial={{ x: -50, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }}
-      >
-        <div className="corner-brackets" />
-        <div className="hud-title" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.2rem', paddingBottom: '1rem', borderBottom: '1px solid rgba(34, 197, 94, 0.2)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Shield className="icon" size={24} /> TRINETRA</div>
-          <div style={{ fontSize: '0.65rem', color: 'gray', letterSpacing: '2px' }}>MINISTRY OF DEFENCE<br />[ BHARAT / INDIA ]</div>
-        </div>
+      {/* Floating elements */}
+      <NotificationToast logs={logs} />
+      <MobileAlert threatLevel={detectionData.threatLevel} riskScore={detectionData.riskScore} threatClass={detectionData.primaryClass} />
+      <WalkieTalkie isOpen={walkieOpen} onToggle={() => setWalkieOpen(!walkieOpen)} threatLevel={detectionData.threatLevel} detectedClass={detectionData.primaryClass} />
 
-        <div className="nav-links" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {['DASHBOARD', 'BORDER-SENTRY', 'GEO-EYE', 'TRACK-GUARD'].map(tab => (
-            <button
-              key={tab}
-              className={`nav-btn ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
-              style={{ width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'flex-start' }}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+      {/* Classification Banner */}
+      <div className="classification-banner">
+        CONFIDENTIAL — MINISTRY OF DEFENCE — GOVT OF INDIA — AUTHORIZED PERSONNEL ONLY
+      </div>
 
-        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <button
-            className={`nav-btn btn-safe`}
-            style={{ width: '100%', borderColor: isHindi ? 'var(--accent)' : 'gray', color: isHindi ? 'var(--accent)' : 'gray' }}
-            onClick={() => setIsHindi(!isHindi)}
-          >
-            {isHindi ? 'भाषा: हिंदी' : 'LANG: ENG'}
-          </button>
-
-          <button
-            className={`nav-btn btn-danger`}
-            style={{ width: '100%', borderColor: 'var(--danger)', color: 'var(--danger)' }}
-            onClick={() => {
-              setBorderData({ distance: 12, speed: 105, riskScore: 98, level: 'CRITICAL', xai: 'MANUAL OVERRIDE: FORCED BREACH DETECTED.', threat: 'TEST_HOSTILE' });
-              addLog("[SYS] MANUAL PROTOCOL 'TEST BREACH' INITIATED. GLOBAL ALERT STATE ACTIVE.", "critical");
-              playTacticalPing();
-            }}
-          >
-            <AlertTriangle size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} />
-            [ TEST BREACH ]
-          </button>
-
-          <button
-            className={`nav-btn ${simActive ? 'btn-danger' : 'btn-safe'}`}
-            style={{ width: '100%', borderColor: simActive ? 'var(--warning)' : 'var(--safe)', color: simActive ? 'var(--warning)' : 'var(--safe)' }}
-            onClick={() => !simActive && setSimActive(true)}
-          >
-            {simActive ? `[ SIM RUNNING: ${simTick}s ]` : '[ START SIMULATION ]'}
-          </button>
-
-          <div className="status-indicator" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '10px', padding: '1rem', background: 'rgba(0,0,0,0.5)', borderLeft: `2px solid ${isAlert ? 'var(--danger)' : 'var(--safe)'}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div className="status-dot" style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: isAlert ? 'var(--danger)' : 'var(--safe)', boxShadow: `0 0 10px ${isAlert ? 'var(--danger)' : 'var(--safe)'}` }}></div>
-              <span style={{ fontSize: '0.8rem', color: isAlert ? 'var(--danger)' : 'var(--safe)', fontWeight: 'bold' }}>
-                {isAlert ? 'DEFCON 1 (CRITICAL)' : 'DEFENSE GRID ONLINE'}
-              </span>
-            </div>
-            <div style={{ fontSize: '0.7rem', color: 'gray' }}>SYSTEM HEALTH: {100 - (simTick / 2)}%</div>
+      {/* Header */}
+      <div className="top-header">
+        <div className="header-left">
+          <div className="header-emblem">🛡️</div>
+          <div className="header-title-group">
+            <div className="header-title"><Shield size={16} /> TRINETRA RAKSHAK</div>
+            <div className="header-subtitle">INTEGRATED COMMAND & CONTROL — SECTOR 7</div>
           </div>
         </div>
-      </motion.div>
-
-      {/* Column 2 (Center): The Main 'Eye' Feed (16:9) */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', height: '100%' }}>
-        <div style={{ width: '100%', aspectRatio: '16/9', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-          <AnimatePresence mode='wait'>
-
-            {activeTab === 'DASHBOARD' && (
-              <motion.div
-                key="dashboard"
-                initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', height: '100%' }}
-              >
-                <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div className="corner-brackets" />
-                  <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent)' }}><Activity size={20} /> LOGIC ENGINE METRICS</h3>
-
-                  <div className="stat-box" style={{ borderColor: isAlert ? 'var(--danger)' : 'rgba(34,197,94,0.15)' }}>
-                    <div><div className="label">FUZZY RISK SCORE</div><div className="value" style={{ color: isAlert ? 'var(--danger)' : (borderData.level === 'WARNING' ? 'var(--warning)' : 'var(--accent)') }}>{borderData.riskScore}%</div></div>
-                    <Activity size={32} color={isAlert ? 'var(--danger)' : 'var(--accent)'} />
-                  </div>
-
-                  <div className="stat-box">
-                    <div><div className="label">TARGET SPEED</div><div className="value">{borderData.speed} KM/H</div></div>
-                    <Target size={32} color="var(--accent)" />
-                  </div>
-
-                  <div className="stat-box">
-                    <div><div className="label">TARGET DISTANCE</div><div className="value">{borderData.distance} M</div></div>
-                    <Radio size={32} color="var(--accent)" />
-                  </div>
-
-                  {borderData.xai && (
-                    <div style={{ marginTop: 'auto', padding: '1rem', background: 'rgba(0,0,0,0.5)', borderLeft: `3px solid ${isAlert ? 'var(--danger)' : 'var(--warning)'}` }}>
-                      <div className="label" style={{ fontSize: '0.7rem', color: 'gray', marginBottom: '0.5rem' }}>EXPLAINABLE AI REASONING (XAI):</div>
-                      <div style={{ fontStyle: 'italic', fontSize: '1rem', color: 'var(--text-main)' }}>
-                        {isHindi ? translateToHindi(borderData.xai) : borderData.xai}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="glass-panel">
-                  <div className="corner-brackets" />
-                  <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent)', marginBottom: '1rem' }}><MapIcon size={20} /> THREAT RISK GRAPH (0-100)</h3>
-                  <div style={{ height: 'calc(100% - 3rem)' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={threatHistory}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(34, 197, 94, 0.1)" />
-                        <XAxis dataKey="time" stroke="var(--accent)" fontSize={11} />
-                        <YAxis domain={[0, 100]} stroke="var(--accent)" fontSize={11} />
-                        <Tooltip contentStyle={{ background: 'var(--glass-bg)', border: '1px solid var(--accent)', color: 'var(--accent)' }} />
-                        <Line type="monotone" dataKey="val" stroke={isAlert ? "var(--danger)" : "var(--accent)"} strokeWidth={2} isAnimationActive={!!simActive} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === 'BORDER-SENTRY' && (
-              <motion.div
-                key="bordersentry"
-                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}
-                className="glass-panel"
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-              >
-                <div className="corner-brackets" />
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', color: 'var(--accent)', letterSpacing: '2px', zIndex: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Video size={16} /> LIVE INFERENCE: SEC-7</div>
-                  <div style={{ fontSize: '0.8rem', color: 'gray' }}>[ DRAG MOUSE ON VIDEO TO DRAW VIRTUAL R.O.I ]</div>
-                  {isAlert && <div className="blink-text" style={{ color: 'var(--danger)' }}>CRITICAL THREAT: {borderData.threat}</div>}
-                </div>
-
-                <div
-                  style={{ flex: 1, position: 'relative', border: '1px solid rgba(80,80,80,0.5)', backgroundColor: '#000', overflow: 'hidden', cursor: 'crosshair' }}
-                  onMouseDown={startDrawROI}
-                  onMouseMove={drawROI}
-                  onMouseUp={endDrawROI}
-                  onMouseLeave={endDrawROI}
-                >
-                  <video
-                    ref={videoRef}
-                    autoPlay playsInline muted
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
-                  />
-                  <canvas
-                    ref={canvasRef}
-                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
-                  />
-
-                  {/* Manual ROI Rendering */}
-                  {roiBox && (
-                    <div style={{
-                      position: 'absolute',
-                      top: roiBox.y, left: roiBox.x,
-                      width: roiBox.w, height: roiBox.h,
-                      border: '2px dashed var(--safe)',
-                      backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                      pointerEvents: 'none'
-                    }}>
-                      <span style={{ position: 'absolute', top: '-20px', left: 0, color: 'var(--safe)', fontSize: '0.7rem', fontWeight: 'bold' }}>NO-GO ZONE</span>
-                    </div>
-                  )}
-
-                  {/* Inference Target Overlay */}
-                  {simActive && simTick > 2 && (
-                    <motion.div
-                      className="bounding-box"
-                      animate={{
-                        width: 50 + (100 - borderData.distance) * 2,
-                        height: 50 + (100 - borderData.distance) * 2,
-                        x: 100 + (simTick * 15),
-                        y: 100 + (simTick * 6)
-                      }}
-                      transition={{ type: 'tween', ease: 'linear', duration: 1 }}
-                      style={{
-                        position: 'absolute',
-                        top: 0, left: 0,
-                        border: `2px solid ${isAlert ? 'var(--danger)' : borderData.level === 'WARNING' ? 'var(--warning)' : 'var(--safe)'}`,
-                        backgroundColor: isAlert ? 'rgba(220, 38, 38, 0.2)' : 'transparent',
-                        display: 'flex', flexDirection: 'column',
-                        pointerEvents: 'none'
-                      }}
-                    >
-                      <div style={{ position: 'absolute', top: -25, left: -2, background: isAlert ? 'var(--danger)' : borderData.level === 'WARNING' ? 'var(--warning)' : 'var(--safe)', color: '#000', fontSize: '0.7rem', padding: '2px 6px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                        {borderData.threat} | {borderData.speed}km/h
-                      </div>
-                      <div className="corner-brackets-inner" style={{ borderColor: isAlert ? 'var(--danger)' : 'var(--safe)' }}></div>
-                    </motion.div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === 'GEO-EYE' && (
-              <motion.div
-                key="geoeye"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="glass-panel"
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}
-              >
-                <div className="topo-bg" />
-                <div className="corner-brackets" />
-                <div style={{ color: 'var(--accent)', letterSpacing: '2px', display: 'flex', justifyContent: 'space-between' }}>
-                  <span><Scan size={16} style={{ display: 'inline', verticalAlign: 'middle' }} /> GIS: SECTOR-7 COMMAND OVERWATCH [JHARKHAND]</span>
-                  <button onClick={triggerGeoScan} disabled={geoData.scanning} style={{ background: geoData.scanning ? 'var(--warning)' : 'transparent', border: '1px solid var(--accent)', color: geoData.scanning ? 'black' : 'var(--accent)', padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    {geoData.scanning ? '[ SCANNING... ]' : '[ RUN SUBTRACTION SCAN ]'}
-                  </button>
-                </div>
-
-                <div style={{ flex: 1, borderRadius: '8px', overflow: 'hidden', border: `2px solid ${geoData.scanning ? 'var(--warning)' : 'var(--glass-border)'}`, position: 'relative' }}>
-                  <MapContainer center={[23.75, 86.41]} zoom={13} style={{ height: '100%', width: '100%', backgroundColor: '#0a0a0a' }}>
-                    <TileLayer
-                      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                      attribution="Tiles &copy; Esri &mdash; Source: Esri."
-                    />
-
-                    {geoData.changes.map((change, idx) => (
-                      <Circle
-                        key={idx}
-                        center={[change.lat, change.lng]}
-                        radius={change.radius}
-                        pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.5 }}
-                      >
-                        <Popup>
-                          <strong>CRITICAL RISK: {change.risk}%</strong><br />
-                          Suspected Illegal Mining / Heat Anomaly.
-                        </Popup>
-                      </Circle>
-                    ))}
-                  </MapContainer>
-                  {geoData.scanning && <div className="radar-overlay"></div>}
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === 'TRACK-GUARD' && (
-              <motion.div
-                key="trackguard"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="glass-panel"
-                style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-              >
-                <div className="corner-brackets" />
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent)', marginBottom: '1rem' }}><Train size={20} /> TRACK-GUARD RAILWAY OVERWATCH</h3>
-
-                <div style={{ flex: 1, display: 'flex', gap: '1rem' }}>
-                  <div style={{ flex: 2, background: 'repeating-linear-gradient(90deg, #111, #111 40px, #222 40px, #222 42px)', position: 'relative', border: '1px solid rgba(80,80,80,0.5)', overflow: 'hidden' }}>
-
-                    <div style={{ position: 'absolute', top: '50%', width: '100%', height: '4px', background: '#444' }}></div>
-                    <div style={{ position: 'absolute', top: '55%', width: '100%', height: '4px', background: '#444' }}></div>
-
-                    {trackData.detected && (
-                      <div style={{ position: 'absolute', left: '70%', top: '48%', background: 'var(--warning)', padding: '2px 8px', borderRadius: '4px', color: 'black', fontWeight: 'bold', zIndex: 10, animation: 'pulse 1s infinite' }}>
-                        OBSTRUCTION ({trackData.object})
-                      </div>
-                    )}
-
-                    {/* Train approaching */}
-                    <motion.div
-                      animate={{ left: trackData.detected ? '50%' : '110%' }}
-                      transition={{ duration: 15, ease: 'linear' }}
-                      style={{ position: 'absolute', top: '45%', width: '60px', height: '30px', background: 'var(--accent)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'black', fontWeight: 'bold', fontSize: '10px' }}
-                    >
-                      TRN-12042
-                    </motion.div>
-
-                  </div>
-
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                      <div className="label">OBSTRUCTION CLASS</div>
-                      <div className="value" style={{ color: trackData.detected ? 'var(--warning)' : 'var(--safe)', fontSize: '1.2rem' }}>{trackData.object}</div>
-                    </div>
-                    <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                      <div className="label">TRAIN DISTANCE / SPEED</div>
-                      <div className="value" style={{ color: 'var(--warning)', fontSize: '1.2rem' }}>{Math.round(trackData.distance)}m / {trackData.trainSpeed}km/h</div>
-                    </div>
-                    <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                      <div className="label">EST. TIME TO IMPACT (ETI)</div>
-                      <div className="value" style={{ color: trackData.timeToImpact < 20 ? 'var(--danger)' : 'var(--safe)' }}>{trackData.timeToImpact}s</div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-          </AnimatePresence>
+        <div className="header-right">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="status-pulse-ring" style={{ backgroundColor: isAlert ? 'var(--danger)' : 'var(--safe)', color: isAlert ? 'var(--danger)' : 'var(--safe)' }} />
+            <span style={{ fontFamily: "'Share Tech Mono'", fontSize: '0.65rem', color: isAlert ? 'var(--danger)' : 'var(--safe)', letterSpacing: 1 }}>
+              {isAlert ? 'THREAT DETECTED' : 'ALL CLEAR'}
+            </span>
+          </div>
+          <LiveClock />
         </div>
       </div>
 
-      {/* Column 3 (Right): Real-time Logs & Incident Report controls */}
-      <motion.div
-        className="glass-panel alert-sidebar"
-        initial={{ x: 50, opacity: 0 }}
-        animate={{
-          x: 0, opacity: 1,
-          borderColor: isAlert ? 'var(--danger)' : 'var(--glass-border)',
-          boxShadow: isAlert ? '0 0 20px rgba(220, 38, 38, 0.2), inset 0 0 15px rgba(220, 38, 38, 0.1)' : '0 0 15px rgba(34, 197, 94, 0.1), inset 0 0 20px rgba(0,0,0,0.8)'
-        }}
-        style={{ width: '100%', display: 'flex', flexDirection: 'column' }}
-      >
-        <div className="corner-brackets" />
-        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1rem', color: isAlert ? 'var(--danger)' : 'var(--accent)', textShadow: isAlert ? '0 0 5px rgba(220, 38, 38, 0.5)' : '0 0 5px var(--accent-glow)', marginBottom: '1rem' }}>
-          <Terminal size={18} /> INCIDENT & LOGS
-        </h3>
+      {/* ── 2-Column Grid ── */}
+      <div className="main-grid">
 
-        {isAlert && (
-          <button
-            onClick={handleGenerateReport}
-            className="nav-btn btn-danger"
-            style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '5px', padding: '1rem', marginBottom: '1.5rem', animation: 'pulse 1.5s infinite' }}
-          >
-            <Download size={18} /> DISPATCH INCIDENT PDF
-          </button>
-        )}
+        {/* ═══ MAIN VIEWPORT ═══ */}
+        <div className="main-viewport">
+          {/* Tab bar */}
+          <div className="tab-bar">
+            {TABS.map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button key={tab.id} className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}>
+                  <Icon size={12} /> {tab.label}
+                </button>
+              );
+            })}
+          </div>
 
-        <div className="console-font" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, overflowY: 'auto', paddingRight: '5px' }}>
-          <AnimatePresence initial={false}>
-            {logs.map((log) => (
-              <motion.div
-                key={log.id}
-                initial={{ opacity: 0, x: -20, height: 0 }} animate={{ opacity: 1, x: 0, height: 'auto' }}
-                className={`log-entry ${log.type === 'critical' ? 'critical' : log.type === 'warning' ? 'warning' : ''}`}
-                style={{ fontSize: '0.75rem', wordBreak: 'break-word' }}
+          <AnimatePresence mode="wait">
+
+            {/* ── LIVE FEED ── */}
+            {activeTab === 'LIVE' && (
+              <motion.div key="live" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="live-feed-container"
               >
-                <TypewriterText text={log.text} speed={10} />
+                {/* Simulated camera background */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: simActive
+                    ? 'radial-gradient(ellipse at 40% 50%, rgba(15,25,15,0.95), rgba(5,10,5,1))'
+                    : 'radial-gradient(ellipse at center, rgba(10,15,10,0.7), rgba(3,5,3,1))',
+                  transition: 'background 1s ease'
+                }}>
+                  {/* Grid overlay */}
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    backgroundImage: 'linear-gradient(rgba(34,197,94,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(34,197,94,0.03) 1px, transparent 1px)',
+                    backgroundSize: '40px 40px'
+                  }} />
+                </div>
+
+                {/* Detection canvas */}
+                <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 2 }} />
+                <div className="video-scanlines" />
+
+                {/* HUD Overlay */}
+                <div className="video-hud">
+                  <div className="video-hud-top">
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <div className={`hud-badge ${simActive ? 'live' : 'info'}`}>
+                        {simActive ? <><div className="rec-dot" /> LIVE — SEC-7</> : <><Eye size={12} /> STANDBY</>}
+                      </div>
+                      {simActive && <div className="hud-badge info">SIM: {tick}s | {phase.label}</div>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {detectionData.objectCount > 0 && (
+                        <div className="hud-badge warning">{detectionData.objectCount} OBJECT{detectionData.objectCount > 1 ? 'S' : ''}</div>
+                      )}
+                      {detectionData.personCount > 0 && (
+                        <div className={`hud-badge ${detectionData.riskScore > 70 ? 'critical' : 'warning'}`}>
+                          ⚠ {detectionData.personCount} HOSTILE{detectionData.personCount > 1 ? 'S' : ''}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="video-hud-bottom">
+                    <div className="detection-stats">
+                      <div className="detection-stat" style={{ color: 'var(--text-main)' }}>
+                        <Target size={12} /> RISK: <span style={{ color: isAlert ? 'var(--danger)' : detectionData.threatLevel === 'WARNING' ? 'var(--warning)' : 'var(--safe)', fontWeight: 'bold', fontSize: '1rem' }}>{detectionData.riskScore}%</span>
+                      </div>
+                      {detectionData.primaryClass !== 'None' && (
+                        <div className="detection-stat" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                          <Eye size={12} /> {detectionData.primaryClass} — CONF: {detectionData.maxConfidence}%
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div className={`threat-level-pill ${detectionData.threatLevel.toLowerCase()}`}>
+                        <Shield size={12} /> {detectionData.threatLevel}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Center start button when not active */}
+                {!simActive && (
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+                    <div style={{ color: 'var(--accent)', fontFamily: "'Share Tech Mono'", fontSize: '0.8rem', letterSpacing: 2, marginBottom: 16, opacity: 0.6 }}>
+                      SOFTWARE SIMULATION ENGINE
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        setSimActive(true);
+                        addLog("[SYS] ▶ Live simulation started. Scenario: Border intrusion + Railway wildlife alert.", "safe");
+                      }}
+                      style={{
+                        background: 'rgba(34,197,94,0.15)', border: '2px solid var(--accent)',
+                        borderRadius: 16, padding: '16px 32px', cursor: 'pointer',
+                        color: 'var(--accent)', fontFamily: "'Share Tech Mono'", fontSize: '0.9rem',
+                        letterSpacing: 2, display: 'flex', alignItems: 'center', gap: 10,
+                        boxShadow: '0 0 30px rgba(34,197,94,0.15)',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      <Play size={20} /> START LIVE SIMULATION
+                    </motion.button>
+                    <div style={{ color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", fontSize: '0.55rem', marginTop: 12, textAlign: 'center', maxWidth: 300 }}>
+                      60-second scenario: Border intrusion detection → threat escalation → wildlife on railway tracks → auto-brake → all clear
+                    </div>
+                  </div>
+                )}
               </motion.div>
-            ))}
+            )}
+
+            {/* ── CCTV ── */}
+            {activeTab === 'CCTV' && <CCTVGrid />}
+
+            {/* ── GEO-EYE ── */}
+            {activeTab === 'GEO-EYE' && (
+              <motion.div key="geoeye" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: 0, borderRadius: 0 }}>
+                <div className="topo-bg" />
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--accent)', letterSpacing: 2, fontSize: '0.75rem' }}>
+                  <span><Scan size={13} style={{ verticalAlign: 'middle' }} /> GIS: JHARKHAND MINING CORRIDOR</span>
+                  <button onClick={triggerGeoScan} disabled={geoData.scanning}
+                    style={{ background: geoData.scanning ? 'var(--warning)' : 'transparent', border: '1px solid var(--accent)', color: geoData.scanning ? '#000' : 'var(--accent)', padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.65rem', borderRadius: 4 }}>
+                    {geoData.scanning ? 'SCANNING...' : 'RUN SCAN'}
+                  </button>
+                </div>
+                <div style={{ flex: 1, borderRadius: 6, overflow: 'hidden', border: `1px solid ${geoData.scanning ? 'var(--warning)' : 'var(--glass-border)'}`, position: 'relative' }}>
+                  <MapContainer center={[23.75, 86.41]} zoom={13} style={{ height: '100%', width: '100%', backgroundColor: '#0a0a0a' }}>
+                    <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles © Esri" />
+                    {geoData.changes.map((c, i) => (
+                      <Circle key={i} center={[c.lat, c.lng]} radius={c.radius} pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.5 }}>
+                        <Popup><strong>RISK: {c.risk}%</strong><br />Suspected illegal mining.</Popup>
+                      </Circle>
+                    ))}
+                  </MapContainer>
+                  {geoData.scanning && <div className="radar-overlay" />}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── TRACK GUARD ── */}
+            {activeTab === 'TRACK-GUARD' && (
+              <motion.div key="track" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', margin: 0, borderRadius: 0 }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent)', fontSize: '0.85rem', marginBottom: '0.5rem' }}><Train size={16} /> TRACK-GUARD — RAILWAY SAFETY OVERWATCH</h3>
+                <div style={{ flex: 1, display: 'flex', gap: '0.5rem' }}>
+                  <div style={{ flex: 2, background: 'repeating-linear-gradient(90deg, #111, #111 40px, #1a1a1a 40px, #1a1a1a 42px)', position: 'relative', border: '1px solid rgba(80,80,80,0.3)', overflow: 'hidden', borderRadius: 8 }}>
+                    <div style={{ position: 'absolute', top: '50%', width: '100%', height: '3px', background: '#333' }} />
+                    <div style={{ position: 'absolute', top: '55%', width: '100%', height: '3px', background: '#333' }} />
+                    {trackData.detected && (
+                      <motion.div
+                        initial={{ scale: 0 }} animate={{ scale: 1 }}
+                        style={{ position: 'absolute', left: '70%', top: '44%', background: 'var(--warning)', padding: '4px 12px', borderRadius: 8, color: '#000', fontWeight: 'bold', zIndex: 10, fontSize: '0.7rem', boxShadow: '0 0 20px rgba(245,158,11,0.4)' }}>
+                        ⚠ {trackData.object}
+                      </motion.div>
+                    )}
+                    <motion.div
+                      animate={{ left: trackData.detected ? `${Math.max(10, 50 - tick)}%` : '110%' }}
+                      transition={{ duration: 1, ease: 'linear' }}
+                      style={{ position: 'absolute', top: '44%', width: 55, height: 28, background: 'var(--accent)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold', fontSize: 9, boxShadow: '0 0 12px var(--accent-glow)' }}>
+                      🚂 12042
+                    </motion.div>
+                    {!simActive && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", fontSize: '0.7rem' }}>
+                        Start simulation to see railway scenario
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <div className="label">OBSTRUCTION</div>
+                      <div className="value" style={{ color: trackData.detected ? 'var(--warning)' : 'var(--safe)', fontSize: '1rem' }}>{trackData.object}</div>
+                    </div>
+                    <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <div className="label">DISTANCE / SPEED</div>
+                      <div className="value" style={{ color: 'var(--warning)', fontSize: '1rem' }}>{Math.round(trackData.distance)}m / {trackData.trainSpeed}km/h</div>
+                    </div>
+                    <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <div className="label">TIME TO IMPACT</div>
+                      <div className="value" style={{ color: trackData.timeToImpact < 30 ? 'var(--danger)' : 'var(--safe)' }}>{trackData.timeToImpact}s</div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── ANALYTICS ── */}
+            {activeTab === 'ANALYTICS' && <AnalyticsDashboard />}
+
           </AnimatePresence>
-          <div ref={logsEndRef} />
         </div>
-      </motion.div>
+
+        {/* ═══ CONTROL PANEL ═══ */}
+        <div className="control-panel">
+
+          {/* Simulation Control */}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            className={`nav-btn ${simActive ? 'btn-danger' : ''}`}
+            style={{
+              width: '100%', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              fontSize: '0.7rem',
+              borderColor: simActive ? 'var(--danger)' : 'var(--safe)',
+              color: simActive ? 'var(--danger)' : 'var(--safe)',
+              background: simActive ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)'
+            }}
+            onClick={() => {
+              if (simActive) {
+                setSimActive(false);
+                addLog("[SYS] ■ Simulation stopped.", "normal");
+              } else {
+                setSimActive(true);
+                setActiveTab('LIVE');
+                addLog("[SYS] ▶ Live simulation started.", "safe");
+              }
+            }}
+          >
+            {simActive ? <><Square size={12} /> STOP SIM ({tick}s)</> : <><Play size={12} /> START SIMULATION</>}
+          </motion.button>
+
+          {/* Threat Graph */}
+          <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '8px', border: '1px solid var(--glass-border)' }}>
+            <div className="section-label" style={{ marginBottom: 4 }}>
+              <Activity size={11} style={{ verticalAlign: 'middle' }} /> THREAT TIMELINE
+            </div>
+            <div style={{ height: 80 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={threatHistory}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(34,197,94,0.06)" />
+                  <XAxis dataKey="time" stroke="var(--accent)" fontSize={8} tick={{ fill: 'var(--text-dim)' }} />
+                  <YAxis domain={[0, 100]} stroke="var(--accent)" fontSize={8} tick={{ fill: 'var(--text-dim)' }} width={25} />
+                  <Line type="monotone" dataKey="val" stroke={isAlert ? "var(--danger)" : "var(--accent)"} strokeWidth={1.5} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="sidebar-divider" />
+          <SystemVitals />
+          <div className="sidebar-divider" />
+          <QuickActions addLog={addLog} playPing={playTacticalPing} />
+          <div className="sidebar-divider" />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <NightVisionToggle isNightMode={isNightMode} onToggle={() => setIsNightMode(!isNightMode)} />
+            <button className="nav-btn btn-danger" style={{ width: '100%', fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+              onClick={() => {
+                setDetectionData(prev => ({ ...prev, threatLevel: 'CRITICAL', riskScore: 98, primaryClass: 'TEST_HOSTILE', personCount: 1, label: 'TEST' }));
+                addLog("[SYS] ⚠ TEST BREACH initiated. Alert state active.", "critical");
+                playTacticalPing();
+              }}>
+              <AlertTriangle size={12} /> TEST BREACH
+            </button>
+          </div>
+          <div className="sidebar-divider" />
+          <PersonnelRoster />
+          <div className="sidebar-divider" />
+          <WeatherWidget />
+          <div className="sidebar-divider" />
+          <IncidentTimeline logs={logs} />
+
+          <div style={{ maxHeight: 100, overflowY: 'auto' }}>
+            <div className="console-font" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <AnimatePresence initial={false}>
+                {logs.slice(-6).map(log => (
+                  <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                    className={`log-entry ${log.type === 'critical' ? 'critical' : log.type === 'warning' ? 'warning' : ''}`}>
+                    <TypewriterText text={log.text} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              <div ref={logsEndRef} />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
