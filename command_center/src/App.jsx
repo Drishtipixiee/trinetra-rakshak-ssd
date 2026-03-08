@@ -425,19 +425,40 @@ export default function App() {
         playSiren(1500);
         addLog(`[SEC-7] ⚠ CRITICAL: ${personCount} hostile(s) detected | Risk: ${maxRisk}% | AI Confidence: ${maxConf}%`, 'critical');
         if (voiceRef.current && voiceEnabled) {
-          voiceRef.current.speak(`Critical alert. ${personCount} hostile detected in Sector 7 Alpha. Risk score ${maxRisk} percent. Quick Reaction Force has been alerted. All units respond immediately.`, 'critical');
+          const criticalMessages = [
+            `Critical alert. ${personCount} hostile targets confirmed in Sector 7 Alpha. Fuzzy risk score ${maxRisk} percent. Quick Reaction Force has been dispatched. All units respond immediately.`,
+            `Red alert. Perimeter breach detected. ${personCount} intruders at northeast fence line. Risk assessment ${maxRisk} percent critical. Initiating emergency protocol Bravo 7.`,
+            `Attention all stations. Multiple hostiles identified by Border Sentry AI. Threat classification ${primary}. Confidence ${maxConf} percent. Sector 7 lockdown recommended.`,
+            `Emergency. AI sensors confirm ${personCount} unauthorized individuals in restricted zone. Velocity and proximity analysis indicates hostile intent. Risk ${maxRisk} percent. QRF Team Alpha scrambled.`,
+            `Critical threat in Sector 7. ${personCount} targets detected carrying suspicious objects. Alerting Regional Command on frequency 47.5 megahertz. All personnel to defensive positions.`
+          ];
+          voiceRef.current.speak(criticalMessages[Math.floor(Math.random() * criticalMessages.length)], 'critical');
         }
       } else if (threatLevel === 'WARNING') {
         playDetectionBeep();
         addLog(`[SEC-7] WARNING: Movement detected — ${primary} | Risk: ${maxRisk}% | Tracking...`, 'warning');
         if (voiceRef.current && voiceEnabled) {
-          voiceRef.current.speak(`Warning. Unidentified ${primary.toLowerCase()} detected approaching perimeter. Risk level ${maxRisk} percent. Tracking in progress.`);
+          const warningMessages = [
+            `Warning. Unidentified ${primary.toLowerCase()} detected approaching perimeter. Risk level ${maxRisk} percent. AI is tracking movement pattern.`,
+            `Attention. Motion sensors triggered in Sector 7 Alpha. Possible ${primary.toLowerCase()} contact at medium range. Increasing camera zoom for identification.`,
+            `Advisory. Border Sentry detects movement at northeast quadrant. Classification pending. Current risk assessment ${maxRisk} percent. Monitoring closely.`,
+            `Caution. Thermal signature detected near perimeter fence. AI confidence building. Object classified as ${primary.toLowerCase()}. Tracking has begun.`,
+            `Warning. New contact detected at ${Math.floor(200 + Math.random() * 300)} meters from fence line. Running AI pattern analysis. Stand by for threat update.`
+          ];
+          voiceRef.current.speak(warningMessages[Math.floor(Math.random() * warningMessages.length)]);
         }
       } else if (prevThreatRef.current !== 'LOW') {
         playSuccessChime();
         addLog(`[SEC-7] ✓ Threat cleared. Sector secure. Resuming surveillance.`, 'normal');
         if (voiceRef.current && voiceEnabled) {
-          voiceRef.current.speak('All clear. Threat has been neutralized. Resuming normal surveillance operations.');
+          const clearMessages = [
+            'All clear. Threat has been neutralized. Sector 7 returning to green status. Resuming normal surveillance operations.',
+            'Situation resolved. No further hostile activity detected. All cameras back to routine scan mode. Force readiness downgraded to normal.',
+            'Stand down. Threat has retreated beyond perimeter range. Sector 7 is now secure. Logging incident for pattern analysis.',
+            'All clear confirmed. AI sensors show no remaining targets in restricted zone. Patrol teams may resume normal routes.',
+            'Threat eliminated from sector. Risk level now zero. Excellent response from all units. Next scheduled patrol at usual rotation.'
+          ];
+          voiceRef.current.speak(clearMessages[Math.floor(Math.random() * clearMessages.length)]);
         }
       }
       prevThreatRef.current = threatLevel;
@@ -453,7 +474,21 @@ export default function App() {
       addLog(`[TRK-2] ${tp.action}`, tp.detected ? 'warning' : 'normal');
       if (tp.detected && voiceRef.current && voiceEnabled) {
         playKlaxon();
-        voiceRef.current.speak(`Track Guard alert. ${tp.object} detected on railway track Kilo Mike 142. Auto brake signal transmitted to Train 12042 Rajdhani Express.`, 'critical');
+        const trackMessages = [
+          `Track Guard alert. ${tp.object} detected on railway track Kilo Mike 142. Auto brake signal transmitted to Train 12042 Rajdhani Express. Estimated time to impact ${eti} seconds.`,
+          `Railway safety warning. Obstruction confirmed on track section. ${tp.object} at ${tp.distance} meters. Emergency brake command sent. Indian Railways control room notified.`,
+          `Attention. Track Guard AI has identified a ${tp.object} crossing the track ahead. Speed of approaching train ${tp.trainSpeed} kilometers per hour. Auto brake engaged. Distance ${tp.distance} meters.`,
+          `Rail corridor alert. Wildlife incursion detected. ${tp.object} on active track near Kilo Mike 142. Brake signal dispatched. All trains in sector slowing to safety speed.`,
+          `Emergency track alert. ${tp.object} confirmed on railway line. AI confidence high. Auto brake protocol activated for approaching Rajdhani Express. Control room standing by.`
+        ];
+        voiceRef.current.speak(trackMessages[Math.floor(Math.random() * trackMessages.length)], 'critical');
+      } else if (!tp.detected && prevTrackRef.current && voiceRef.current && voiceEnabled) {
+        const trackClear = [
+          'Track Guard all clear. Obstruction has cleared the railway line. Track is safe for train passage. Resuming normal monitoring.',
+          'Railway corridor clear. Wildlife has moved away from track. Brake signal released. Trains may proceed at normal speed.',
+          'Track section clear. No further obstructions detected. Indian Railways control room notified. Normal operations resumed.'
+        ];
+        voiceRef.current.speak(trackClear[Math.floor(Math.random() * trackClear.length)]);
       }
     }
     prevTrackRef.current = tp.detected;
@@ -493,15 +528,31 @@ export default function App() {
   const triggerGeoScan = () => {
     setGeoData({ changes: [], scanning: true });
     addLog('[GEO-EYE] Terrain subtraction scan initiated on Jharkhand mining corridor [23.6102, 85.2799]...', 'normal');
+    if (voiceRef.current && voiceEnabled) {
+      const scanStartMessages = [
+        'Geo Eye satellite scan initiated. Analyzing terrain changes in Jharkhand mining corridor. Processing satellite imagery comparison.',
+        'Commencing GIS terrain analysis. Scanning Ranchi district coordinates for illegal mining activity. Satellite data loading.',
+        'Geo Eye module activated. Running pixel level terrain change detection on Jharkhand corridor. This analysis covers 50 square kilometers.'
+      ];
+      voiceRef.current.speak(scanStartMessages[Math.floor(Math.random() * scanStartMessages.length)]);
+    }
     setTimeout(() => {
-      setGeoData({
-        changes: [
-          { lat: 23.6152, lng: 85.2859, radius: 400, risk: 85 },
-          { lat: 23.6052, lng: 85.2719, radius: 250, risk: 60 },
-          { lat: 23.6200, lng: 85.2900, radius: 180, risk: 45 }
-        ], scanning: false
-      });
+      const anomalies = [
+        { lat: 23.6152, lng: 85.2859, radius: 400, risk: 85 },
+        { lat: 23.6052, lng: 85.2719, radius: 250, risk: 60 },
+        { lat: 23.6200, lng: 85.2900, radius: 180, risk: 45 }
+      ];
+      setGeoData({ changes: anomalies, scanning: false });
       addLog(`[GEO-EYE] 3 terrain anomalies detected — suspected illegal mining & deforestation.`, 'warning');
+      playDetectionBeep();
+      if (voiceRef.current && voiceEnabled) {
+        const scanResultMessages = [
+          'Geo Eye scan complete. 3 terrain anomalies identified. Highest risk zone at 85 percent. Suspected illegal mining activity in Ranchi district. Coordinates forwarded to District Mining Officer.',
+          'Satellite analysis finished. Detected significant terrain changes at 3 locations. Evidence of unauthorized excavation and deforestation. Alert sent to Jharkhand Mining Department.',
+          'Scan results ready. 3 anomalies found in mining corridor. Large scale terrain modification detected, risk 85 percent. This matches patterns of illegal coal extraction. Report generated for authorities.'
+        ];
+        voiceRef.current.speak(scanResultMessages[Math.floor(Math.random() * scanResultMessages.length)], 'critical');
+      }
     }, 2500);
   };
 
