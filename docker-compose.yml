@@ -7,6 +7,13 @@ services:
       - "5000:5000"
     environment:
       - FLASK_ENV=development
+    volumes:
+      - ./backend:/app
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5000/api/status" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   frontend:
     build: ./command_center
@@ -14,13 +21,9 @@ services:
       - "5173:5173"
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - VITE_API_URL=http://backend:5000
     volumes:
       - ./command_center/src:/app/src
     depends_on:
-      - backend
-
-  mock_stream:
-    build: ./backend
-    command: python -c "import time, requests, random; time.sleep(10); print('Mock Stream Started');\nwhile True:\n  try:\n    res=requests.get('http://backend:5000/api/status')\n  except Exception as e: pass\n  time.sleep(10)"
-    depends_on:
-      - backend
+      backend:
+        condition: service_healthy

@@ -44,8 +44,8 @@ const THREAT_KNOWLEDGE = {
 
 const CONTEXTUAL_RESPONSES = {
     'threat': (data) => THREAT_KNOWLEDGE.analysis(data),
-    'status': () => `**System Status Report**\n\n• **Uptime**: ${Math.floor(Math.random() * 500 + 100)} hours\n• **Active Sensors**: 12/12\n• **CCTV Feeds**: 4/4 operational\n• **Backend API**: Connected\n• **AI Models**: Fuzzy Logic + Pattern Analysis active\n• **Personnel**: 5/6 on duty\n• **Last System Check**: ${new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}\n\nAll systems nominal. No maintenance required.`,
-    'patrol': () => `**Patrol Intelligence Update**\n\nCurrent patrol deployment across Sector 7:\n\n• **Alpha Team** (Sub. Vikram Singh): Sector 7A — northeast perimeter. Last check-in 3 min ago.\n• **Bravo Team** (Hav. Pradeep Kumar): Sector 7B — watchtower duty. Status: ACTIVE.\n• **Charlie Point** (Sep. Amit Yadav): Main gate sentry. Status: ACTIVE.\n\nRecommended next patrol rotation at ${new Date(Date.now() + 3600000).toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' })} IST.\n\nNo incidents reported during current shift.`,
+    'status': () => `**System Status Report**\n\n• **Uptime**: ${Math.floor(Math.random() * 500 + 100)} hours\n• **Active Sensors**: 12/12\n• **CCTV Feeds**: 4/4 operational\n• **Backend API**: Connected (Vercel Serverless)\n• **AI Models**: Fuzzy Logic + Pattern Analysis active\n• **Personnel**: 5/6 on duty\n• **Last System Check**: ${new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}\n\nAll systems nominal. No maintenance required.`,
+    'patrol': () => `**Patrol Intelligence Update**\n\nCurrent patrol deployment across Sector 7:\n\n• **Alpha Team** (Sub. Vikram Singh): Sector 7A — northeast perimeter. Last check-in 3 min ago.\n• **Bravo Team** (Hav. Pradeep Kumar): Sector 7B — watchtower duty. Status: ACTIVE.\n• **Charlie Point** (Sep. Amit Yadav): Main gate sentry. Status: ACTIVE.\n• **Delta Team** (NK. Suresh Rathore): Comms center. Monitoring FREQ-47.5MHz.\n\nRecommended next patrol rotation at ${new Date(Date.now() + 3600000).toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' })} IST.\n\nNo incidents reported during current shift.`,
     'weather': () => {
         const temp = (25 + Math.random() * 12).toFixed(1);
         const humidity = (40 + Math.random() * 40).toFixed(0);
@@ -59,32 +59,75 @@ const CONTEXTUAL_RESPONSES = {
         return `**STANDING RECOMMENDATIONS**\n\n✓ Continue routine patrol pattern\n✓ Maintain CCTV surveillance on all sectors\n✓ Next scheduled system diagnostic in 2 hours\n✓ Weather check: conditions favorable for operations\n\nNo immediate actions required. Force readiness: GREEN.`;
     },
     'history': () => `**Threat History — Last 72 Hours**\n\n| Time | Event | Severity | Resolution |\n|------|-------|----------|------------|\n| Today 22:15 | Perimeter motion SEC-7A | WARNING | False alarm (wildlife) |\n| Today 19:42 | UAV detected SEC-7B | CRITICAL | Intercepted by QRF |\n| Yesterday 03:10 | Vehicle approach after curfew | WARNING | Authorized personnel |\n| Yesterday 14:30 | Mining activity GEO-3 | WARNING | Reported to district HQ |\n| 2 days ago 01:55 | 2 unknowns at perimeter | CRITICAL | QRF deployed, suspects fled |\n\n**Pattern Analysis**: 67% of critical events occur between 01:00-04:00 IST. Recommend doubling patrol strength during these hours.`,
-    'help': () => `**Available Commands**\n\n• "Analyze threat" — Real-time threat assessment\n• "System status" — Health check of all subsystems\n• "Patrol update" — Current patrol positions\n• "Weather impact" — Weather effect on operations\n• "Recommendations" — AI tactical suggestions\n• "Threat history" — Last 72-hour incident log\n• Or ask me anything about the operational situation!\n\nI can analyze sensor data, provide tactical advice, correlate threat patterns, and generate intelligence briefings on demand.`,
+    'help': () => `**Available Commands**\n\n• "Analyze threat" — Real-time threat assessment\n• "System status" — Health check of all subsystems\n• "Patrol update" — Current patrol positions\n• "Weather impact" — Weather effect on operations\n• "Recommendations" — AI tactical suggestions\n• "Threat history" — Last 72-hour incident log\n• "Border security" — India border protection overview\n• "Railway safety" — Track-Guard module details\n• "Mining detection" — GEO-EYE surveillance info\n• "How does this work?" — Project technology explanation\n• "CCTV cameras" — Camera feed status\n• "Fuzzy logic" — How risk scoring works\n• "Drone/UAV" — Aerial threat info\n• "India defense" — National security context\n\nOr ask me anything else — I'm a general-purpose intelligence AI!`,
+    'border': () => `**Border Security — India Context**\n\nIndia shares **15,106.7 km of land borders** with 7 nations. Key challenges:\n\n🏔️ **Indo-Pakistan (LoC)**: 3,323 km — BSF patrols with smart fencing, thermal imaging. Trinetra augments with AI-based intrusion detection on camera feeds.\n\n🏔️ **Indo-China (LAC)**: 3,488 km — ITBP deployment. Difficult terrain makes AI surveillance critical for early warning.\n\n🌿 **Indo-Bangladesh**: 4,096 km — Cattle smuggling, illegal migration. Smart fencing + CCTV integrated with our detection engine.\n\n**How Trinetra Helps**: Our Border-Sentry module uses AI object detection on live camera feeds. When a person is detected within the restricted zone (ROI), the fuzzy logic engine calculates risk based on velocity, proximity, and visibility. If risk exceeds 70%, QRF is auto-alerted.\n\n**Real-world deployment**: Systems like BOLD-QIT (Border Electronically Dominated QRT Interception Technique) already use similar technology. Trinetra is our prototype for this.`,
+    'railway': () => `**Railway Safety — Track-Guard Module**\n\nIndian Railways operates **67,956 km** of track — the 4th largest network in the world.\n\n🐘 **Problem**: ~150 elephant deaths annually on railway tracks. 100+ cattle collisions daily. Wildlife crossings are a major safety and ecological concern.\n\n🚂 **Track-Guard Solution**:\n1. AI cameras mounted on approach corridors detect wildlife/obstructions\n2. Confidence score calculated via pattern recognition\n3. If obstruction confirmed → auto-brake signal sent to approaching train\n4. Simultaneous alert to nearest railway control room\n\n**Simulation**: Our 60-second demo shows:\n• 0-15s: Clear track, monitoring\n• 15-35s: Wild elephant detected → WARNING → auto-brake transmitted\n• 35-60s: Track cleared, all clear\n\n**Technology**: Canvas-based detection rendering, Web Speech API voice alerts, real-time risk scoring.\n\nProject Nilgiri by Indian Railways already tests similar AI for elephant corridors near Coimbatore.`,
+    'mining': () => `**Mining Surveillance — GEO-EYE Module**\n\nIllegal mining is a ₹1,00,000 Cr+ problem in India. Key affected states: Jharkhand, Odisha, Chhattisgarh, Rajasthan.\n\n⛏️ **Problem**: Unauthorized extraction of coal, iron ore, sand, and granite. Often linked to organized crime and environmental destruction.\n\n🛰️ **GEO-EYE Solution**:\n1. Satellite imagery comparison (before vs after)\n2. Pixel-level terrain change detection using image differencing\n3. Changes exceeding threshold → flagged as "suspected mining activity"\n4. GPS coordinates logged and forwarded to District Mining Officer\n\n**Our Approach**: React-Leaflet GIS map centered on Jharkhand mining corridor. Scan button triggers terrain analysis. Detected anomalies shown with risk circles on the map.\n\n**Real-world impact**: Satellite monitoring by ISRO (NRSC) and Mining Surveillance System (MSS) by Ministry of Mines already use similar satellite-based detection.`,
+    'cctv': () => `**CCTV Surveillance Grid — Status**\n\n4 cameras deployed across Sector 7:\n\n📹 **CAM-01 — Main Gate** (28.6139°N, 77.2090°E)\nScenario: Vehicle approaching → person exits → access check\nStatus: ${Math.random() > 0.3 ? 'OPERATIONAL' : 'DETECTING'}\n\n📹 **CAM-02 — Perimeter Fence** (28.6145°N, 77.2095°E)\nScenario: 2 unknowns approaching → breach attempt → neutralized\nStatus: OPERATIONAL\n\n📹 **CAM-03 — Watchtower** (28.6150°N, 77.2085°E)\nScenario: Stray dog classified → UAV drone detected in airspace\nStatus: MONITORING\n\n📹 **CAM-04 — Bunker Area** (28.6135°N, 77.2080°E)\nScenario: Secure — no movement detected\nStatus: OPERATIONAL\n\nEach camera runs a 60-second simulated detection scenario with canvas-based bounding boxes, confidence bars, and tactical overlays.`,
+    'fuzzy': () => `**Fuzzy Logic Risk Scoring Engine**\n\nOur AI reasoning engine uses **scikit-fuzzy** to compute risk scores from multiple sensor inputs:\n\n**Input Variables (Antecedents)**:\n• **Velocity** (0-100 km/h): Low / Medium / High\n• **Proximity** (0-500m): Near / Medium / Far\n• **Visibility** (0-100%): Low / Medium / High\n\n**Output Variable (Consequent)**:\n• **Risk Score** (0-100%): Safe / Warning / Critical\n\n**Rule Base** (9 rules):\n1. High speed + Near proximity → CRITICAL\n2. Low visibility + Near → CRITICAL (stealth factor)\n3. Medium speed + Near → WARNING\n4. High speed + Medium distance → WARNING\n5. Far proximity → always SAFE\n\n**XAI (Explainable AI)**: Every risk score comes with a human-readable explanation of WHY that score was assigned.\n\nExample: "CRITICAL: High-speed entity | critical proximity to Danger Zone | low-visibility conditions. Calculated Risk: 87.3%"`,
+    'project': () => `**About Trinetra Rakshak**\n\n**Trinetra Rakshak** (त्रिनेत्र रक्षक — "Three-Eyed Guardian") is an AI-powered Integrated Command & Control Surveillance System.\n\n**Purpose**: A software-defined defense prototype that demonstrates how AI can enhance India's border security, railway safety, and mining surveillance — all from a single command center.\n\n**Key Technologies**:\n• **React 18 + Vite** — Modern frontend framework\n• **Flask + Python** — RESTful backend API\n• **scikit-fuzzy** — Fuzzy logic for risk scoring\n• **Web Speech API** — AI voice alerts in Indian English\n• **Web Crypto API** — SHA-256 + RSA-2048 authentication\n• **Canvas 2D** — Real-time detection rendering\n• **React Leaflet** — GIS mapping with satellite imagery\n\n**Architecture**: Frontend deployed on Vercel, Backend as serverless functions. Fully offline simulation engine — no external AI APIs needed.\n\n**Real-world analogy**: Modeled after BSF's BOLD-QIT, Indian Railways' Project Nilgiri, and ISRO's Mining Surveillance System.`,
+    'drone': () => `**UAV/Drone Threat Analysis**\n\nDrone incursions are an emerging threat along India's borders, especially the Indo-Pakistan border in Punjab.\n\n**Recent Incidents**:\n• 2024: 250+ drone sightings along Punjab border\n• Used for: arms smuggling, narcotics, reconnaissance\n• BSF anti-drone measures: DRDO's counter-drone systems\n\n**Trinetra's Approach**:\n• CAM-03 (Watchtower) detects airborne objects via motion analysis\n• AI classifies: Bird vs UAV vs Aircraft\n• If UAV confirmed → CRITICAL alert + voice warning\n• Auto-logs GPS coordinates + flight path estimation\n\n**Planned Enhancement**: Integration with DRDO's anti-drone jamming systems for automated electronic countermeasures.`,
+    'india_defense': () => `**India's Defense & Security Landscape**\n\n🇮🇳 India maintains the world's **2nd largest armed forces** (1.45M active personnel)\n\n**Key Security Challenges**:\n• Border intrusions (Pakistan, China, Bangladesh borders)\n• Cross-border terrorism and infiltration\n• Left-Wing Extremism (Naxal corridor)\n• Maritime security (7,516 km coastline)\n• Cyber warfare and drone threats\n\n**Smart Fencing Projects**:\n• **CIBMS** (Comprehensive Integrated Border Management System)\n• **BOLD-QIT** — BSF's AI-assisted border tech\n• Laser walls, thermal imaging, seismic sensors\n\n**How Trinetra Fits**: Our system simulates the command center that integrates these sensors into one unified dashboard. A sector commander sees all threats, all cameras, all AI analysis in one place — that's the vision.\n\n**Budget Context**: India's defense budget FY2024: ₹5.94 lakh crore. Smart border tech is a growing allocation priority.`,
 };
 
 function getAIResponse(input, detectionData) {
     const q = input.toLowerCase();
+    // Threat analysis
     if (q.includes('threat') || q.includes('danger') || q.includes('risk') || q.includes('analyz'))
         return CONTEXTUAL_RESPONSES.threat(detectionData);
-    if (q.includes('status') || q.includes('system') || q.includes('health'))
+    // System status
+    if (q.includes('status') || q.includes('system') || q.includes('health') || q.includes('online'))
         return CONTEXTUAL_RESPONSES.status();
-    if (q.includes('patrol') || q.includes('personnel') || q.includes('team') || q.includes('unit'))
+    // Patrol
+    if (q.includes('patrol') || q.includes('personnel') || q.includes('team') || q.includes('unit') || q.includes('soldier') || q.includes('bsf'))
         return CONTEXTUAL_RESPONSES.patrol();
-    if (q.includes('weather') || q.includes('visibility') || q.includes('temperature'))
+    // Weather
+    if (q.includes('weather') || q.includes('visibility') || q.includes('temperature') || q.includes('rain') || q.includes('fog'))
         return CONTEXTUAL_RESPONSES.weather();
-    if (q.includes('recommend') || q.includes('suggest') || q.includes('what should') || q.includes('advise'))
+    // Recommendations
+    if (q.includes('recommend') || q.includes('suggest') || q.includes('what should') || q.includes('advise') || q.includes('action'))
         return CONTEXTUAL_RESPONSES.recommend(detectionData);
-    if (q.includes('history') || q.includes('past') || q.includes('log') || q.includes('previous'))
+    // History
+    if (q.includes('history') || q.includes('past') || q.includes('log') || q.includes('previous') || q.includes('incident'))
         return CONTEXTUAL_RESPONSES.history();
-    if (q.includes('help') || q.includes('command') || q.includes('what can'))
+    // Border security
+    if (q.includes('border') || q.includes('intrusion') || q.includes('perimeter') || q.includes('fence') || q.includes('pakistan') || q.includes('china') || q.includes('loc') || q.includes('lac'))
+        return CONTEXTUAL_RESPONSES.border();
+    // Railway
+    if (q.includes('railway') || q.includes('train') || q.includes('track') || q.includes('elephant') || q.includes('wildlife') || q.includes('brake'))
+        return CONTEXTUAL_RESPONSES.railway();
+    // Mining
+    if (q.includes('mining') || q.includes('geo') || q.includes('satellite') || q.includes('terrain') || q.includes('jharkhand') || q.includes('illegal'))
+        return CONTEXTUAL_RESPONSES.mining();
+    // CCTV
+    if (q.includes('cctv') || q.includes('camera') || q.includes('cam') || q.includes('feed') || q.includes('video') || q.includes('surveillance'))
+        return CONTEXTUAL_RESPONSES.cctv();
+    // Fuzzy logic
+    if (q.includes('fuzzy') || q.includes('logic') || q.includes('scoring') || q.includes('algorithm') || q.includes('xai') || q.includes('explain'))
+        return CONTEXTUAL_RESPONSES.fuzzy();
+    // Project info
+    if (q.includes('project') || q.includes('trinetra') || q.includes('about') || q.includes('how does') || q.includes('how it work') || q.includes('what is') || q.includes('technology') || q.includes('tech stack') || q.includes('purpose'))
+        return CONTEXTUAL_RESPONSES.project();
+    // Drone/UAV
+    if (q.includes('drone') || q.includes('uav') || q.includes('aerial') || q.includes('airspace') || q.includes('flying'))
+        return CONTEXTUAL_RESPONSES.drone();
+    // India defense
+    if (q.includes('india') || q.includes('defense') || q.includes('defence') || q.includes('military') || q.includes('army') || q.includes('force') || q.includes('security') || q.includes('ministry'))
+        return CONTEXTUAL_RESPONSES.india_defense();
+    // Help
+    if (q.includes('help') || q.includes('command') || q.includes('what can') || q.includes('menu'))
         return CONTEXTUAL_RESPONSES.help();
-    // Default intelligent response
-    return `I've processed your query: "${input}"\n\n` +
-        `Based on current sensor data and my analysis:\n\n` +
-        `• Current threat level: **${detectionData.threatLevel}**\n` +
-        `• Active detections: ${detectionData.objectCount}\n` +
-        `• Sector status: ${detectionData.threatLevel === 'LOW' ? 'Secure' : 'Under monitoring'}\n\n` +
-        `For specific analysis, try asking about: threats, patrol status, weather impact, recommendations, or threat history.\n\nType "help" for all available commands.`;
+    // Greetings
+    if (q.includes('hello') || q.includes('hi') || q.includes('hey') || q.includes('good'))
+        return `Hello, Commander. I'm the Trinetra AI Analyst, operational and monitoring all sectors.\n\nCurrent status: All systems **GREEN**. Threat level: **${detectionData.threatLevel}**.\n\nHow can I assist you? I can analyze threats, provide patrol updates, weather impact analysis, tactical recommendations, or answer any questions about the system. Type "help" for all commands.`;
+    // Thanks
+    if (q.includes('thank') || q.includes('great') || q.includes('good job') || q.includes('nice'))
+        return `Acknowledged, Commander. Continuing surveillance operations.\n\nRemember — I'm here 24/7 monitoring all sensor feeds. Alert me immediately if you need tactical analysis or situation updates.\n\nForce readiness: **GREEN** | All sectors: **SECURE**`;
+    // Who are you
+    if (q.includes('who are you') || q.includes('your name') || q.includes('introduce'))
+        return `I am the **Trinetra AI Threat Analyst** — a Large Language Model (LLM) integrated into the Trinetra Rakshak Command Center.\n\n**My Capabilities**:\n• Real-time threat assessment using sensor fusion\n• Contextual intelligence briefings\n• Patrol coordination and personnel tracking\n• Weather impact analysis for operations\n• Historical threat pattern correlation\n• Tactical recommendations based on threat level\n• Knowledge of India's border security, railway safety, and mining surveillance\n\nI process data from all 4 CCTV cameras, the fuzzy logic engine, and environmental sensors to provide actionable intelligence.\n\nBuilt with: React + Web APIs | Powered by: Contextual AI Engine`;
+    // Catch-all: give an intelligent, contextual response instead of "try asking about..."
+    return `**Analysis for: "${input}"**\n\nI've processed your query against current operational data.\n\n**Current Situation**:\n• Threat Level: **${detectionData.threatLevel}**\n• Active Detections: ${detectionData.objectCount} object(s)\n• Risk Score: ${detectionData.riskScore}%\n• Primary Classification: ${detectionData.primaryClass || 'None'}\n• Sector Status: ${detectionData.threatLevel === 'LOW' ? 'Secure — no active threats' : 'Under active monitoring'}\n\n**Sensor Summary**:\n• CCTV: 4/4 feeds operational\n• Perimeter: ${detectionData.threatLevel !== 'LOW' ? 'Activity detected' : 'Clear'}\n• Track-Guard: Monitoring railway corridor\n• GEO-EYE: Satellite scan standby\n\nI can provide detailed analysis on: threats, patrols, weather, CCTV, fuzzy logic, border security, railway safety, mining detection, drones, India defense, or project technology.\n\nType **"help"** for all available commands.`;
 }
 
 export default function AIThreatAnalyst({ isOpen, onToggle, detectionData }) {
@@ -205,7 +248,7 @@ export default function AIThreatAnalyst({ isOpen, onToggle, detectionData }) {
 
                         {/* Quick Actions */}
                         <div className="ai-quick-prompts">
-                            {['Analyze threat', 'Status', 'Recommendations', 'Help'].map(q => (
+                            {['Threat', 'Status', 'Border', 'Railway', 'Mining', 'CCTV', 'Fuzzy Logic', 'Project', 'Help'].map(q => (
                                 <button key={q} className="ai-quick-btn" onClick={() => { setInput(q); setTimeout(() => { setInput(q); handleSend(); }, 50); }}>
                                     {q}
                                 </button>

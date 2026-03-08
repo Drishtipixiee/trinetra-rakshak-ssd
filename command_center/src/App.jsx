@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Activity, AlertTriangle, Fingerprint, Lock,
   Map as MapIcon, Video, Target, Radio, Scan, Train, Download, Terminal,
-  BarChart3, Eye, Users, Play, Square, Volume2, VolumeX
+  BarChart3, Eye, Users, Play, Square, Volume2, VolumeX, LayoutDashboard, Cpu, Wifi, MapPin, Clock
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { MapContainer, TileLayer, Circle, Popup } from 'react-leaflet';
@@ -329,6 +329,7 @@ const LoginOverlay = ({ onLogin }) => {
 
 // ─── Tabs ───
 const TABS = [
+  { id: 'DASHBOARD', icon: LayoutDashboard, label: 'DASHBOARD' },
   { id: 'LIVE', icon: Video, label: 'LIVE FEED' },
   { id: 'CCTV', icon: Users, label: 'CCTV' },
   { id: 'GEO-EYE', icon: MapIcon, label: 'GEO-EYE' },
@@ -342,7 +343,7 @@ const TABS = [
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState('LIVE');
+  const [activeTab, setActiveTab] = useState('DASHBOARD');
   const [logs, setLogs] = useState([{ id: 1, text: "[SYS] All subsystems initialized. Defense grid online.", type: "normal" }]);
   const logsEndRef = useRef(null);
 
@@ -569,6 +570,106 @@ export default function App() {
           </div>
 
           <AnimatePresence mode="wait">
+
+            {/* ── DASHBOARD (default — overview) ── */}
+            {activeTab === 'DASHBOARD' && (
+              <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, padding: 10, overflowY: 'auto' }}>
+
+                {/* Welcome Banner */}
+                <div style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(5,15,5,0.9) 100%)', border: '1px solid var(--glass-border)', borderRadius: 10, padding: '14px 18px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontFamily: "'Share Tech Mono'", fontSize: '0.9rem', color: 'var(--accent)', letterSpacing: 2, marginBottom: 4 }}>
+                        🛡️ TRINETRA RAKSHAK — COMMAND OVERVIEW
+                      </div>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)', lineHeight: 1.6 }}>
+                        AI-powered Integrated Surveillance System for India's border security, railway safety, and mining surveillance.
+                        <br />Sector 7 — Jharkhand Mining Corridor — All subsystems operational.
+                      </div>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                      onClick={() => { setActiveTab('LIVE'); setSimActive(true); addLog("[SYS] ▶ Simulation started from Dashboard.", "safe"); }}
+                      style={{ background: 'rgba(34,197,94,0.12)', border: '2px solid var(--accent)', borderRadius: 10, padding: '10px 20px', cursor: 'pointer', color: 'var(--accent)', fontFamily: "'Share Tech Mono'", fontSize: '0.75rem', letterSpacing: 2, display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', boxShadow: '0 0 20px rgba(34,197,94,0.1)' }}
+                    >
+                      <Play size={16} /> GO LIVE
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Status Cards Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                  {[
+                    { icon: Shield, label: 'THREAT LEVEL', value: detectionData.threatLevel, color: detectionData.threatLevel === 'CRITICAL' ? 'var(--danger)' : detectionData.threatLevel === 'WARNING' ? 'var(--warning)' : 'var(--safe)' },
+                    { icon: Video, label: 'CCTV FEEDS', value: '4/4 ONLINE', color: 'var(--safe)' },
+                    { icon: Cpu, label: 'AI ENGINE', value: 'ACTIVE', color: '#a855f7' },
+                    { icon: Users, label: 'PERSONNEL', value: '5/6 ON DUTY', color: 'var(--accent)' },
+                  ].map((card, i) => (
+                    <div key={i} style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.55rem', color: 'var(--text-dim)', letterSpacing: 1 }}>
+                        <card.icon size={11} /> {card.label}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: card.color, fontFamily: "'Share Tech Mono'" }}>{card.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Real-World Modules Section */}
+                <div style={{ fontSize: '0.6rem', color: 'var(--accent)', letterSpacing: 2, fontFamily: "'Share Tech Mono'", marginTop: 4 }}>
+                  ACTIVE DEFENCE MODULES
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                  {[
+                    { title: 'BORDER-SENTRY', desc: 'Perimeter intrusion detection using AI object recognition. Monitors SEC-7A, 7B, 7C fences 24/7.', status: 'OPERATIONAL', color: 'var(--safe)', tab: 'LIVE' },
+                    { title: 'GEO-EYE', desc: 'Satellite GIS terrain analysis for illegal mining detection in Jharkhand corridor. Weekly scans.', status: 'STANDBY', color: '#f59e0b', tab: 'GEO-EYE' },
+                    { title: 'TRACK-GUARD', desc: 'Railway safety overwatch — detects wildlife & obstructions on tracks. Auto-brake via Indian Railways API.', status: 'MONITORING', color: 'var(--safe)', tab: 'TRACK-GUARD' },
+                  ].map((mod, i) => (
+                    <div key={i} onClick={() => setActiveTab(mod.tab)} style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '10px 12px', cursor: 'pointer', transition: 'border-color 0.3s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--glass-border)'}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: 4 }}>{mod.title}</div>
+                      <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)', lineHeight: 1.5, marginBottom: 6 }}>{mod.desc}</div>
+                      <div style={{ fontSize: '0.5rem', fontFamily: "'Share Tech Mono'", color: mod.color, letterSpacing: 1 }}>● {mod.status}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* India Defence Context */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--accent)', letterSpacing: 1, marginBottom: 6 }}>🇮🇳 REAL-WORLD APPLICATION</div>
+                    <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)', lineHeight: 1.7 }}>
+                      • <strong style={{ color: 'var(--text-main)' }}>BSF Border Posts</strong> — AI replaces manual patrol with 24/7 camera surveillance<br />
+                      • <strong style={{ color: 'var(--text-main)' }}>Indian Railways</strong> — 67,956 km of track monitored for elephant/cattle crossings<br />
+                      • <strong style={{ color: 'var(--text-main)' }}>Mining Districts</strong> — Satellite change detection catches illegal mining in Jharkhand<br />
+                      • <strong style={{ color: 'var(--text-main)' }}>Smart Cities</strong> — CCTV analytics for urban surveillance under Safe City initiative
+                    </div>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--accent)', letterSpacing: 1, marginBottom: 6 }}>📊 AI TECHNOLOGY STACK</div>
+                    <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)', lineHeight: 1.7 }}>
+                      • <strong style={{ color: 'var(--text-main)' }}>Fuzzy Logic</strong> — scikit-fuzzy for multi-variable risk scoring<br />
+                      • <strong style={{ color: 'var(--text-main)' }}>LLM Intelligence</strong> — AI Threat Analyst for contextual threat briefings<br />
+                      • <strong style={{ color: 'var(--text-main)' }}>Web Speech API</strong> — Text-to-speech voice alerts in Indian English<br />
+                      • <strong style={{ color: 'var(--text-main)' }}>Web Crypto API</strong> — SHA-256 hashing + RSA-2048 authentication
+                    </div>
+                  </div>
+                </div>
+
+                {/* Threat History mini */}
+                <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)', letterSpacing: 1, marginBottom: 4 }}>RECENT ACTIVITY LOG</div>
+                  <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)', lineHeight: 1.8 }}>
+                    {logs.slice(-5).map((log, i) => (
+                      <div key={i} style={{ color: log.type === 'critical' ? 'var(--danger)' : log.type === 'warning' ? 'var(--warning)' : log.type === 'safe' ? 'var(--safe)' : 'var(--text-dim)' }}>
+                        {log.text}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             {/* ── LIVE FEED ── */}
             {activeTab === 'LIVE' && (
