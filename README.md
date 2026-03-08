@@ -122,32 +122,45 @@ docker-compose up --build
 ## 🏗️ Architecture
 
 ```mermaid
-graph TD
-    subgraph Frontend ["⚡ React Command Center (Vercel)"]
-        DASH["📊 Dashboard"]
-        LIVE["🎯 Live Simulation Engine"]
-        CCTV["📹 CCTV Grid (4 Cameras)"]
-        GEO["🛰️ GEO-EYE (Leaflet + ESRI)"]
-        TRACK["🚂 Track-Guard"]
-        CHAT["🤖 AI Threat Analyst"]
-        VOICE["🗣️ AI Voice (30+ messages)"]
-        SMS["📱 Mobile Alerts"]
-        RADIO["📻 Walkie-Talkie"]
+flowchart TB
+    USER([👤 User / Commander]) --> LOGIN[🔐 SHA-256 + RSA-2048 Login]
+    LOGIN --> DASH[📊 Dashboard Overview]
+
+    DASH --> |GO LIVE| SIM[🎯 Simulation Engine<br/>60-second threat scenarios]
+    DASH --> |Click Module| TABS
+
+    subgraph TABS [" 🖥️ Frontend — React 18 + Vite "]
+        direction TB
+        SIM --> |Threat Data| CANVAS[📹 Canvas Detection Renderer<br/>Bounding boxes + confidence bars]
+        SIM --> |Threat Level Change| VOICE[🗣️ AI Voice System<br/>30+ randomized messages]
+        SIM --> |CRITICAL alert| SMS[📱 Mobile SMS Alert]
+        SIM --> |CRITICAL alert| RADIO[📻 Walkie-Talkie]
+
+        CCTV[📹 CCTV Grid<br/>4 independent cameras]
+        GEO[🛰️ GEO-EYE<br/>Leaflet + ESRI satellite tiles]
+        TRACK[🚂 Track-Guard<br/>Railway wildlife detection]
+        CHAT[🤖 AI Threat Analyst<br/>15+ response categories]
+        ANALYTICS[📊 Analytics Dashboard<br/>Recharts graphs]
     end
 
-    subgraph Backend ["🐍 Flask API (Vercel Serverless)"]
-        API["REST API (8 endpoints)"]
-        FUZZY["Fuzzy Logic Engine"]
-        PREDICT["Threat Predictor"]
+    GEO --> |RUN SCAN| VOICE
+    TRACK --> |Wildlife detected| VOICE
+
+    subgraph BACKEND [" 🐍 Backend — Flask + Vercel Serverless "]
+        API[REST API<br/>8 endpoints]
+        FUZZY[⚡ Fuzzy Logic Engine<br/>scikit-fuzzy · 9 rules]
+        PREDICT[🎯 Threat Predictor<br/>Heuristic classifier]
+        API --> FUZZY
+        API --> PREDICT
     end
 
-    LIVE --> VOICE
-    LIVE --> SMS
-    LIVE --> RADIO
-    GEO --> VOICE
-    TRACK --> VOICE
-    API --> FUZZY
-    API --> PREDICT
+    SIM -.-> |/api/evaluate_threat| API
+
+    subgraph DEPLOY [" ☁️ Deployment "]
+        VERCEL_F[Vercel Frontend<br/>commandcenter-seven.vercel.app]
+        VERCEL_B[Vercel Backend<br/>backend-ten-fawn-25.vercel.app]
+        GH[GitHub Repository<br/>Drishtipixiee/trinetra-rakshak-ssd]
+    end
 ```
 
 ## 📁 Project Structure
