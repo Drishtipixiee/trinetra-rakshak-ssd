@@ -107,7 +107,9 @@ cd backend
 pip install -r requirements.txt
 python app.py
 ```
-API at `http://localhost:5000`
+- **Local API**: `http://localhost:5000`
+- **Local DB Viewer**: `http://localhost:5000/admin/db`
+- **Vercel DB Viewer**: `https://backend-ten-fawn-25.vercel.app/admin/db`
 
 ### Docker
 ```bash
