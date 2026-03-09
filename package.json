@@ -1,4 +1,12 @@
 {
+  "name": "trinetra-rakshak-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install-all": "cd command_center && npm install && cd ../backend && pip install -r requirements.txt",
+    "build": "cd command_center && npm install && npm run build",
+    "start": "cd command_center && npm run dev"
+  },
   "devDependencies": {
     "autoprefixer": "^10.4.27",
     "tailwindcss": "~3.4.15postcss"
