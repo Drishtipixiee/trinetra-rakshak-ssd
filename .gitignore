@@ -1,1 +1,9 @@
 node_modules
+dist
+build
+*.log
+.env
+.venv
+trinetra.db
+__pycache__
+.DS_Store
