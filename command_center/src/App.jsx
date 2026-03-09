@@ -744,43 +744,93 @@ export default function App() {
               <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, padding: 10, overflowY: 'auto' }}>
 
-                {/* Welcome Banner */}
-                <div style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(5,15,5,0.9) 100%)', border: '1px solid var(--glass-border)', borderRadius: 10, padding: '16px 20px', position: 'relative', overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                      <div style={{ fontSize: '1.8rem', filter: 'drop-shadow(0 0 10px var(--accent-glow))' }}>🛡️</div>
+                {/* Welcome Banner - Restored & Enhanced */}
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(34,197,94,0.12) 0%, rgba(5,20,5,0.95) 100%)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 12,
+                  padding: '24px 28px',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  minHeight: '180px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                    <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                      <div style={{ fontSize: '2.5rem', filter: 'drop-shadow(0 0 15px var(--accent-glow))' }}>🛡️</div>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ fontFamily: "'Share Tech Mono'", fontSize: '0.9rem', color: 'var(--accent)', letterSpacing: 2, marginBottom: 2 }}>
+                        <div style={{ fontFamily: "'Share Tech Mono'", fontSize: '1rem', color: 'var(--accent)', letterSpacing: 3, marginBottom: 4, fontWeight: 'bold' }}>
                           TRINETRA RAKSHAK — COMMAND OVERVIEW
                         </div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)', lineHeight: 1.6 }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', lineHeight: 1.6, maxWidth: '600px' }}>
                           AI-powered Integrated Surveillance System for India's border security, railway safety, and mining surveillance.
-                          <br />Sector 7 — Jharkhand Mining Corridor — All subsystems operational.
+                          <br />
+                          <span style={{ color: 'var(--accent)', opacity: 0.8 }}>Sector 7 — Jharkhand Mining Corridor — All subsystems operational.</span>
                         </div>
                       </div>
                     </div>
                     <motion.button
-                      whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                      whileHover={{ scale: 1.05, boxShadow: '0 0 25px rgba(34,197,94,0.3)' }} whileTap={{ scale: 0.95 }}
                       onClick={() => { setActiveTab('LIVE'); setSimActive(true); addLog("[SYS] ▶ Simulation started from Dashboard.", "safe"); }}
-                      style={{ background: 'rgba(34,197,94,0.12)', border: '2px solid var(--accent)', borderRadius: 8, padding: '12px 24px', cursor: 'pointer', color: 'var(--accent)', fontFamily: "'Share Tech Mono'", fontSize: '0.85rem', letterSpacing: 2, display: 'flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap', boxShadow: '0 0 20px rgba(34,197,94,0.15)' }}
+                      style={{
+                        background: 'rgba(34,197,94,0.15)',
+                        border: '2px solid var(--accent)',
+                        borderRadius: 10,
+                        padding: '14px 28px',
+                        cursor: 'pointer',
+                        color: 'var(--accent)',
+                        fontFamily: "'Share Tech Mono'",
+                        fontSize: '0.9rem',
+                        letterSpacing: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        whiteSpace: 'nowrap',
+                        fontWeight: 'bold'
+                      }}
                     >
-                      <Play size={18} /> GO LIVE
+                      <Play size={20} fill="currentColor" /> GO LIVE
                     </motion.button>
                   </div>
 
-                  {/* Highly Animated Ticker Line - ENLARGED */}
-                  <div style={{ marginTop: 24, display: 'flex', alignItems: 'stretch', background: 'rgba(0,0,0,0.8)', borderRadius: 6, overflow: 'hidden', border: '1px solid rgba(239,68,68,0.4)', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
-                    <div className="pulse-red" style={{ background: 'var(--danger)', color: '#000', padding: '10px 16px', fontSize: '0.8rem', fontWeight: '900', letterSpacing: 1, whiteSpace: 'nowrap', zIndex: 2, display: 'flex', alignItems: 'center', borderRight: '2px solid rgba(255,255,255,0.2)' }}>
-                      ⚠ LIVE INTELLIGENCE
+                  {/* Headlines / Ticker Row */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'stretch',
+                    background: 'rgba(0,0,0,0.9)',
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                    border: '1px solid rgba(34,197,94,0.3)',
+                    boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)'
+                  }}>
+                    <div className="pulse-red" style={{
+                      background: 'var(--accent)',
+                      color: '#000',
+                      padding: '8px 20px',
+                      fontSize: '0.75rem',
+                      fontWeight: '900',
+                      letterSpacing: 1,
+                      whiteSpace: 'nowrap',
+                      zIndex: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      fontFamily: "'Share Tech Mono'"
+                    }}>
+                      ⚡ HEADLINES
                     </div>
-                    <div style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', display: 'flex', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <marquee scrollamount="6" style={{ color: 'var(--text-main)', fontFamily: "'Share Tech Mono'", fontSize: '0.9rem', display: 'flex', gap: '40px', alignItems: 'center', paddingTop: '10px', paddingBottom: '10px' }}>
+                    <div style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
+                      <marquee scrollamount="5" style={{ color: 'var(--text-main)', fontFamily: "'Share Tech Mono'", fontSize: '0.85rem', display: 'flex', gap: '50px', alignItems: 'center', padding: '10px 0' }}>
                         {dbLogs.length > 0 ? dbLogs.map((log, i) => (
-                          <span key={i} style={{ marginRight: '80px', textShadow: '0 0 10px rgba(255,255,255,0.2)' }}>
-                            <span style={{ color: 'var(--accent)', opacity: 0.8 }}>[{log.timestamp}]</span> • <span style={{ color: '#aaa' }}>{log.sector}</span> • <strong style={{ color: log.severity === 'CRITICAL' ? 'var(--danger)' : 'var(--warning)', letterSpacing: 1 }}>{log.type} ALERT:</strong> {log.description}
+                          <span key={i} style={{ marginRight: '100px' }}>
+                            <span style={{ color: 'var(--accent)' }}>[{log.timestamp}]</span> • <strong>{log.type} ALERT:</strong> {log.description}
                           </span>
                         )) : (
-                          <span style={{ color: 'var(--safe)', letterSpacing: 2 }}>[ SYNCING WITH SECTOR 7 DEFENSE GRID ] —— AI ENGINE AT 99.8% EFFICIENCY —— AWAITING SENSOR INPUTS...</span>
+                          <span style={{ color: 'var(--safe)', letterSpacing: 2 }}>
+                            [ SYSTEM STATUS: SECURE ] —— AI SCANNING SECTOR 7 ALPHA, BRAVO, CHARLIE —— NO INTRUSIONS DETECTED IN LAST 24H —— SURVEILLANCE FEED STABLE ——
+                          </span>
                         )}
                       </marquee>
                     </div>
