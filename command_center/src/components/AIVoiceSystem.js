@@ -16,33 +16,82 @@ class AIVoiceSystem {
 
     getVoice() {
         const voices = this.synth.getVoices();
-        // Prefer female English-Indian voice for authenticity
-        const preferred = voices.find(v => v.lang === 'en-IN' && v.name.includes('Female'));
-        const indian = voices.find(v => v.lang === 'en-IN');
-        const english = voices.find(v => v.lang.startsWith('en'));
-        return preferred || indian || english || voices[0];
+        // Strictly prefer Indian Female voice as requested by user
+        const indianFemale = voices.find(v => v.lang === 'en-IN' && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('heera')));
+        const genericIndian = voices.find(v => v.lang === 'en-IN');
+        return indianFemale || genericIndian || voices[0];
     }
 
     speak(text, priority = 'normal') {
         if (!this.enabled || !this.synth) return;
-        const now = Date.now();
 
         if (priority === 'critical') {
-            // Critical messages interrupt and skip cooldown
             this.synth.cancel();
+            this.queue = []; // Clear queue on critical to prioritize
             this._utterNow(text, priority);
-        } else if (now - this.lastSpoke > this.cooldown) {
-            this._utterNow(text, priority);
+        } else {
+            this.queue.push({ text, priority });
+            if (!this.speaking) {
+                this._processQueue();
+            }
         }
     }
 
-    _utterNow(text, priority) {
+    _processQueue() {
+        if (this.queue.length === 0) {
+            this.speaking = false;
+            return;
+        }
+
+        this.speaking = true;
+        const msg = this.queue.shift();
+        this._utterNow(msg.text, msg.priority, true);
+    }
+
+    _utterNow(text, priority, fromQueue = false) {
+        if (this.synth.speaking && priority === 'critical') {
+            this.synth.cancel();
+        }
+
         const utterance = new SpeechSynthesisUtterance(text);
+
+        // Prevent garbage collection by storing a reference
+        this.currentUtterance = utterance;
+
         utterance.voice = this.getVoice();
-        utterance.rate = priority === 'critical' ? 1.1 : 0.95;
-        utterance.pitch = priority === 'critical' ? 1.15 : 1.0;
+        utterance.rate = priority === 'critical' ? 1.0 : 0.95;
+        utterance.pitch = priority === 'critical' ? 1.05 : 1.0;
         utterance.volume = priority === 'critical' ? 1.0 : 0.8;
-        this.lastSpoke = Date.now();
+
+        // "Stay alive" hack for Chrome/Edge - periodically pause/resume
+        const keepAlive = setInterval(() => {
+            if (this.synth.speaking) {
+                this.synth.pause();
+                this.synth.resume();
+            } else {
+                clearInterval(keepAlive);
+            }
+        }, 5000);
+
+        utterance.onstart = () => {
+            this.speaking = true;
+        };
+
+        utterance.onend = () => {
+            clearInterval(keepAlive);
+            this.currentUtterance = null;
+            setTimeout(() => {
+                this._processQueue();
+            }, 800);
+        };
+
+        utterance.onerror = (e) => {
+            console.error("Voice Error", e);
+            clearInterval(keepAlive);
+            this.currentUtterance = null;
+            this._processQueue();
+        };
+
         this.synth.speak(utterance);
     }
 

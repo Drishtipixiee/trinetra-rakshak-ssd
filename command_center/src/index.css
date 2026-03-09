@@ -2286,3 +2286,170 @@ body.alert-mode .hud-container {
   margin-top: 8px;
   letter-spacing: 1px;
 }
+
+/* ═══════════════════════════════════════
+   ADVANCED MILITARY ANIMATIONS (WOW FACTOR)
+   ═══════════════════════════════════════ */
+
+/* Digital Particle Rain Overlay */
+.digital-rain-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(34, 197, 94, 0.05) 100%),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.1) 2px, rgba(0, 0, 0, 0.1) 4px);
+  background-size: 100% 100%, 100% 4px;
+  z-index: 0;
+  opacity: 0.8;
+  animation: bgScroll 10s linear infinite;
+}
+
+@keyframes bgScroll {
+  from {
+    background-position: 0 0, 0 0;
+  }
+
+  to {
+    background-position: 0 200%, 0 100px;
+  }
+}
+
+/* Radar Sweep Glow */
+.radar-super-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200%;
+  height: 200%;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(from 0deg, transparent 70%, rgba(34, 197, 94, 0.1) 95%, rgba(34, 197, 94, 0.4) 100%);
+  border-radius: 50%;
+  animation: radarSpin 4s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes radarSpin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Cyber Border Glow */
+.cyber-border {
+  position: relative;
+  box-shadow: inset 0 0 20px rgba(34, 197, 94, 0.1);
+  border: 1px solid var(--accent);
+}
+
+.cyber-border::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  z-index: -1;
+  background: linear-gradient(45deg, #0f0, transparent, #0f0, transparent);
+  background-size: 400%;
+  animation: cyberGlow 15s linear infinite;
+  opacity: 0.3;
+}
+
+@keyframes cyberGlow {
+  0% {
+    background-position: 0 0;
+  }
+
+  50% {
+    background-position: 400% 0;
+  }
+
+  100% {
+    background-position: 0 0;
+  }
+}
+
+/* Alert Flashing Frame */
+.critical-alert-pulse {
+  animation: criticalPulse 1s ease-in-out infinite;
+}
+
+@keyframes criticalPulse {
+  0% {
+    box-shadow: inset 0 0 0px transparent;
+    border-color: transparent;
+  }
+
+  50% {
+    box-shadow: inset 0 0 60px rgba(239, 68, 68, 0.4);
+    border-color: rgba(239, 68, 68, 0.8);
+  }
+
+  100% {
+    box-shadow: inset 0 0 0px transparent;
+    border-color: transparent;
+  }
+}
+
+/* Glitch Text Effect */
+.glitch-text {
+  position: relative;
+  color: var(--danger);
+}
+
+.glitch-text::before,
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: black;
+}
+
+.glitch-text::before {
+  left: 2px;
+  text-shadow: -1px 0 red;
+  clip: rect(24px, 550px, 90px, 0);
+  animation: glitch-anim 2s infinite linear alternate-reverse;
+}
+
+.glitch-text::after {
+  left: -2px;
+  text-shadow: -1px 0 blue;
+  clip: rect(85px, 550px, 140px, 0);
+  animation: glitch-anim 2.5s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-anim {
+  0% {
+    clip: rect(10px, 9999px, 86px, 0);
+  }
+
+  20% {
+    clip: rect(61px, 9999px, 82px, 0);
+  }
+
+  40% {
+    clip: rect(98px, 9999px, 131px, 0);
+  }
+
+  60% {
+    clip: rect(105px, 9999px, 140px, 0);
+  }
+
+  80% {
+    clip: rect(8px, 9999px, 102px, 0);
+  }
+
+  100% {
+    clip: rect(84px, 9999px, 126px, 0);
+  }
+}

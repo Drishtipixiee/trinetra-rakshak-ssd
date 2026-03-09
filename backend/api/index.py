@@ -1,82 +1,108 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-import random
-import os
+from flask_sqlalchemy import SQLAlchemy
 import sys
+import os
+import random
 from datetime import datetime, timedelta
+import threading
+import time
+from werkzeug.security import generate_password_hash, check_password_hash
 
-# Add parent dir for local logic imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Path adjustment for Vercel and local modules
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
+from logic.fuzzy_engine import ReasoningEngine
+from logic.threat_predictor import ThreatPredictor
+from models import db, Incident, User
+from fpdf import FPDF
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-# ─── Try to import fuzzy logic (graceful fallback if unavailable) ───
-try:
-    from logic.fuzzy_engine import ReasoningEngine
-    from logic.threat_predictor import ThreatPredictor
-    ai_engine = ReasoningEngine()
-    threat_engine = ThreatPredictor()
-    FUZZY_AVAILABLE = True
-except Exception:
-    FUZZY_AVAILABLE = False
+# DB Configuration - Use a path that is writable or readable in Vercel context
+# Note: Vercel serverless is epitaxial; SQLite won't persist across requests properly.
+basedir = os.path.abspath(os.path.dirname(__file__))
+db_path = os.path.join(parent_dir, 'trinetra.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db.init_app(app)
+
+# Central Logic Engine reference
+ai_engine = ReasoningEngine()
+threat_engine = ThreatPredictor()
+
+# Create DB tables
+with app.app_context():
+    db.create_all()
 
 # ═══════════════════════════════════════════
-#  API ENDPOINTS
+#  AUTHENTICATION
+# ═══════════════════════════════════════════
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not username or not password:
+        return jsonify({"status": "error", "message": "ID and Key are required."}), 400
+        
+    existing_user = User.query.filter_by(username=username).first()
+    if existing_user:
+        return jsonify({"status": "error", "message": "Officer ID already registered."}), 409
+        
+    pw_hash = generate_password_hash(password)
+    new_user = User(username=username, password_hash=pw_hash, role="OFFICER")
+    db.session.add(new_user)
+    db.session.commit()
+    
+    return jsonify({
+        "status": "success",
+        "message": "Registration complete. Welcome to Trinetra."
+    })
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    
+    user = User.query.filter_by(username=username).first()
+    
+    if user and check_password_hash(user.password_hash, password):
+        return jsonify({
+            "status": "success",
+            "message": "Authentication granted.",
+            "user": {
+                "username": user.username,
+                "role": user.role
+            }
+        })
+    else:
+        return jsonify({
+            "status": "error",
+            "message": "Invalid credentials or unauthorized clearance."
+        }), 401
+
+# ═══════════════════════════════════════════
+#  DASHBOARD ENDPOINTS
 # ═══════════════════════════════════════════
 
 @app.route('/api/status', methods=['GET'])
 def get_system_status():
     return jsonify({
         "status": "ONLINE",
-        "system": "Trinetra Rakshak API v5.3",
-        "sensors": ["Border-Sentry", "Geo-Eye", "Track-Guard"],
+        "system": "Trinetra Rakshak API v5.4 Master (Vercel)",
+        "sensors": ["Border-Sentry", "Geo-Eye", "Track-Guard", "Wildlife-Scan"],
         "uptime": f"{random.randint(24,720)}h",
-        "cctv_feeds": 4,
-        "personnel_active": 5,
-        "fuzzy_engine": "ACTIVE" if FUZZY_AVAILABLE else "FALLBACK",
-        "deployed_on": "Vercel Serverless"
+        "cctv_feeds": 8,
+        "personnel_active": 5
     })
-
-
-@app.route('/api/evaluate_threat', methods=['POST', 'OPTIONS'])
-def check_threat():
-    if request.method == 'OPTIONS':
-        return jsonify({}), 200
-
-    data = request.json or {}
-    velocity = data.get("velocity", 0.0)
-    proximity = data.get("proximity", 500.0)
-    visibility = data.get("visibility", 100.0)
-    sensor_type = data.get("sensor", "Border-Sentry")
-
-    if FUZZY_AVAILABLE:
-        try:
-            score, xai = ai_engine.evaluate_risk(velocity, proximity, visibility)
-            predicted_class = threat_engine.predict_threat_class(sensor_type, velocity, proximity)
-            return jsonify({
-                "risk_score": round(score, 1),
-                "xai_reasoning": xai,
-                "threat_class": predicted_class,
-                "status": "success",
-                "engine": "scikit-fuzzy"
-            })
-        except Exception as e:
-            pass
-
-    # Fallback: heuristic risk calculation
-    base_risk = max(0, 100 - proximity * 0.2) + velocity * 0.3 + (100 - visibility) * 0.2
-    risk_score = min(100, max(0, base_risk))
-    status_label = "CRITICAL" if risk_score >= 70 else "WARNING" if risk_score >= 40 else "SAFE"
-
-    return jsonify({
-        "risk_score": round(risk_score, 1),
-        "xai_reasoning": f"{status_label}: Velocity {velocity}km/h | Proximity {proximity}m | Visibility {visibility}%. Risk: {risk_score:.1f}%",
-        "threat_class": "Human Intruder" if velocity > 10 else "Unknown",
-        "status": "success",
-        "engine": "heuristic-fallback"
-    })
-
 
 @app.route('/api/system_vitals', methods=['GET'])
 def get_system_vitals():
@@ -90,131 +116,113 @@ def get_system_vitals():
         "active_processes": random.randint(120, 250)
     })
 
-
 @app.route('/api/incidents', methods=['GET'])
 def get_incidents():
-    incidents = []
-    base_time = datetime.now()
-    templates = [
-        {"type": "INTRUSION", "sector": "SEC-7A", "severity": "CRITICAL", "description": "Unauthorized human movement at perimeter fence"},
-        {"type": "WILDLIFE", "sector": "TRK-2", "severity": "WARNING", "description": "Wild elephant on railway track near KM 142"},
-        {"type": "MINING", "sector": "GEO-3", "severity": "WARNING", "description": "Terrain change — suspected illegal mining"},
-        {"type": "UAV", "sector": "SEC-7B", "severity": "CRITICAL", "description": "Unidentified aerial vehicle in restricted airspace"},
-        {"type": "VEHICLE", "sector": "SEC-7A", "severity": "WARNING", "description": "Suspicious vehicle approaching checkpoint"},
-        {"type": "SYSTEM", "sector": "SYS", "severity": "NORMAL", "description": "Routine diagnostic completed"},
-        {"type": "PATROL", "sector": "SEC-7C", "severity": "NORMAL", "description": "Patrol unit check-in — all clear"},
-    ]
-
-    for i in range(15):
-        t = random.choice(templates)
-        offset = timedelta(minutes=random.randint(5, 1440))
-        incidents.append({
-            "id": f"INC-{1000 + i}",
-            "timestamp": (base_time - offset).strftime("%Y-%m-%d %H:%M:%S"),
-            "type": t["type"], "sector": t["sector"],
-            "severity": t["severity"], "description": t["description"],
-            "status": random.choice(["RESOLVED", "PENDING", "INVESTIGATING"]),
-            "responding_officer": random.choice(["Maj. Rajesh Sharma", "Sub. Vikram Singh", "Hav. Pradeep Kumar", "Sep. Amit Yadav"])
-        })
-
-    incidents.sort(key=lambda x: x["timestamp"], reverse=True)
-    return jsonify({"incidents": incidents, "total": len(incidents)})
-
-
-@app.route('/api/personnel', methods=['GET'])
-def get_personnel():
-    personnel = [
-        {"name": "Maj. Rajesh Sharma", "rank": "SECTOR COMMANDER", "designation": "CO SEC-7", "status": "ACTIVE", "sector": "SEC-7", "last_checkin": "2 min ago"},
-        {"name": "Sub. Vikram Singh", "rank": "SUBEDAR", "designation": "WATCH OFFICER", "status": "ON PATROL", "sector": "SEC-7A", "last_checkin": "8 min ago"},
-        {"name": "Hav. Pradeep Kumar", "rank": "HAVILDAR", "designation": "SURVEILLANCE OPS", "status": "ACTIVE", "sector": "SEC-7B", "last_checkin": "1 min ago"},
-        {"name": "Sep. Amit Yadav", "rank": "SEPOY", "designation": "GATE SENTRY", "status": "ACTIVE", "sector": "SEC-7A", "last_checkin": "Just now"},
-        {"name": "Sep. Deepak Meena", "rank": "SEPOY", "designation": "PERIMETER GUARD", "status": "OFF DUTY", "sector": "SEC-7C", "last_checkin": "45 min ago"},
-        {"name": "NK. Suresh Rathore", "rank": "NAIK", "designation": "COMMS OPERATOR", "status": "ACTIVE", "sector": "SEC-7", "last_checkin": "3 min ago"},
-    ]
-    active = sum(1 for p in personnel if p["status"] != "OFF DUTY")
-    return jsonify({"personnel": personnel, "total": len(personnel), "active": active})
-
-
-@app.route('/api/weather', methods=['GET'])
-def get_weather():
-    conditions = ["CLEAR", "OVERCAST", "LIGHT RAIN"]
-    condition = random.choice(conditions)
-    visibility_map = {"CLEAR": 95, "OVERCAST": 75, "LIGHT RAIN": 45}
+    limit = int(request.args.get('limit', 50))
+    incident_type = request.args.get('type', None)
+    
+    query = Incident.query
+    if incident_type and incident_type != 'ALL':
+        query = query.filter_by(type=incident_type)
+        
+    incidents = query.order_by(Incident.timestamp.desc()).limit(limit).all()
+    
     return jsonify({
-        "condition": condition,
-        "temperature_c": round(22 + random.random() * 16, 1),
-        "humidity_pct": round(40 + random.random() * 45, 1),
-        "wind_speed_kmh": round(5 + random.random() * 25, 1),
-        "wind_direction": random.choice(["N", "NE", "E", "SE", "S", "SW", "W", "NW"]),
-        "visibility_pct": visibility_map.get(condition, 80) + round(random.random() * 10 - 5, 1),
-        "sector": "SEC-7",
-        "alert": condition == "STORM"
+        "incidents": [inc.to_dict() for inc in incidents],
+        "total": len(incidents)
     })
 
+# ═══════════════════════════════════════════
+#  DATABASE SIMULATION ENDPOINTS
+# ═══════════════════════════════════════════
 
-@app.route('/api/analytics', methods=['GET'])
-def get_analytics():
-    sectors = ["SEC-7A", "SEC-7B", "SEC-7C", "SEC-7D", "SEC-8A", "SEC-8B"]
-    return jsonify({
-        "threats_by_sector": [{"sector": s, "count": random.randint(2, 18)} for s in sectors],
-        "threat_classification": [
-            {"type": "Human Intruder", "count": random.randint(15, 30)},
-            {"type": "Vehicle", "count": random.randint(5, 15)},
-            {"type": "Wildlife", "count": random.randint(10, 25)},
-            {"type": "UAV/Drone", "count": random.randint(2, 10)},
-            {"type": "Mining Activity", "count": random.randint(5, 15)},
-        ],
-        "response_time_trend": [{"time": f"{h:02d}:00", "avg_minutes": round(2 + random.random() * 5, 1)} for h in range(0, 24, 4)],
-        "kpi": {
-            "total_alerts_24h": random.randint(30, 80),
-            "avg_response_min": round(3 + random.random() * 3, 1),
-            "resolution_rate_pct": round(88 + random.random() * 10, 1),
-            "threat_level": random.choice(["NORMAL", "ELEVATED", "HIGH"]),
-            "false_positive_rate": round(5 + random.random() * 10, 1)
-        }
-    })
+@app.route('/api/simulation/start', methods=['POST'])
+def start_simulation():
+    data = request.json
+    scenario = data.get('scenario', 'INTRUSION')
+    count = int(data.get('count', 3))
+    
+    # In Vercel serverless, background threads might be killed immediately.
+    # For simulation, we'll just insert one immediate record to show it works.
+    with app.app_context():
+        sector_map = {"INTRUSION": ["SEC-7A"], "WILDLIFE": ["TRK-2"], "DRONE": ["AIR-1"], "MINING": ["GEO-3"]}
+        desc_map = {"INTRUSION": ["Intruder detected."], "WILDLIFE": ["Animal on track."], "DRONE": ["UAV spotted."], "MINING": ["Terrain change."]}
+        
+        inc = Incident(
+            type=scenario,
+            sector=random.choice(sector_map.get(scenario, ["UNKNOWN"])),
+            severity="CRITICAL",
+            description=random.choice(desc_map.get(scenario, ["Observation logged manually."])),
+            status="ACTIVE"
+        )
+        db.session.add(inc)
+        db.session.commit()
+    
+    return jsonify({"status": "Simulation Record Created (Instant)", "scenario": scenario})
 
+@app.route('/api/simulation/clear', methods=['POST'])
+def clear_db():
+    db.session.query(Incident).delete()
+    db.session.commit()
+    return jsonify({"status": "Database Cleared"})
 
-@app.route('/api/quick_action', methods=['POST', 'OPTIONS'])
-def handle_quick_action():
-    if request.method == 'OPTIONS':
-        return jsonify({}), 200
+# ═══════════════════════════════════════════
+#  ADMIN DB VIEWER
+# ═══════════════════════════════════════════
 
-    data = request.json or {}
-    action = data.get("action", "unknown")
-    responses = {
-        "lockdown": {"status": "EXECUTED", "message": "Facility lockdown initiated. All access points sealed.", "severity": "CRITICAL"},
-        "qrf": {"status": "DISPATCHED", "message": "QRF Team Alpha dispatched to Sector 7. ETA: 4 min.", "severity": "HIGH"},
-        "alarm": {"status": "ACTIVATED", "message": "Perimeter alarm activated. Audio alert broadcasting.", "severity": "HIGH"},
-        "comms": {"status": "OPEN", "message": "Emergency channel FREQ-47.5MHz opened. All units alerted.", "severity": "MEDIUM"}
-    }
-    response = responses.get(action, {"status": "UNKNOWN", "message": f"Unknown: {action}", "severity": "LOW"})
-    response["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S IST")
-    response["action"] = action
-    return jsonify(response)
+@app.route('/admin/db', methods=['GET'])
+def view_database():
+    users = User.query.all()
+    incidents = Incident.query.order_by(Incident.timestamp.desc()).all()
+    
+    html = f"""
+    <html>
+        <head>
+            <title>Trinetra DB Viewer (Vercel)</title>
+            <style>
+                body {{ font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }}
+                h1, h2 {{ color: #38bdf8; border-bottom: 2px solid #1e293b; padding-bottom: 10px; }}
+                table {{ width: 100%; border-collapse: collapse; margin-bottom: 30px; background: #1e293b; }}
+                th {{ background: #0ea5e9; color: #fff; padding: 12px; text-align: left; }}
+                td {{ padding: 10px; border-bottom: 1px solid #334155; }}
+                tr:hover {{ background: #334155; }}
+                .badge {{ padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }}
+                .demo-note {{ background: #334155; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem; border-left: 4px solid #f59e0b; }}
+            </style>
+        </head>
+        <body>
+            <h1>🛡️ Trinetra Rakshak - Master Database Viewer</h1>
+            <div class="demo-note">
+                <b>NOTE (VERCEL DEPLOYMENT):</b> This is a demo serverless environment. 
+                Database changes (Logins/Incidents) are temporary and will reset when the serverless instance restarts.
+            </div>
+            
+            <h2>Registered Personnel</h2>
+            <table>
+                <tr><th>ID</th><th>Officer ID</th><th>Role</th></tr>
+    """
+    for u in users:
+        html += f"<tr><td>{u.id}</td><td><b>{u.username}</b></td><td>{u.role}</td></tr>"
+    html += "</table><h2>Live Incident Logs</h2><table><tr><th>ID</th><th>Timestamp</th><th>Type</th><th>Sector</th><th>Severity</th></tr>"
+    for inc in incidents:
+        html += f"<tr><td>INC-{1000+inc.id}</td><td>{inc.timestamp}</td><td>{inc.type}</td><td>{inc.sector}</td><td>{inc.severity}</td></tr>"
+    html += "</table></body></html>"
+    return html
 
+# ═══════════════════════════════════════════
+#  AI CHATBOT ENGINE
+# ═══════════════════════════════════════════
 
-# ─── Health check ───
-@app.route('/', methods=['GET'])
-@app.route('/api', methods=['GET'])
-def health():
-    return jsonify({
-        "service": "Trinetra Rakshak Backend API",
-        "version": "5.3",
-        "status": "ONLINE",
-        "endpoints": [
-            "/api/status",
-            "/api/evaluate_threat",
-            "/api/system_vitals",
-            "/api/incidents",
-            "/api/personnel",
-            "/api/weather",
-            "/api/analytics",
-            "/api/quick_action"
-        ]
-    })
+@app.route('/api/chat', methods=['POST'])
+def chat_with_ai():
+    data = request.json
+    query = data.get("query", "").lower()
+    recent = Incident.query.order_by(Incident.timestamp.desc()).first()
+    if recent:
+        response_text = f"System online. Latest scan in {recent.sector} shows a {recent.type} alert. Status: {recent.severity}."
+    else:
+        response_text = "All systems green. No active threats detected in Sector 7."
+    return jsonify({"response": response_text, "timestamp": datetime.utcnow().isoformat()})
 
-
-# Vercel serverless handler
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

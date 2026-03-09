@@ -12,6 +12,30 @@ const INCOMING_TRANSMISSIONS = [
     { from: 'COMMAND', msg: 'Alpha team, stand down. Threat neutralized. Resume patrol pattern. Over.', priority: 'normal' },
 ];
 
+const AudioWaveform = ({ isTalking }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: 20 }}>
+        {[...Array(8)].map((_, i) => (
+            <motion.div
+                key={i}
+                animate={isTalking ? {
+                    height: [4, 15 + Math.random() * 10, 4],
+                } : { height: 4 }}
+                transition={{
+                    repeat: Infinity,
+                    duration: 0.4 + Math.random() * 0.3,
+                    ease: "easeInOut",
+                    delay: i * 0.05
+                }}
+                style={{
+                    width: 3,
+                    backgroundColor: 'var(--accent)',
+                    borderRadius: 2
+                }}
+            />
+        ))}
+    </div>
+);
+
 const playRadioStatic = (duration = 300) => {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -170,13 +194,19 @@ export default function WalkieTalkie({ isOpen, onToggle, threatLevel = 'LOW', de
                         </div>
 
                         {/* PTT Button */}
-                        <div className="walkie-controls">
+                        <div className="walkie-controls" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                             <button
                                 className={`walkie-ptt ${isTalking ? 'talking' : ''}`}
                                 onMouseDown={handlePTT}
+                                style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                                    background: isTalking ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)',
+                                    border: `1px solid ${isTalking ? 'var(--safe)' : 'var(--glass-border)'}`,
+                                    color: isTalking ? 'var(--safe)' : 'var(--text-main)'
+                                }}
                             >
-                                {isTalking ? <Mic size={16} /> : <MicOff size={16} />}
-                                <span>{isTalking ? 'TRANSMITTING...' : 'PUSH TO TALK'}</span>
+                                {isTalking ? <AudioWaveform isTalking={true} /> : <MicOff size={16} />}
+                                <span>{isTalking ? 'TRANSMITTING...' : 'HOLD DOWN TO TALK'}</span>
                             </button>
                             <div className="walkie-signal">
                                 {[1, 2, 3, 4].map(i => (

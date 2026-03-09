@@ -26,12 +26,14 @@ import NightVisionToggle from './components/NightVisionToggle';
 import WalkieTalkie from './components/WalkieTalkie';
 import MobileAlert from './components/MobileAlert';
 import AIThreatAnalyst from './components/AIThreatAnalyst';
+import FlowSimulationDashboard from './components/FlowSimulationDashboard';
 
 // ═══════════════════════════════════════════════════
-//  SOFTWARE SIMULATION ENGINE
-//  No external AI model needed — generates realistic
-//  detection events based on scenario scripts
+//  CONFIGURATION & CONSTANTS
 // ═══════════════════════════════════════════════════
+const API_URL = import.meta.env.PROD
+  ? 'https://trinetra-rakshak-backend.vercel.app' // Placeholder for user's eventual Vercel URL
+  : 'http://localhost:5000';
 
 const DETECTION_SCENARIOS = [
   // Phase 1: Calm (0-10s)
@@ -76,26 +78,35 @@ const TRACK_SCENARIO = [
   { time: [35, 60], detected: false, object: 'None', trainSpeed: 80, distance: 2000, action: null },
 ];
 
-function useSimulationEngine(isActive) {
-  const [tick, setTick] = useState(0);
+function useSimulationEngine(liveActive, trackActive) {
+  const [liveTick, setLiveTick] = useState(0);
+  const [trackTick, setTrackTick] = useState(0);
   const [phase, setPhase] = useState(DETECTION_SCENARIOS[0]);
   const [trackPhase, setTrackPhase] = useState(TRACK_SCENARIO[0]);
 
   useEffect(() => {
-    if (!isActive) { setTick(0); return; }
-    const timer = setInterval(() => setTick(t => (t + 1) % 60), 1000);
+    if (!liveActive) { setLiveTick(0); return; }
+    const timer = setInterval(() => setLiveTick(t => (t + 1) % 60), 1000);
     return () => clearInterval(timer);
-  }, [isActive]);
+  }, [liveActive]);
 
   useEffect(() => {
-    const currentPhase = DETECTION_SCENARIOS.find(s => tick >= s.time[0] && tick < s.time[1]);
+    if (!trackActive) { setTrackTick(0); return; }
+    const timer = setInterval(() => setTrackTick(t => (t + 1) % 60), 1000);
+    return () => clearInterval(timer);
+  }, [trackActive]);
+
+  useEffect(() => {
+    const currentPhase = DETECTION_SCENARIOS.find(s => liveTick >= s.time[0] && liveTick < s.time[1]);
     if (currentPhase) setPhase(currentPhase);
+  }, [liveTick]);
 
-    const currentTrack = TRACK_SCENARIO.find(s => tick >= s.time[0] && tick < s.time[1]);
+  useEffect(() => {
+    const currentTrack = TRACK_SCENARIO.find(s => trackTick >= s.time[0] && trackTick < s.time[1]);
     if (currentTrack) setTrackPhase(currentTrack);
-  }, [tick]);
+  }, [trackTick]);
 
-  return { tick, phase, trackPhase };
+  return { tick: liveTick, trackTick, phase, trackPhase };
 }
 
 // ─── Canvas Renderer for simulated detections ───
@@ -136,6 +147,41 @@ function drawSimulatedDetections(canvas, detections, tick) {
     ctx.beginPath(); ctx.moveTo(x, y + h - cl); ctx.lineTo(x, y + h); ctx.lineTo(x + cl, y + h); ctx.stroke();
     // Bottom-right
     ctx.beginPath(); ctx.moveTo(x + w - cl, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cl); ctx.stroke();
+
+    // Human Figure Drawing (Dots and Lines inside the box)
+    if (det.class === 'person') {
+      ctx.strokeStyle = `rgba(${color === '#ef4444' ? '239,68,68' : '34,197,94'}, 0.8)`;
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.lineWidth = 2;
+
+      const cx = x + w / 2;     // Center X
+      const top = y + 4;        // Top padding
+      const bot = y + h - 4;    // Bottom padding
+      const headR = w * 0.15;   // Head radius
+
+      // Head (dot)
+      ctx.beginPath();
+      ctx.arc(cx, top + headR, headR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Spine (line)
+      const neckY = top + headR * 2 + 2;
+      const pelvisY = y + h * 0.55;
+      ctx.beginPath(); ctx.moveTo(cx, neckY); ctx.lineTo(cx, pelvisY); ctx.stroke();
+
+      // Arms (lines)
+      const shoulderY = neckY + 4;
+      ctx.beginPath();
+      ctx.moveTo(cx, shoulderY); ctx.lineTo(cx - w * 0.35, shoulderY + h * 0.2 + (Math.sin(tick) * 4)); // Left Arm (swinging)
+      ctx.moveTo(cx, shoulderY); ctx.lineTo(cx + w * 0.35, shoulderY + h * 0.2 - (Math.sin(tick) * 4)); // Right Arm (swinging)
+      ctx.stroke();
+
+      // Legs (lines)
+      ctx.beginPath();
+      ctx.moveTo(cx, pelvisY); ctx.lineTo(cx - w * 0.25, bot - (Math.cos(tick) * 4)); // Left Leg (walking)
+      ctx.moveTo(cx, pelvisY); ctx.lineTo(cx + w * 0.25, bot + (Math.cos(tick) * 4)); // Right Leg (walking)
+      ctx.stroke();
+    }
 
     // Label
     ctx.font = '13px "Share Tech Mono"';
@@ -181,29 +227,15 @@ const TypewriterText = ({ text, speed = 8 }) => {
   return <span>{displayedText}{displayedText.length < text.length && <span className="typewriter-cursor" />}</span>;
 };
 
-// ─── Login ───
+// ─── Login & Registration ───
 const LoginOverlay = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [status, setStatus] = useState('AWAITING');
   const [error, setError] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
 
-  const hashPassword = async (pw) => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(pw + 'TRINETRA_SALT_2026');
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  };
-
-  // Authorized users (SHA-256 hashed passwords)
-  const AUTHORIZED_USERS = {
-    'officer': 'a1d4e8b7c2f9', // password: trinetra2026
-    'commander': 'b2e5f9c3d0a1', // password: shield2026
-    'admin': 'c3f6a0d4e1b2', // password: rakshak2026
-  };
-
-  const handleLogin = async () => {
+  const handleSubmit = async () => {
     if (!username.trim() || !password.trim()) {
       setError('ENTER CREDENTIALS');
       return;
@@ -211,31 +243,64 @@ const LoginOverlay = ({ onLogin }) => {
     setError('');
     setStatus('AUTHENTICATING');
 
-    // Generate RSA key pair (proves crypto system works)
+    const endpoint = isRegistering ? `${API_URL}/api/register` : `${API_URL}/api/login`;
+
     try {
-      await window.crypto.subtle.generateKey(
-        { name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
-        true, ['encrypt', 'decrypt']
-      );
-    } catch { /* ignore */ }
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
 
-    await hashPassword(password);
+      const data = await res.json();
 
-    setTimeout(async () => {
-      // Accept any non-empty credentials for demo (real system would check hashes)
-      if (username.trim().length >= 2 && password.trim().length >= 4) {
+      if (res.ok && data.status === 'success') {
         setStatus('VERIFIED');
-        setTimeout(() => {
+        if (isRegistering) {
+          // After successful registration, switch back to login mode automatically
+          setTimeout(() => {
+            setStatus('SUCCESS');
+            setTimeout(() => {
+              setIsRegistering(false);
+              setStatus('AWAITING');
+              setError('REGISTRATION SUCCESSFUL. LOGIN NOW.');
+              setTimeout(() => setError(''), 3000);
+            }, 1000);
+          }, 800);
+          return;
+        }
+
+        // Generate RSA keys (Simulation of secure connection handshake for visual effect)
+        setTimeout(async () => {
+          try {
+            await window.crypto.subtle.generateKey(
+              { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+              true, ["encrypt", "decrypt"]
+            );
+          } catch { /* ignore */ }
+
           setStatus('SUCCESS');
           // Store session
           sessionStorage.setItem('trinetra_auth', JSON.stringify({ user: username, time: Date.now() }));
-          setTimeout(onLogin, 600);
-        }, 600);
+          setTimeout(() => onLogin(username), 1000);
+        }, 800);
       } else {
-        setStatus('AWAITING');
-        setError('ACCESS DENIED — INVALID CREDENTIALS');
+        setStatus('DENIED');
+        setError(data.message || 'ACCESS DENIED');
+        setTimeout(() => {
+          setStatus('AWAITING');
+          setError('');
+        }, 1500);
       }
-    }, 1200);
+    } catch (err) {
+      console.error("Server Error:", err);
+      setStatus('DENIED');
+      setError('CONNECTION FAILED');
+      setTimeout(() => {
+        setStatus('AWAITING');
+        setError('');
+      }, 1500);
+    }
   };
 
   return (
@@ -283,14 +348,14 @@ const LoginOverlay = ({ onLogin }) => {
         {(status === 'AWAITING' || status === 'DENIED') && (
           <>
             <div className="login-input-group">
-              <label className="login-label">OFFICER ID</label>
+              <label className="login-label">{isRegistering ? "NEW OFFICER ID" : "OFFICER ID"}</label>
               <input
                 className="login-input"
                 type="text"
-                placeholder="Enter officer ID..."
+                placeholder={isRegistering ? "Choose officer ID..." : "Enter officer ID..."}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                 autoFocus
               />
             </div>
@@ -299,26 +364,28 @@ const LoginOverlay = ({ onLogin }) => {
               <input
                 className="login-input"
                 type="password"
-                placeholder="Enter access key..."
+                placeholder={isRegistering ? "Create access key..." : "Enter access key..."}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
               />
             </div>
 
             <motion.button
               whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-              onClick={handleLogin}
+              onClick={handleSubmit}
               className="nav-btn"
               style={{ width: '100%', padding: '0.7rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, fontSize: '0.75rem', marginTop: '0.3rem' }}
             >
-              <Scan size={16} /> AUTHENTICATE
+              <Scan size={16} /> {isRegistering ? 'REGISTER CREDENTIALS' : 'AUTHENTICATE'}
             </motion.button>
 
-            {error && <div className="login-error">⚠ {error}</div>}
+            {error && <div className={error.includes("SUCCESSFUL") ? "login-error safe" : "login-error"} style={{ color: error.includes("SUCCESSFUL") ? 'var(--safe)' : 'var(--danger)' }}>⚠ {error}</div>}
 
-            <div style={{ fontSize: '0.5rem', color: 'var(--text-dim)', marginTop: '0.8rem', textAlign: 'center', fontFamily: "'Share Tech Mono'" }}>
-              Default: officer / trinetra2026
+            <div
+              onClick={() => { setIsRegistering(!isRegistering); setError(''); setUsername(''); setPassword(''); }}
+              style={{ fontSize: '0.55rem', color: 'var(--accent)', marginTop: '0.8rem', textAlign: 'center', fontFamily: "'Share Tech Mono'", cursor: 'pointer', textDecoration: 'underline' }}>
+              {isRegistering ? "Return to Officer Login" : "New Officer Registration"}
             </div>
           </>
         )}
@@ -331,6 +398,7 @@ const LoginOverlay = ({ onLogin }) => {
 const TABS = [
   { id: 'DASHBOARD', icon: LayoutDashboard, label: 'DASHBOARD' },
   { id: 'LIVE', icon: Video, label: 'LIVE FEED' },
+  { id: 'SIMULATION', icon: Play, label: 'SIMULATIONS' },
   { id: 'CCTV', icon: Users, label: 'CCTV' },
   { id: 'GEO-EYE', icon: MapIcon, label: 'GEO-EYE' },
   { id: 'TRACK-GUARD', icon: Train, label: 'TRACK' },
@@ -353,8 +421,55 @@ export default function App() {
   const [isNightMode, setIsNightMode] = useState(false);
   const [walkieOpen, setWalkieOpen] = useState(false);
   const [simActive, setSimActive] = useState(false);
+  const [trackActive, setTrackActive] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [analystOpen, setAnalystOpen] = useState(false);
+
+  // AI Chat & DB States
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState([{ text: "Trinetra AI online. Connected to DB. Awaiting commands.", sender: 'ai' }]);
+  const [dbLogs, setDbLogs] = useState([]);
+
+  // Fetch from Real Backend DB
+  const isInitialLoad = useRef(true);
+  useEffect(() => {
+    const fetchDBLogs = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/incidents?limit=10`);
+        const data = await res.json();
+        if (data.incidents) {
+          const newAlerts = data.incidents.filter(inc => !dbLogs.find(d => d.id === inc.id));
+
+          if (!isInitialLoad.current) {
+            newAlerts.forEach(inc => {
+              if (inc.severity === 'CRITICAL' && voiceRef.current && voiceEnabled) {
+                // Only speak global alerts if NOT in isolated CCTV tab
+                if (activeTab !== 'CCTV') {
+                  voiceRef.current.speak(`Database trigger. Critical threat in ${inc.sector}. ${inc.description}`, 'critical');
+                }
+              }
+            });
+          }
+
+          setDbLogs(data.incidents);
+          isInitialLoad.current = false;
+        }
+      } catch (err) { }
+    };
+    const initPoller = setInterval(fetchDBLogs, 3000);
+    return () => clearInterval(initPoller);
+  }, [dbLogs, voiceEnabled, activeTab]);
+
+  const triggerBackendSim = async (scenario) => {
+    try {
+      addLog(`[SYSTEM] Starting ${scenario} simulation sequence...`, 'warning');
+      await fetch(`${API_URL}/api/simulation/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario, count: 3 })
+      });
+    } catch (err) { }
+  };
 
   // AI Voice
   const voiceRef = useRef(null);
@@ -364,7 +479,7 @@ export default function App() {
   }, []);
 
   // Simulation engine
-  const { tick, phase, trackPhase } = useSimulationEngine(simActive);
+  const { tick, trackTick, phase, trackPhase } = useSimulationEngine(simActive, trackActive);
 
   // Detection state
   const [detectionData, setDetectionData] = useState({
@@ -405,7 +520,8 @@ export default function App() {
 
   // ═══ MAIN SIMULATION EFFECT ═══
   useEffect(() => {
-    if (!simActive) return;
+    // Strict separation: If CCTV is open, do not run global LIVE sim interactions
+    if (!simActive || activeTab === 'CCTV') return;
 
     const dets = phase.detections;
     const maxRisk = dets.length > 0 ? Math.max(...dets.map(d => d.risk)) : 0;
@@ -571,6 +687,7 @@ export default function App() {
 
   return (
     <div className={`hud-container ${isAlert ? 'alert-mode' : ''}`}>
+      <div className="digital-rain-bg" />
 
       {/* Floating elements */}
       <NotificationToast logs={logs} />
@@ -628,24 +745,45 @@ export default function App() {
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, padding: 10, overflowY: 'auto' }}>
 
                 {/* Welcome Banner */}
-                <div style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(5,15,5,0.9) 100%)', border: '1px solid var(--glass-border)', borderRadius: 10, padding: '14px 18px' }}>
+                <div style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(5,15,5,0.9) 100%)', border: '1px solid var(--glass-border)', borderRadius: 10, padding: '16px 20px', position: 'relative', overflow: 'hidden' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontFamily: "'Share Tech Mono'", fontSize: '0.9rem', color: 'var(--accent)', letterSpacing: 2, marginBottom: 4 }}>
-                        🛡️ TRINETRA RAKSHAK — COMMAND OVERVIEW
-                      </div>
-                      <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)', lineHeight: 1.6 }}>
-                        AI-powered Integrated Surveillance System for India's border security, railway safety, and mining surveillance.
-                        <br />Sector 7 — Jharkhand Mining Corridor — All subsystems operational.
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      <div style={{ fontSize: '1.8rem', filter: 'drop-shadow(0 0 10px var(--accent-glow))' }}>🛡️</div>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ fontFamily: "'Share Tech Mono'", fontSize: '0.9rem', color: 'var(--accent)', letterSpacing: 2, marginBottom: 2 }}>
+                          TRINETRA RAKSHAK — COMMAND OVERVIEW
+                        </div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)', lineHeight: 1.6 }}>
+                          AI-powered Integrated Surveillance System for India's border security, railway safety, and mining surveillance.
+                          <br />Sector 7 — Jharkhand Mining Corridor — All subsystems operational.
+                        </div>
                       </div>
                     </div>
                     <motion.button
                       whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                       onClick={() => { setActiveTab('LIVE'); setSimActive(true); addLog("[SYS] ▶ Simulation started from Dashboard.", "safe"); }}
-                      style={{ background: 'rgba(34,197,94,0.12)', border: '2px solid var(--accent)', borderRadius: 10, padding: '10px 20px', cursor: 'pointer', color: 'var(--accent)', fontFamily: "'Share Tech Mono'", fontSize: '0.75rem', letterSpacing: 2, display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', boxShadow: '0 0 20px rgba(34,197,94,0.1)' }}
+                      style={{ background: 'rgba(34,197,94,0.12)', border: '2px solid var(--accent)', borderRadius: 8, padding: '12px 24px', cursor: 'pointer', color: 'var(--accent)', fontFamily: "'Share Tech Mono'", fontSize: '0.85rem', letterSpacing: 2, display: 'flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap', boxShadow: '0 0 20px rgba(34,197,94,0.15)' }}
                     >
-                      <Play size={16} /> GO LIVE
+                      <Play size={18} /> GO LIVE
                     </motion.button>
+                  </div>
+
+                  {/* Highly Animated Ticker Line - ENLARGED */}
+                  <div style={{ marginTop: 24, display: 'flex', alignItems: 'stretch', background: 'rgba(0,0,0,0.8)', borderRadius: 6, overflow: 'hidden', border: '1px solid rgba(239,68,68,0.4)', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
+                    <div className="pulse-red" style={{ background: 'var(--danger)', color: '#000', padding: '10px 16px', fontSize: '0.8rem', fontWeight: '900', letterSpacing: 1, whiteSpace: 'nowrap', zIndex: 2, display: 'flex', alignItems: 'center', borderRight: '2px solid rgba(255,255,255,0.2)' }}>
+                      ⚠ LIVE INTELLIGENCE
+                    </div>
+                    <div style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', display: 'flex', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <marquee scrollamount="6" style={{ color: 'var(--text-main)', fontFamily: "'Share Tech Mono'", fontSize: '0.9rem', display: 'flex', gap: '40px', alignItems: 'center', paddingTop: '10px', paddingBottom: '10px' }}>
+                        {dbLogs.length > 0 ? dbLogs.map((log, i) => (
+                          <span key={i} style={{ marginRight: '80px', textShadow: '0 0 10px rgba(255,255,255,0.2)' }}>
+                            <span style={{ color: 'var(--accent)', opacity: 0.8 }}>[{log.timestamp}]</span> • <span style={{ color: '#aaa' }}>{log.sector}</span> • <strong style={{ color: log.severity === 'CRITICAL' ? 'var(--danger)' : 'var(--warning)', letterSpacing: 1 }}>{log.type} ALERT:</strong> {log.description}
+                          </span>
+                        )) : (
+                          <span style={{ color: 'var(--safe)', letterSpacing: 2 }}>[ SYNCING WITH SECTOR 7 DEFENSE GRID ] —— AI ENGINE AT 99.8% EFFICIENCY —— AWAITING SENSOR INPUTS...</span>
+                        )}
+                      </marquee>
+                    </div>
                   </div>
                 </div>
 
@@ -686,26 +824,21 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* India Defence Context */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '10px 12px' }}>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--accent)', letterSpacing: 1, marginBottom: 6 }}>🇮🇳 REAL-WORLD APPLICATION</div>
-                    <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)', lineHeight: 1.7 }}>
-                      • <strong style={{ color: 'var(--text-main)' }}>BSF Border Posts</strong> — AI replaces manual patrol with 24/7 camera surveillance<br />
-                      • <strong style={{ color: 'var(--text-main)' }}>Indian Railways</strong> — 67,956 km of track monitored for elephant/cattle crossings<br />
-                      • <strong style={{ color: 'var(--text-main)' }}>Mining Districts</strong> — Satellite change detection catches illegal mining in Jharkhand<br />
-                      • <strong style={{ color: 'var(--text-main)' }}>Smart Cities</strong> — CCTV analytics for urban surveillance under Safe City initiative
+                {/* Trinetra Interactive Deployment Flows */}
+                <div style={{ marginTop: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--accent)', letterSpacing: 2, fontFamily: "'Share Tech Mono'" }}>
+                      ACTIVE SIMULATION FLOWS
                     </div>
                   </div>
-                  <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '10px 12px' }}>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--accent)', letterSpacing: 1, marginBottom: 6 }}>📊 AI TECHNOLOGY STACK</div>
-                    <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)', lineHeight: 1.7 }}>
-                      • <strong style={{ color: 'var(--text-main)' }}>Fuzzy Logic</strong> — scikit-fuzzy for multi-variable risk scoring<br />
-                      • <strong style={{ color: 'var(--text-main)' }}>LLM Intelligence</strong> — AI Threat Analyst for contextual threat briefings<br />
-                      • <strong style={{ color: 'var(--text-main)' }}>Web Speech API</strong> — Text-to-speech voice alerts in Indian English<br />
-                      • <strong style={{ color: 'var(--text-main)' }}>Web Crypto API</strong> — SHA-256 hashing + RSA-2048 authentication
-                    </div>
-                  </div>
+                  <FlowSimulationDashboard
+                    setActiveTab={setActiveTab}
+                    setSimActive={setSimActive}
+                    setTrackActive={setTrackActive}
+                    triggerGeoScan={triggerGeoScan}
+                    triggerBackendSim={triggerBackendSim}
+                    addLog={addLog}
+                  />
                 </div>
 
                 {/* Threat History mini */}
@@ -818,8 +951,57 @@ export default function App() {
               </motion.div>
             )}
 
+            {/* ── REAL BACKEND SIMULATIONS (NEW) ── */}
+            {activeTab === 'SIMULATION' && (
+              <motion.div key="sim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, padding: '20px', overflowY: 'auto' }}>
+                <div style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid var(--glass-border)', borderRadius: 12, padding: 20 }}>
+                  <div className="glitch-text" data-text="ACTIVE SIMULATION MODULES" style={{ fontSize: '1.2rem', fontFamily: "'Share Tech Mono'", marginBottom: 6, color: 'var(--accent)' }}>ACTIVE SIMULATION MODULES</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginBottom: 20 }}>Trigger real database-backed scenarios to demonstrate system scalability and AI responsiveness.</div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+
+                    <div className="cyber-border" style={{ padding: 16, background: 'rgba(239, 68, 68, 0.05)', borderRadius: 8, cursor: 'pointer' }} onClick={() => triggerBackendSim('INTRUSION')}>
+                      <div style={{ color: 'var(--danger)', fontSize: '1rem', fontFamily: "'Share Tech Mono'", marginBottom: 8 }}><Lock size={16} /> BORDER INTRUSION</div>
+                      <div style={{ color: 'var(--text-dim)', fontSize: '0.65rem' }}>Simulates hostile intruders jumping the perimeter fence. Syncs immediately to database and triggers QRF.</div>
+                    </div>
+
+                    <div className="cyber-border" style={{ padding: 16, background: 'rgba(245, 158, 11, 0.05)', borderRadius: 8, cursor: 'pointer' }} onClick={() => triggerBackendSim('WILDLIFE')}>
+                      <div style={{ color: 'var(--warning)', fontSize: '1rem', fontFamily: "'Share Tech Mono'", marginBottom: 8 }}><MapPin size={16} /> WILDLIFE TRACKING</div>
+                      <div style={{ color: 'var(--text-dim)', fontSize: '0.65rem' }}>Simulates animal crossing over critical railway tracks. Invokes collision risk AI.</div>
+                    </div>
+
+                    <div className="cyber-border" style={{ padding: 16, background: 'rgba(168, 85, 247, 0.05)', borderRadius: 8, cursor: 'pointer' }} onClick={() => triggerBackendSim('DRONE')}>
+                      <div style={{ color: '#a855f7', fontSize: '1rem', fontFamily: "'Share Tech Mono'", marginBottom: 8 }}><Radio size={16} /> UAV DRONE DETECTION</div>
+                      <div style={{ color: 'var(--text-dim)', fontSize: '0.65rem' }}>Simulates unidentified aerial vehicle over restricted airspace. Radar anomaly generation.</div>
+                    </div>
+
+                    <div className="cyber-border" style={{ padding: 16, background: 'rgba(34, 197, 94, 0.05)', borderRadius: 8, cursor: 'pointer' }} onClick={() => triggerBackendSim('MINING')}>
+                      <div style={{ color: 'var(--safe)', fontSize: '1rem', fontFamily: "'Share Tech Mono'", marginBottom: 8 }}><MapIcon size={16} /> ILLEGAL MINING</div>
+                      <div style={{ color: 'var(--text-dim)', fontSize: '0.65rem' }}>Simulates GIS satellite terrain differences in the Jharkhand mining corridor. Extracts heatmap changes.</div>
+                    </div>
+
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid var(--glass-border)', borderLeft: '3px solid var(--accent)', borderRadius: 12, padding: 20 }}>
+                  <div style={{ fontSize: '0.9rem', fontFamily: "'Share Tech Mono'", marginBottom: 12, color: 'var(--text-main)' }}>LIVE DATABASE EVENT STREAM</div>
+                  <div style={{ height: 200, overflowY: 'auto', background: 'rgba(0,0,0,0.8)', padding: 12, borderRadius: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {dbLogs.length === 0 && <div style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>Listening to SQLite DB... Awaiting queries.</div>}
+                    {dbLogs.map((log, i) => (
+                      <div key={i} style={{ fontSize: '0.65rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
+                        <span style={{ color: 'var(--accent)', fontFamily: "'Share Tech Mono'" }}>[{log.timestamp}]</span>
+                        <span style={{ color: log.severity === 'CRITICAL' ? 'var(--danger)' : log.severity === 'WARNING' ? 'var(--warning)' : 'var(--safe)', marginLeft: 8 }}>{log.type} // {log.sector} // {log.severity}</span>
+                        <div style={{ color: 'var(--text-dim)', marginTop: 4 }}>{log.description}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* ── CCTV ── */}
-            {activeTab === 'CCTV' && <CCTVGrid />}
+            {activeTab === 'CCTV' && <CCTVGrid active={true} voiceRef={voiceRef} voiceEnabled={voiceEnabled} />}
 
             {/* ── GEO-EYE ── */}
             {activeTab === 'GEO-EYE' && (
@@ -864,14 +1046,28 @@ export default function App() {
                       </motion.div>
                     )}
                     <motion.div
-                      animate={{ left: trackData.detected ? `${Math.max(10, 50 - tick)}%` : '110%' }}
+                      animate={{ left: trackData.detected ? `${Math.max(10, 50 - trackTick)}%` : '110%' }}
                       transition={{ duration: 1, ease: 'linear' }}
                       style={{ position: 'absolute', top: '44%', width: 55, height: 28, background: 'var(--accent)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold', fontSize: 9, boxShadow: '0 0 12px var(--accent-glow)' }}>
                       🚂 12042
                     </motion.div>
-                    {!simActive && (
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", fontSize: '0.7rem' }}>
-                        Start simulation to see railway scenario
+                    {!trackActive && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 20 }}>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                          onClick={() => {
+                            setTrackActive(true);
+                            addLog("[SYS] ▶ Track Guard simulation started.", "safe");
+                          }}
+                          style={{
+                            background: 'rgba(34,197,94,0.15)', border: '1px solid var(--accent)',
+                            borderRadius: 8, padding: '10px 20px', cursor: 'pointer',
+                            color: 'var(--accent)', fontFamily: "'Share Tech Mono'", fontSize: '0.8rem',
+                            letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8
+                          }}
+                        >
+                          <Play size={16} /> START RAILWAY SIM
+                        </motion.button>
                       </div>
                     )}
                   </div>
@@ -897,14 +1093,15 @@ export default function App() {
             {activeTab === 'ANALYTICS' && <AnalyticsDashboard />}
 
           </AnimatePresence>
-        </div>
+        </div >
 
         {/* ═══ CONTROL PANEL ═══ */}
-        <div className="control-panel">
+        < div className="control-panel" >
 
           {/* Simulation Control */}
-          <motion.button
-            whileTap={{ scale: 0.95 }}
+          < motion.button
+            whileTap={{ scale: 0.95 }
+            }
             className={`nav-btn ${simActive ? 'btn-danger' : ''}`}
             style={{
               width: '100%', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -924,11 +1121,11 @@ export default function App() {
               }
             }}
           >
-            {simActive ? <><Square size={12} /> STOP SIM ({tick}s)</> : <><Play size={12} /> START SIMULATION</>}
-          </motion.button>
+            {simActive ? <>< Square size={12} /> STOP SIM({tick}s)</> : <><Play size={12} /> START SIMULATION</>}
+          </motion.button >
 
           {/* Threat Graph */}
-          <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '8px', border: '1px solid var(--glass-border)' }}>
+          < div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '8px', border: '1px solid var(--glass-border)' }}>
             <div className="section-label" style={{ marginBottom: 4 }}>
               <Activity size={11} style={{ verticalAlign: 'middle' }} /> THREAT TIMELINE
             </div>
@@ -942,7 +1139,7 @@ export default function App() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </div >
 
           <div className="sidebar-divider" />
           <SystemVitals />
@@ -994,8 +1191,8 @@ export default function App() {
               <div ref={logsEndRef} />
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </div >
+      </div >
+    </div >
   );
 }
