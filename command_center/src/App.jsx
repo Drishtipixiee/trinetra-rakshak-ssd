@@ -762,8 +762,13 @@ export default function App() {
                     <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
                       <div style={{ fontSize: '2.5rem', filter: 'drop-shadow(0 0 15px var(--accent-glow))' }}>🛡️</div>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ fontFamily: "'Share Tech Mono'", fontSize: '1rem', color: 'var(--accent)', letterSpacing: 3, marginBottom: 4, fontWeight: 'bold' }}>
-                          TRINETRA RAKSHAK — COMMAND OVERVIEW
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ fontFamily: "'Share Tech Mono'", fontSize: '1rem', color: 'var(--accent)', letterSpacing: 3, marginBottom: 4, fontWeight: 'bold' }}>
+                            TRINETRA RAKSHAK — COMMAND OVERVIEW
+                          </div>
+                          <div style={{ fontSize: '0.5rem', background: 'rgba(34,197,94,0.2)', color: 'var(--accent)', padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(34,197,94,0.3)', marginBottom: 4 }}>
+                            v5.4.10 - LIVE
+                          </div>
                         </div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', lineHeight: 1.6, maxWidth: '600px' }}>
                           AI-powered Integrated Surveillance System for India's border security, railway safety, and mining surveillance.
