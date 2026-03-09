@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 import sys
 import os
 import random
+import shutil
 from datetime import datetime, timedelta
 import threading
 import time
@@ -22,10 +23,22 @@ from fpdf import FPDF
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-# DB Configuration - Use a path that is writable or readable in Vercel context
-# Note: Vercel serverless is epitaxial; SQLite won't persist across requests properly.
+# DB Configuration - Use /tmp for Vercel Serverless environment
 basedir = os.path.abspath(os.path.dirname(__file__))
-db_path = os.path.join(parent_dir, 'trinetra.db')
+
+# Vercel specifies the execution environment in `/var/task`, but this is read-only. We must write to `/tmp`
+is_vercel = os.environ.get('VERCEL', False)
+
+if is_vercel:
+    db_path = os.path.join('/tmp', 'trinetra.db')
+    source_db_path = os.path.join(parent_dir, 'trinetra.db')
+    # Copy original DB to /tmp if it doesn't exist there so we retain users
+    if not os.path.exists(db_path) and os.path.exists(source_db_path):
+        import shutil
+        shutil.copy2(source_db_path, db_path)
+else:
+    db_path = os.path.join(parent_dir, 'trinetra.db')
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 

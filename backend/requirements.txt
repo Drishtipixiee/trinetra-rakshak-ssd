@@ -1,6 +1,5 @@
 flask==3.1.0
 flask-cors==5.0.1
-scikit-fuzzy==0.5.0
 numpy
 fpdf2
 Flask-SQLAlchemy==3.1.1
