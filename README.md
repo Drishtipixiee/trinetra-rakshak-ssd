@@ -168,19 +168,19 @@ flowchart TB
 trinetra-rakshak-ssd/
 ├── command_center/              # React Frontend (Vercel)
 │   ├── src/
-│   │   ├── App.jsx              # Main: login, sim engine, all 6 tabs (980 lines)
-│   │   ├── index.css            # Tactical CSS (2200+ lines)
+│   │   ├── App.jsx              # Main: login, sim engine, all 6 tabs
+│   │   ├── index.css            # Tactical CSS
 │   │   └── components/
-│   │       ├── AIThreatAnalyst.jsx   # LLM chatbot (15+ categories)
+│   │       ├── AIThreatAnalyst.jsx   # LLM chatbot
 │   │       ├── AIVoiceSystem.js      # TTS + sound effects
 │   │       ├── CCTVGrid.jsx          # 4-camera canvas rendering
 │   │       ├── WalkieTalkie.jsx      # Radio communications
 │   │       ├── MobileAlert.jsx       # Phone SMS mockup
-│   │       └── ... (10 more components)
+│   │       └── ...
 ├── backend/                     # Flask Backend (Vercel Serverless)
 │   ├── api/index.py             # Serverless entry point
 │   ├── logic/
-│   │   ├── fuzzy_engine.py      # scikit-fuzzy (9 rules, 3 variables)
+│   │   ├── fuzzy_engine.py      # scikit-fuzzy logic
 │   │   └── threat_predictor.py  # Heuristic classifier
 ├── docker-compose.yml
 └── README.md
@@ -211,7 +211,7 @@ trinetra-rakshak-ssd/
 | Service | URL |
 |---------|-----|
 | **Frontend** | [commandcenter-seven.vercel.app](https://commandcenter-seven.vercel.app) |
-| **Backend API** | [backend-ten-fawn-25.vercel.app](https://backend-ten-fawn-25.vercel.app/api/status) |
+| **Admin DB Viewer** | [backend-ten-fawn-25.vercel.app/admin/db](https://backend-ten-fawn-25.vercel.app/admin/db) |
 | **GitHub** | [Drishtipixiee/trinetra-rakshak-ssd](https://github.com/Drishtipixiee/trinetra-rakshak-ssd) |
 
 ---

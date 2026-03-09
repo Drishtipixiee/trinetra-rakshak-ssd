@@ -32,7 +32,7 @@ import FlowSimulationDashboard from './components/FlowSimulationDashboard';
 //  CONFIGURATION & CONSTANTS
 // ═══════════════════════════════════════════════════
 const API_URL = import.meta.env.PROD
-  ? 'https://trinetra-rakshak-backend.vercel.app' // Placeholder for user's eventual Vercel URL
+  ? 'https://backend-ten-fawn-25.vercel.app'
   : 'http://localhost:5000';
 
 const DETECTION_SCENARIOS = [
