@@ -6,18 +6,15 @@
 
 ### AI-Powered Integrated Command & Control Surveillance System
 
-[![Live Demo](https://img.shields.io/badge/🔴_LIVE-commandcenter--seven.vercel.app-22c55e?style=for-the-badge)](https://commandcenter-seven.vercel.app)
-[![Backend API](https://img.shields.io/badge/API-backend--ten--fawn--25.vercel.app-646CFF?style=for-the-badge)](https://backend-ten-fawn-25.vercel.app/api/status)
+[![Live Demo](https://img.shields.io/badge/🔴_LIVE-Command_Center-22c55e?style=for-the-badge)](https://commandcenter-seven.vercel.app)
+[![DB Viewer](https://img.shields.io/badge/🛡️_ADMIN-DB_Viewer-0ea5e9?style=for-the-badge)](https://backend-ten-fawn-25.vercel.app/admin/db)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/Drishtipixiee/trinetra-rakshak-ssd)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react)](https://react.dev)
-[![Flask](https://img.shields.io/badge/Flask-3-000?style=for-the-badge&logo=flask)](https://flask.palletsprojects.com)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-**A defense-grade AI surveillance prototype for India's border security, railway safety, and illegal mining detection.**
+**A defense-grade AI surveillance prototype for India's defense infrastructure—featuring border security, railway safety, and integrated GIS mining detection.**
 
-[🔴 **Live Demo**](https://commandcenter-seven.vercel.app) · [📋 **Features**](#-core-modules) · [🚀 **Quick Start**](#-quick-start) · [🏗️ **Architecture**](#️-architecture)
+[🔴 **Launch Command Center**](https://commandcenter-seven.vercel.app) · [🔐 **Open DB Viewer**](https://backend-ten-fawn-25.vercel.app/admin/db) · [📋 **Manual**](#-core-modules)
 
-> **Login**: `officer` / `trinetra2026`
+> **Officer Login**: `officer` / `trinetra2026` (or register a New ID)
 
 </div>
 

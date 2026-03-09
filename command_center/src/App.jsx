@@ -823,15 +823,21 @@ export default function App() {
                     </div>
                     <div style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
                       <marquee scrollamount="5" style={{ color: 'var(--text-main)', fontFamily: "'Share Tech Mono'", fontSize: '0.85rem', display: 'flex', gap: '50px', alignItems: 'center', padding: '10px 0' }}>
-                        {dbLogs.length > 0 ? dbLogs.map((log, i) => (
-                          <span key={i} style={{ marginRight: '100px' }}>
-                            <span style={{ color: 'var(--accent)' }}>[{log.timestamp}]</span> • <strong>{log.type} ALERT:</strong> {log.description}
-                          </span>
-                        )) : (
-                          <span style={{ color: 'var(--safe)', letterSpacing: 2 }}>
-                            [ SYSTEM STATUS: SECURE ] —— AI SCANNING SECTOR 7 ALPHA, BRAVO, CHARLIE —— NO INTRUSIONS DETECTED IN LAST 24H —— SURVEILLANCE FEED STABLE ——
-                          </span>
-                        )}
+                        <span style={{ marginRight: '100px' }}>
+                          <span style={{ color: 'var(--accent)' }}>[STATUS]</span> • GENERAL SURVEILLANCE ACTIVE • ALL SECTORS REPORTING NORMAL
+                        </span>
+                        <span style={{ marginRight: '100px' }}>
+                          <span style={{ color: 'var(--accent)' }}>[PATROL]</span> • UNIT ALPHA CHECK-IN AT SEC-7A • PERIMETER INTEGRITY 100%
+                        </span>
+                        <span style={{ marginRight: '100px' }}>
+                          <span style={{ color: 'var(--accent)' }}>[SYSTEM]</span> • AI ENGINE OPERATING AT 99.8% EFFICIENCY • DB SYNCED
+                        </span>
+                        <span style={{ marginRight: '100px' }}>
+                          <span style={{ color: 'var(--accent)' }}>[PATROL]</span> • UNIT BRAVO COMMENCING ROUTINE SCAN OF RAILWAY CORRIDOR KM-142
+                        </span>
+                        <span style={{ marginRight: '100px' }}>
+                          <span style={{ color: 'var(--accent)' }}>[WEATHER]</span> • CLEAR VISIBILITY REPORTED ACROSS JHARKHAND MINING SECTOR
+                        </span>
                       </marquee>
                     </div>
                   </div>
