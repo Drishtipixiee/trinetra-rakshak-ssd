@@ -35,7 +35,8 @@ Open [http://localhost:5173](http://localhost:5173) → Login: `officer` / `trin
 ---
 
 ## 📡 Deployment
-- **Hosting**: Vercel (Auto-deploy from GitHub)
+- **Frontend App**: `https://commandcenter-seven.vercel.app`
 - **Production API**: `https://backend-ten-fawn-25.vercel.app`
+- **Admin DB Viewer**: `https://backend-ten-fawn-25.vercel.app/admin/db`
 
 </div>

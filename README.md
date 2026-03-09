@@ -210,7 +210,8 @@ trinetra-rakshak-ssd/
 
 | Service | URL |
 |---------|-----|
-| **Frontend** | [commandcenter-seven.vercel.app](https://commandcenter-seven.vercel.app) |
+| **Frontend Live App** | [commandcenter-seven.vercel.app](https://commandcenter-seven.vercel.app) |
+| **Backend API** | [backend-ten-fawn-25.vercel.app](https://backend-ten-fawn-25.vercel.app) |
 | **Admin DB Viewer** | [backend-ten-fawn-25.vercel.app/admin/db](https://backend-ten-fawn-25.vercel.app/admin/db) |
 | **GitHub** | [Drishtipixiee/trinetra-rakshak-ssd](https://github.com/Drishtipixiee/trinetra-rakshak-ssd) |
 
