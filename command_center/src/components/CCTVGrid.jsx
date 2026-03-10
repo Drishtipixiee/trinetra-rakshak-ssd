@@ -9,36 +9,36 @@ const CAMERAS = [
             { time: [0, 15], detections: [], status: 'CLEAR' },
             { time: [15, 25], detections: [{ class: 'vehicle', conf: 82, x: 30, y: 40, w: 22, h: 14, risk: 55 }], status: 'VEHICLE APPROACHING' },
             { time: [25, 40], detections: [{ class: 'person', conf: 91, x: 55, y: 30, w: 10, h: 28, risk: 75 }], status: 'PERSONNEL EXITING VEHICLE' },
-            { time: [40, 60], detections: [], status: 'ACCESS GRANTED' },
+            { time: [40, 180], detections: [], status: 'ACCESS GRANTED' },
         ]
     },
     {
         id: 'CAM-02', name: 'PERIMETER NORTH', coords: 'N28°38\'18" E77°13\'09"',
         scenario: [
-            { time: [0, 20], detections: [], status: 'SCANNING' },
+            { time: [0, 75], detections: [], status: 'SCANNING' },
             {
-                time: [20, 35], detections: [
+                time: [75, 90], detections: [
                     { class: 'person', conf: 68, x: 65, y: 35, w: 8, h: 22, risk: 62 },
                     { class: 'person', conf: 55, x: 72, y: 38, w: 7, h: 20, risk: 58 },
                 ], status: '⚠ 2 UNKNOWNS DETECTED'
             },
-            { time: [35, 50], detections: [{ class: 'person', conf: 78, x: 50, y: 30, w: 12, h: 30, risk: 82 }], status: '⚠ BREACH ATTEMPT' },
-            { time: [50, 60], detections: [], status: 'THREAT NEUTRALIZED' },
+            { time: [90, 105], detections: [{ class: 'person', conf: 78, x: 50, y: 30, w: 12, h: 30, risk: 82 }], status: '⚠ BREACH ATTEMPT' },
+            { time: [105, 180], detections: [], status: 'THREAT NEUTRALIZED' },
         ]
     },
     {
         id: 'CAM-03', name: 'EAST WATCHTOWER', coords: 'N28°38\'15" E77°13\'15"',
         scenario: [
-            { time: [0, 10], detections: [], status: 'CLEAR' },
-            { time: [10, 30], detections: [{ class: 'animal', conf: 88, x: 40, y: 50, w: 15, h: 10, risk: 20 }], status: 'WILDLIFE (STRAY DOG)' },
-            { time: [30, 45], detections: [], status: 'CLEAR — AUTO-CLASSIFIED' },
-            { time: [45, 60], detections: [{ class: 'drone', conf: 73, x: 50, y: 15, w: 8, h: 5, risk: 90 }], status: '⚠ UAV IN AIRSPACE' },
+            { time: [0, 125], detections: [], status: 'CLEAR' },
+            { time: [125, 140], detections: [{ class: 'animal', conf: 88, x: 40, y: 50, w: 15, h: 10, risk: 20 }], status: 'WILDLIFE (STRAY DOG)' },
+            { time: [140, 155], detections: [], status: 'CLEAR — AUTO-CLASSIFIED' },
+            { time: [155, 180], detections: [{ class: 'drone', conf: 73, x: 50, y: 15, w: 8, h: 5, risk: 90 }], status: '⚠ UAV IN AIRSPACE' },
         ]
     },
     {
         id: 'CAM-04', name: 'COMMAND BUNKER', coords: 'N28°38\'10" E77°13\'00"',
         scenario: [
-            { time: [0, 60], detections: [], status: 'SECURE — NO MOVEMENT' },
+            { time: [0, 180], detections: [], status: 'SECURE — NO MOVEMENT' },
         ]
     },
 ];
@@ -105,14 +105,15 @@ function drawCameraDetections(canvas, detections, tick) {
     ctx.setLineDash([]);
 }
 
-export default function CCTVGrid() {
+export default function CCTVGrid({ active = false, voiceRef, voiceEnabled }) {
     const [expandedCam, setExpandedCam] = useState(null);
     const [tick, setTick] = useState(0);
     const canvasRefs = useRef([]);
     const modalCanvasRef = useRef(null);
+    const prevStatusRef = useRef({});
 
     useEffect(() => {
-        const timer = setInterval(() => setTick(t => (t + 1) % 60), 1000);
+        const timer = setInterval(() => setTick(t => (t + 1) % 180), 1000);
         return () => clearInterval(timer);
     }, []);
 
@@ -124,6 +125,24 @@ export default function CCTVGrid() {
                 canvas.width = canvas.parentElement?.clientWidth || 320;
                 canvas.height = canvas.parentElement?.clientHeight || 200;
                 drawCameraDetections(canvas, phase.detections, tick);
+
+                const status = phase.status;
+                if (prevStatusRef.current[cam.id] !== status && status !== 'CLEAR' && status !== 'SCANNING' && status !== 'SECURE — NO MOVEMENT') {
+                    if (status.includes('⚠') && voiceRef?.current && voiceEnabled) {
+                        const txt = `CCTV Alert. ${cam.name}. ${status.replace('⚠', '')}. Security detail respond.`;
+                        voiceRef.current.speak(txt, 'critical');
+                    } else if (voiceRef?.current && voiceEnabled && phase.detections.length > 0) {
+                        const txt = `CCTV Update. ${cam.name}. ${status}.`;
+                        voiceRef.current.speak(txt, 'normal');
+                    }
+                } else if (prevStatusRef.current[cam.id] !== status && (status === 'CLEAR' || status === 'THREAT NEUTRALIZED')) {
+                    if (voiceRef?.current && voiceEnabled) {
+                        voiceRef.current.speak(`CCTV All clear. ${cam.name}.`);
+                    }
+                }
+                prevStatusRef.current[cam.id] = status;
+            } else if (!phase) {
+                prevStatusRef.current[cam.id] = cam.scenario[0].status;
             }
         });
 

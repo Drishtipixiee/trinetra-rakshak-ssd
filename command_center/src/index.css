@@ -248,7 +248,7 @@ body.alert-mode .hud-container {
 /* ── 2-Column Main Grid ── */
 .main-grid {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr 350px;
   flex: 1;
   overflow: hidden;
   gap: 0;
@@ -997,10 +997,11 @@ body.alert-mode .hud-container {
 
 .timeline-text {
   font-family: 'Share Tech Mono';
-  font-size: 0.6rem;
-  color: rgba(255, 255, 255, 0.5);
-  line-height: 1.3;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.4;
   word-break: break-word;
+  padding-top: 2px;
 }
 
 /* ═══════════════════════════════════════

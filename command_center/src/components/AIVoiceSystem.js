@@ -59,8 +59,8 @@ class AIVoiceSystem {
         this.currentUtterance = utterance;
 
         utterance.voice = this.getVoice();
-        utterance.rate = priority === 'critical' ? 1.0 : 0.95;
-        utterance.pitch = priority === 'critical' ? 1.05 : 1.0;
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
         utterance.volume = priority === 'critical' ? 1.0 : 0.8;
 
         // "Stay alive" hack for Chrome/Edge - periodically pause/resume
@@ -148,6 +148,24 @@ export function playKlaxon() {
             gain.connect(ctx.destination);
             osc.start(ctx.currentTime + i * 0.3);
             osc.stop(ctx.currentTime + i * 0.3 + 0.15);
+        }
+    } catch { /* silent */ }
+}
+
+export function playHighPitchAlarm() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        for (let i = 0; i < 6; i++) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.value = 1800; // High pitch
+            gain.gain.setValueAtTime(0.2, ctx.currentTime + i * 0.2);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.2 + 0.1);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + i * 0.2);
+            osc.stop(ctx.currentTime + i * 0.2 + 0.1);
         }
     } catch { /* silent */ }
 }

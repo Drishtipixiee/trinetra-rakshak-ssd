@@ -7,10 +7,10 @@ import {
   BarChart3, Eye, Users, Play, Square, Volume2, VolumeX, LayoutDashboard, Cpu, Wifi, MapPin, Clock
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { MapContainer, TileLayer, Circle, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle, Popup, useMap } from 'react-leaflet';
 
 // AI Systems
-import AIVoiceSystem, { playSiren, playKlaxon, playDetectionBeep, playSuccessChime } from './components/AIVoiceSystem';
+import AIVoiceSystem, { playSiren, playKlaxon, playDetectionBeep, playSuccessChime, playHighPitchAlarm } from './components/AIVoiceSystem';
 
 // Components
 import LiveClock from './components/LiveClock';
@@ -33,7 +33,19 @@ import FlowSimulationDashboard from './components/FlowSimulationDashboard';
 // ═══════════════════════════════════════════════════
 const API_URL = import.meta.env.PROD
   ? 'https://backend-ten-fawn-25.vercel.app'
-  : 'http://localhost:5000';
+  : 'http://127.0.0.1:5000';
+
+function MapController({ scanning }) {
+  const map = useMap();
+  useEffect(() => {
+    if (scanning) {
+      map.flyTo([23.6202, 85.2899], 14, { duration: 2.5 });
+    } else {
+      map.flyTo([23.6102, 85.2799], 13, { duration: 1.5 });
+    }
+  }, [scanning, map]);
+  return null;
+}
 
 const DETECTION_SCENARIOS = [
   // Phase 1: Calm (0-10s)
@@ -518,7 +530,7 @@ export default function App() {
     setLogs(prev => [...prev.slice(-30), { id: Date.now() + Math.random(), text, type }]);
   }, []);
 
-  // ═══ MAIN SIMULATION EFFECT ═══
+  // ═══ MAIN LIVE SIMULATION EFFECT ═══
   useEffect(() => {
     // Strict separation: If CCTV is open, do not run global LIVE sim interactions
     if (!simActive || activeTab === 'CCTV') return;
@@ -580,6 +592,28 @@ export default function App() {
       prevThreatRef.current = threatLevel;
     }
 
+    // Update threat history every 3 ticks
+    if (tick % 3 === 0) {
+      const timeStr = new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' }).slice(3, 8);
+      setThreatHistory(prev => {
+        const h = [...prev, { time: timeStr, val: maxRisk }];
+        return h.length > 20 ? h.slice(1) : h;
+      });
+    }
+
+    // Draw detections on canvas
+    if (canvasRef.current) {
+      canvasRef.current.width = canvasRef.current.parentElement?.clientWidth || 960;
+      canvasRef.current.height = canvasRef.current.parentElement?.clientHeight || 540;
+      drawSimulatedDetections(canvasRef.current, dets, tick);
+    }
+
+  }, [tick, simActive, phase, activeTab, addLog, voiceEnabled]);
+
+  // ═══ TRACK GUARD SIMULATION EFFECT ═══
+  useEffect(() => {
+    if (!trackActive || activeTab === 'CCTV') return;
+
     // Track guard updates
     const tp = trackPhase;
     const speedMs = tp.trainSpeed * (5 / 18);
@@ -609,23 +643,7 @@ export default function App() {
     }
     prevTrackRef.current = tp.detected;
 
-    // Update threat history every 3 ticks
-    if (tick % 3 === 0) {
-      const timeStr = new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' }).slice(3, 8);
-      setThreatHistory(prev => {
-        const h = [...prev, { time: timeStr, val: maxRisk }];
-        return h.length > 20 ? h.slice(1) : h;
-      });
-    }
-
-    // Draw detections on canvas
-    if (canvasRef.current) {
-      canvasRef.current.width = canvasRef.current.parentElement?.clientWidth || 960;
-      canvasRef.current.height = canvasRef.current.parentElement?.clientHeight || 540;
-      drawSimulatedDetections(canvasRef.current, dets, tick);
-    }
-
-  }, [tick, simActive, phase, trackPhase, addLog]);
+  }, [trackTick, trackActive, activeTab, trackPhase, addLog, voiceEnabled]);
 
   // Reset when sim stops
   useEffect(() => {
@@ -903,10 +921,10 @@ export default function App() {
                 </div>
 
                 {/* Threat History mini */}
-                <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px 12px' }}>
+                <div style={{ flex: 1, minHeight: 100, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px 12px', display: 'flex', flexDirection: 'column' }}>
                   <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)', letterSpacing: 1, marginBottom: 4 }}>RECENT ACTIVITY LOG</div>
-                  <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)', lineHeight: 1.8 }}>
-                    {logs.slice(-5).map((log, i) => (
+                  <div style={{ flex: 1, overflowY: 'auto', fontSize: '0.55rem', color: 'var(--text-dim)', lineHeight: 1.8 }}>
+                    {logs.slice(-20).map((log, i) => (
                       <div key={i} style={{ color: log.type === 'critical' ? 'var(--danger)' : log.type === 'warning' ? 'var(--warning)' : log.type === 'safe' ? 'var(--safe)' : 'var(--text-dim)' }}>
                         {log.text}
                       </div>
@@ -991,7 +1009,7 @@ export default function App() {
                       whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
                       onClick={() => {
                         setSimActive(true);
-                        addLog("[SYS] ▶ Live simulation started. Scenario: Border intrusion + Railway wildlife alert.", "safe");
+                        addLog("[SYS] ▶ Live simulation started. Scenario: Border intrusion alert.", "safe");
                       }}
                       style={{
                         background: 'rgba(34,197,94,0.15)', border: '2px solid var(--accent)',
@@ -1005,7 +1023,7 @@ export default function App() {
                       <Play size={20} /> START LIVE SIMULATION
                     </motion.button>
                     <div style={{ color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", fontSize: '0.55rem', marginTop: 12, textAlign: 'center', maxWidth: 300 }}>
-                      60-second scenario: Border intrusion detection → threat escalation → wildlife on railway tracks → auto-brake → all clear
+                      60-second scenario: Border intrusion detection → threat escalation → all clear
                     </div>
                   </div>
                 )}
@@ -1045,9 +1063,9 @@ export default function App() {
                   </div>
                 </div>
 
-                <div style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid var(--glass-border)', borderLeft: '3px solid var(--accent)', borderRadius: 12, padding: 20 }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.5)', border: '1px solid var(--glass-border)', borderLeft: '3px solid var(--accent)', borderRadius: 12, padding: 20 }}>
                   <div style={{ fontSize: '0.9rem', fontFamily: "'Share Tech Mono'", marginBottom: 12, color: 'var(--text-main)' }}>LIVE DATABASE EVENT STREAM</div>
-                  <div style={{ height: 200, overflowY: 'auto', background: 'rgba(0,0,0,0.8)', padding: 12, borderRadius: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ flex: 1, minHeight: 200, overflowY: 'auto', background: 'rgba(0,0,0,0.8)', padding: 12, borderRadius: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {dbLogs.length === 0 && <div style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>Listening to SQLite DB... Awaiting queries.</div>}
                     {dbLogs.map((log, i) => (
                       <div key={i} style={{ fontSize: '0.65rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
@@ -1077,7 +1095,8 @@ export default function App() {
                   </button>
                 </div>
                 <div style={{ flex: 1, borderRadius: 6, overflow: 'hidden', border: `1px solid ${geoData.scanning ? 'var(--warning)' : 'var(--glass-border)'}`, position: 'relative' }}>
-                  <MapContainer center={[23.75, 86.41]} zoom={13} style={{ height: '100%', width: '100%', backgroundColor: '#0a0a0a' }}>
+                  <MapContainer center={[23.6102, 85.2799]} zoom={13} style={{ height: '100%', width: '100%', backgroundColor: '#0a0a0a' }}>
+                    <MapController scanning={geoData.scanning} />
                     <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles © Esri" />
                     {geoData.changes.map((c, i) => (
                       <Circle key={i} center={[c.lat, c.lng]} radius={c.radius} pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.5 }}>
@@ -1107,7 +1126,7 @@ export default function App() {
                       </motion.div>
                     )}
                     <motion.div
-                      animate={{ left: trackData.detected ? `${Math.max(10, 50 - trackTick)}%` : '110%' }}
+                      animate={{ left: trackData.detected ? `${Math.min(60, 20 + trackTick)}%` : '-10%' }}
                       transition={{ duration: 1, ease: 'linear' }}
                       style={{ position: 'absolute', top: '44%', width: 55, height: 28, background: 'var(--accent)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold', fontSize: 9, boxShadow: '0 0 12px var(--accent-glow)' }}>
                       🚂 12042
@@ -1160,30 +1179,77 @@ export default function App() {
         < div className="control-panel" >
 
           {/* Simulation Control */}
-          < motion.button
-            whileTap={{ scale: 0.95 }
-            }
-            className={`nav-btn ${simActive ? 'btn-danger' : ''}`}
-            style={{
-              width: '100%', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              fontSize: '0.7rem',
-              borderColor: simActive ? 'var(--danger)' : 'var(--safe)',
-              color: simActive ? 'var(--danger)' : 'var(--safe)',
-              background: simActive ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)'
-            }}
-            onClick={() => {
-              if (simActive) {
-                setSimActive(false);
-                addLog("[SYS] ■ Simulation stopped.", "normal");
-              } else {
-                setSimActive(true);
-                setActiveTab('LIVE');
-                addLog("[SYS] ▶ Live simulation started.", "safe");
-              }
-            }}
-          >
-            {simActive ? <>< Square size={12} /> STOP SIM({tick}s)</> : <><Play size={12} /> START SIMULATION</>}
-          </motion.button >
+          <div style={{ display: 'flex', gap: 6 }}>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              className={`nav-btn ${simActive ? 'btn-danger' : ''}`}
+              style={{
+                flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                fontSize: '0.65rem',
+                borderColor: simActive ? 'var(--danger)' : 'var(--safe)',
+                color: simActive ? 'var(--danger)' : 'var(--safe)',
+                background: simActive ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)'
+              }}
+              onClick={() => {
+                if (simActive) {
+                  setSimActive(false);
+                  addLog("[SYS] ■ Border Sentry stopped.", "normal");
+                } else {
+                  setSimActive(true);
+                  setActiveTab('LIVE');
+                  addLog("[SYS] ▶ Border Sentry started.", "safe");
+                }
+              }}
+            >
+              {simActive ? <><Square size={12} /> STOP BORDER</> : <><Play size={12} /> BORDER SIM</>}
+            </motion.button>
+
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              className={`nav-btn ${trackActive ? 'btn-danger' : ''}`}
+              style={{
+                flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                fontSize: '0.65rem',
+                borderColor: trackActive ? 'var(--danger)' : 'var(--safe)',
+                color: trackActive ? 'var(--danger)' : 'var(--safe)',
+                background: trackActive ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)'
+              }}
+              onClick={() => {
+                if (trackActive) {
+                  setTrackActive(false);
+                  addLog("[SYS] ■ Track Guard stopped.", "normal");
+                } else {
+                  setTrackActive(true);
+                  setActiveTab('TRACK-GUARD');
+                  addLog("[SYS] ▶ Track Guard started.", "safe");
+                }
+              }}
+            >
+              {trackActive ? <><Square size={12} /> STOP TRACK</> : <><Play size={12} /> TRACK SIM</>}
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              className={`nav-btn ${activeTab === 'CCTV' ? 'btn-danger' : ''}`}
+              style={{
+                flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                fontSize: '0.65rem',
+                borderColor: activeTab === 'CCTV' ? 'var(--danger)' : 'var(--safe)',
+                color: activeTab === 'CCTV' ? 'var(--danger)' : 'var(--safe)',
+                background: activeTab === 'CCTV' ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)'
+              }}
+              onClick={() => {
+                if (activeTab === 'CCTV') {
+                  setActiveTab('DASHBOARD');
+                  addLog("[SYS] ■ CCTV Simulation stopped.", "normal");
+                } else {
+                  setActiveTab('CCTV');
+                  addLog("[SYS] ▶ CCTV Simulation started.", "safe");
+                }
+              }}
+            >
+              {activeTab === 'CCTV' ? <><Square size={12} /> STOP CCTV</> : <><Play size={12} /> CCTV SIM</>}
+            </motion.button>
+          </div>
 
           {/* Threat Graph */}
           < div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '8px', border: '1px solid var(--glass-border)' }}>
@@ -1205,7 +1271,7 @@ export default function App() {
           <div className="sidebar-divider" />
           <SystemVitals />
           <div className="sidebar-divider" />
-          <QuickActions addLog={addLog} playPing={playKlaxon} />
+          <QuickActions addLog={addLog} playPing={playHighPitchAlarm} />
           <div className="sidebar-divider" />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -1239,10 +1305,10 @@ export default function App() {
           <div className="sidebar-divider" />
           <IncidentTimeline logs={logs} />
 
-          <div style={{ maxHeight: 100, overflowY: 'auto' }}>
+          <div style={{ flex: 1, minHeight: 120, overflowY: 'auto', paddingRight: 4, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
             <div className="console-font" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <AnimatePresence initial={false}>
-                {logs.slice(-6).map(log => (
+                {logs.slice(-10).map(log => (
                   <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                     className={`log-entry ${log.type === 'critical' ? 'critical' : log.type === 'warning' ? 'warning' : ''}`}>
                     <TypewriterText text={log.text} />

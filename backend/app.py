@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, redirect
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 import sys
@@ -39,8 +39,12 @@ with app.app_context():
     print(">> Secure DB initialized.")
 
 # ═══════════════════════════════════════════
-#  AUTHENTICATION
+#  AUTHENTICATION & ROOT
 # ═══════════════════════════════════════════
+
+@app.route('/', methods=['GET'])
+def index():
+    return redirect('/admin/db')
 
 @app.route('/api/register', methods=['POST'])
 def register():

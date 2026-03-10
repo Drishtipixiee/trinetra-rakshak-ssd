@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, redirect
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 import sys
@@ -53,8 +53,12 @@ with app.app_context():
     db.create_all()
 
 # ═══════════════════════════════════════════
-#  AUTHENTICATION
+#  AUTHENTICATION & ROOT
 # ═══════════════════════════════════════════
+
+@app.route('/', methods=['GET'])
+def index():
+    return redirect('/admin/db')
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -212,10 +216,10 @@ def view_database():
             
             <h2>Registered Personnel</h2>
             <table>
-                <tr><th>ID</th><th>Officer ID</th><th>Role</th></tr>
+                <tr><th>ID</th><th>Officer ID</th><th>Role</th><th>Password Hash (Scrypt)</th></tr>
     """
     for u in users:
-        html += f"<tr><td>{u.id}</td><td><b>{u.username}</b></td><td>{u.role}</td></tr>"
+        html += f"<tr><td>{u.id}</td><td><b>{u.username}</b></td><td>{u.role}</td><td style='font-family: monospace; font-size: 11px; color: #94a3b8;'>{u.password_hash}</td></tr>"
     html += "</table><h2>Live Incident Logs</h2><table><tr><th>ID</th><th>Timestamp</th><th>Type</th><th>Sector</th><th>Severity</th></tr>"
     for inc in incidents:
         html += f"<tr><td>INC-{1000+inc.id}</td><td>{inc.timestamp}</td><td>{inc.type}</td><td>{inc.sector}</td><td>{inc.severity}</td></tr>"
