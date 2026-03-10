@@ -6,13 +6,13 @@
 
 ### AI-Powered Integrated Command & Control Surveillance System
 
-[![Live Demo](https://img.shields.io/badge/🔴_LIVE-Command_Center-22c55e?style=for-the-badge)](https://commandcenter-seven.vercel.app)
+[![Live Demo](https://img.shields.io/badge/🔴_LIVE-Command_Center-22c55e?style=for-the-badge)](https://trinetra-rakshak-ssd.vercel.app)
 [![DB Viewer](https://img.shields.io/badge/🛡️_ADMIN-DB_Viewer-0ea5e9?style=for-the-badge)](https://backend-ten-fawn-25.vercel.app/admin/db)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/Drishtipixiee/trinetra-rakshak-ssd)
 
 **A defense-grade AI surveillance prototype for India's defense infrastructure—featuring border security, railway safety, and integrated GIS mining detection.**
 
-[🔴 **Launch Command Center**](https://commandcenter-seven.vercel.app) · [🔐 **Open DB Viewer**](https://backend-ten-fawn-25.vercel.app/admin/db) · [📋 **Manual**](#-core-modules)
+[🔴 **Launch Command Center**](https://trinetra-rakshak-ssd.vercel.app) · [🔐 **Open DB Viewer**](https://backend-ten-fawn-25.vercel.app/admin/db) · [📋 **Manual**](#-core-modules)
 
 > **Officer Login**: `officer` / `trinetra2026` (or register a New ID)
 
@@ -156,7 +156,7 @@ flowchart TB
     SIM -.-> |/api/evaluate_threat| API
 
     subgraph DEPLOY [" ☁️ Deployment "]
-        VERCEL_F[Vercel Frontend<br/>commandcenter-seven.vercel.app]
+        VERCEL_F[Vercel Frontend<br/>trinetra-rakshak-ssd.vercel.app]
         VERCEL_B[Vercel Backend<br/>backend-ten-fawn-25.vercel.app]
         GH[GitHub Repository<br/>Drishtipixiee/trinetra-rakshak-ssd]
     end
@@ -210,7 +210,7 @@ trinetra-rakshak-ssd/
 
 | Service | URL |
 |---------|-----|
-| **Frontend Live App** | [commandcenter-seven.vercel.app](https://commandcenter-seven.vercel.app) |
+| **Frontend Live App** | [trinetra-rakshak-ssd.vercel.app](https://trinetra-rakshak-ssd.vercel.app) |
 | **Backend API** | [backend-ten-fawn-25.vercel.app](https://backend-ten-fawn-25.vercel.app) |
 | **Admin DB Viewer** | [backend-ten-fawn-25.vercel.app/admin/db](https://backend-ten-fawn-25.vercel.app/admin/db) |
 | **GitHub** | [Drishtipixiee/trinetra-rakshak-ssd](https://github.com/Drishtipixiee/trinetra-rakshak-ssd) |
