@@ -14,13 +14,12 @@
 
 [🔴 **Launch Command Center**](https://trinetra-rakshak-ssd.vercel.app) · [🔐 **Open DB Viewer**](https://backend-ten-fawn-25.vercel.app/admin/db) · [📋 **Manual**](#-core-modules)
 
-> **Officer Login**: `officer` / `trinetra2026` (or register a New ID)
 
 </div>
 
 ---
 
-## 📸 What is Trinetra Rakshak?
+## What is Trinetra Rakshak?
 
 **Trinetra Rakshak** (त्रिनेत्र रक्षक — *"Three-Eyed Guardian"*) is a real-world analogy-based prototype that demonstrates how AI can enhance India's defense infrastructure. The **3 eyes** represent:
 
@@ -32,7 +31,7 @@
 
 ---
 
-## ✨ Core Modules
+## Core Modules
 
 | Module | What it does | Real-world analogy |
 |--------|-------------|-------------------|
@@ -45,7 +44,7 @@
 
 ---
 
-## 🤖 AI Systems
+## AI Systems
 
 | System | Technology | What it does |
 |--------|-----------|-------------|
@@ -56,7 +55,7 @@
 
 ---
 
-## 📡 Communication & Alerts
+## Communication & Alerts
 
 | Feature | Description |
 |---------|-------------|
@@ -66,7 +65,7 @@
 
 ---
 
-## 🔐 Security
+## Security
 
 - **SHA-256 password hashing** with salt via Web Crypto API
 - **RSA-2048 key pair generation** during authentication
@@ -75,7 +74,7 @@
 
 ---
 
-## 🗺️ Sector Layout
+## Sector Layout
 
 | Sector | Location | Camera | Purpose |
 |--------|---------|--------|---------|
@@ -88,7 +87,7 @@
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Node.js 18+ / Python 3.10+
@@ -118,7 +117,7 @@ docker-compose up --build
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```mermaid
 flowchart TB
@@ -136,9 +135,9 @@ flowchart TB
         SIM --> |CRITICAL alert| RADIO[📻 Walkie-Talkie]
 
         CCTV[📹 CCTV Grid<br/>4 independent cameras]
-        GEO[🛰️ GEO-EYE<br/>Leaflet + ESRI satellite tiles]
-        TRACK[🚂 Track-Guard<br/>Railway wildlife detection]
-        CHAT[🤖 AI Threat Analyst<br/>15+ response categories]
+        GEO[GEO-EYE<br/>Leaflet + ESRI satellite tiles]
+        TRACK[Track-Guard<br/>Railway wildlife detection]
+        CHAT[AI Threat Analyst<br/>15+ response categories]
         ANALYTICS[📊 Analytics Dashboard<br/>Recharts graphs]
     end
 
@@ -147,8 +146,8 @@ flowchart TB
 
     subgraph BACKEND [" 🐍 Backend — Flask + Vercel Serverless "]
         API[REST API<br/>8 endpoints]
-        FUZZY[⚡ Fuzzy Logic Engine<br/>scikit-fuzzy · 9 rules]
-        PREDICT[🎯 Threat Predictor<br/>Heuristic classifier]
+        FUZZY[Fuzzy Logic Engine<br/>scikit-fuzzy · 9 rules]
+        PREDICT[ Threat Predictor<br/>Heuristic classifier]
         API --> FUZZY
         API --> PREDICT
     end
@@ -162,7 +161,7 @@ flowchart TB
     end
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 trinetra-rakshak-ssd/
@@ -186,7 +185,7 @@ trinetra-rakshak-ssd/
 └── README.md
 ```
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technologies | Why |
 |-------|-------------|-----|
@@ -196,9 +195,9 @@ trinetra-rakshak-ssd/
 | **Maps** | Leaflet + ESRI World Imagery | Real satellite tiles for authentic GIS |
 | **Deploy** | Vercel (frontend + backend) | Free, auto-deploy, serverless Python |
 
-## ✅ What's Real vs Simulated
+## What's Real vs Simulated
 
-| Real ✅ | Simulated 🎭 |
+| Real  | Simulated 🎭 |
 |---------|--------------|
 | SHA-256 + RSA-2048 cryptography | Camera feeds (canvas-drawn) |
 | Fuzzy logic risk scoring (scikit-fuzzy) | Person detection (scripted scenarios) |
@@ -206,7 +205,7 @@ trinetra-rakshak-ssd/
 | ESRI satellite map tiles | Threat scenarios (60-second scripts) |
 | Sound generation (Web Audio) | Radio communications |
 
-## 🔗 Live URLs
+##  Live URLs
 
 | Service | URL |
 |---------|-----|
@@ -219,8 +218,8 @@ trinetra-rakshak-ssd/
 
 <div align="center">
 
-**Built with ❤️ for India's defense and security infrastructure**
+**Built with 💗 for India's defense and security infrastructure**
 
-*Ministry of Defence — Bharat*
+*Ministry of Defence — India*
 
 </div>
