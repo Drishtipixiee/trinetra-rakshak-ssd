@@ -36,8 +36,9 @@
 | Module | What it does | Real-world analogy |
 |--------|-------------|-------------------|
 | **Dashboard** | Command overview with status cards, module navigation, and GO LIVE button | Military situational briefing screen |
+| **Telemetry** | Live real-time system health metrics (Signal, Latency, AI Confidence, Uptime) | Tactical sensor node health uplinks |
 | **Live Feed** | 60-second border intrusion simulation with canvas-based tactical bounding boxes | BSF CCTV monitoring at border posts |
-| **CCTV Grid** | 4 independent cameras (Main Gate, Perimeter, Watchtower, Bunker) | Multi-camera surveillance rooms |
+| **CCTV Grid** | Real perimeter video underlays with dynamic AI bounding boxes and "Wanted" profiling | Multi-camera surveillance rooms |
 | **GEO-EYE** | Satellite map (React-Leaflet + ESRI) with terrain change detection scan | ISRO/NRSC Mining Surveillance System |
 | **Track-Guard** | Railway wildlife detection with auto-brake and time-to-impact calculation | Project Nilgiri elephant detection |
 | **Analytics** | Real-time threat charts, KPIs, and trend analysis | Military intelligence dashboards |
@@ -59,8 +60,8 @@
 
 | Feature | Description |
 |---------|-------------|
-| **Walkie-Talkie** | Radio comms with push-to-talk, auto-transmissions on CRITICAL threats, radio static |
-| **Mobile SMS** | Phone mockup with SMS/WhatsApp notifications — 3 rotating message templates with delivery receipts |
+| **Walkie-Talkie (Global)** | Radio comms with push-to-talk, auto-transmissions on CRITICAL threats (from CCTV, Track-Guard, and Geo-Eye), and authentic radio static bursts |
+| **Mobile SMS** | Phone mockup with SMS/WhatsApp notifications — dynamic message templates triggered across all system modules with delivery receipts |
 | **Voice Alerts** | AI speaks in Indian English — 5 variants each for CRITICAL, WARNING, ALL-CLEAR + Track-Guard + GEO-EYE |
 
 ---
@@ -199,11 +200,11 @@ trinetra-rakshak-ssd/
 
 | Real  | Simulated 🎭 |
 |---------|--------------|
-| SHA-256 + RSA-2048 cryptography | Camera feeds (canvas-drawn) |
-| Fuzzy logic risk scoring (scikit-fuzzy) | Person detection (scripted scenarios) |
-| Web Speech API voice alerts | SMS/WhatsApp notifications |
+| SHA-256 + RSA-2048 cryptography | Camera feeds (Backgrounds are real video, bounding boxes simulated) |
+| Fuzzy logic risk scoring (scikit-fuzzy) | Target behavior scripts |
+| Web Speech/Audio API voice alerts | Tactical SMS text message drops |
+| Interconnected State logic across modules | Complete threat response pipeline |
 | ESRI satellite map tiles | Threat scenarios (60-second scripts) |
-| Sound generation (Web Audio) | Radio communications |
 
 ##  Live URLs
 
