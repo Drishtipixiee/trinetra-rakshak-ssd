@@ -193,7 +193,19 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled }) {
                                 }}
                                 src="https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4"
                             />
-                            <canvas ref={el => canvasRefs.current[index] = el} className="cctv-noise" style={{ position: 'relative', zIndex: 1 }} />
+                            <canvas ref={el => canvasRefs.current[index] = el} className="cctv-noise" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1 }} />
+                            
+                            {/* Real-world analogy: Face Capture Snapshot */}
+                            {isCritical && hasDetections && (
+                                <div style={{
+                                    position: 'absolute', right: 8, top: 40, width: 60, height: 75,
+                                    background: 'rgba(0,0,0,0.8)', border: '1px solid #ef4444',
+                                    zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
+                                }}>
+                                    <img src="https://images.unsplash.com/photo-1542909168-82c3e7fdca5c?w=100&h=100&fit=crop" style={{ width: 45, height: 45, filter: 'grayscale(100%) contrast(150%)', border: '1px solid #555' }} alt="suspect" />
+                                    <div style={{ fontSize: '7px', color: '#ef4444', marginTop: 4, fontFamily: "'Share Tech Mono'" }}>WANTED</div>
+                                </div>
+                            )}
 
                             <div className="cctv-overlay">
                                 <div className="cctv-top-bar">
@@ -258,8 +270,20 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled }) {
                                     }}
                                     src="https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4"
                                 />
-                                <canvas ref={modalCanvasRef} style={{ width: '100%', height: '100%', position: 'relative', zIndex: 1 }} />
-                                <div className="cctv-modal-rec"><div className="rec-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', animation: 'breathe 1.5s infinite' }} /> REC</div>
+                                <canvas ref={modalCanvasRef} style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 1 }} />
+                                
+                                {getStatus(CAMERAS[expandedCam]).detections.some(d => d.risk > 70) && (
+                                    <div style={{
+                                        position: 'absolute', right: 16, top: 40, width: 90, height: 110,
+                                        background: 'rgba(0,0,0,0.8)', border: '2px solid #ef4444',
+                                        zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
+                                    }}>
+                                        <img src="https://images.unsplash.com/photo-1542909168-82c3e7fdca5c?w=100&h=100&fit=crop" style={{ width: 70, height: 70, filter: 'grayscale(100%) contrast(150%)', border: '1px solid #555' }} alt="suspect" />
+                                        <div style={{ fontSize: '10px', color: '#ef4444', marginTop: 6, fontFamily: "'Share Tech Mono'" }}>WANTED // HIGH RISK</div>
+                                    </div>
+                                )}
+                                
+                                <div className="cctv-modal-rec" style={{ zIndex: 2 }}><div className="rec-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', animation: 'breathe 1.5s infinite' }} /> REC</div>
                                 <div className="video-scanlines" />
                                 <div style={{ position: 'absolute', bottom: 10, left: 10, display: 'flex', gap: 6 }}>
                                     <div className="hud-badge info" style={{ fontSize: '0.65rem' }}>{getStatus(CAMERAS[expandedCam]).status}</div>
