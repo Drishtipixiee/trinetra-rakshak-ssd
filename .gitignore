@@ -7,3 +7,4 @@ build
 trinetra.db
 __pycache__
 .DS_Store
+.vercel

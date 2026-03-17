@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Activity, AlertTriangle, Fingerprint, Lock,
   Map as MapIcon, Video, Target, Radio, Scan, Train, Download, Terminal,
-  BarChart3, Eye, Users, Play, Square, Volume2, VolumeX, LayoutDashboard, Cpu, Wifi, MapPin, Clock
+  BarChart3, Eye, Users, Play, Square, Volume2, VolumeX, LayoutDashboard, Cpu, Wifi, MapPin, Clock, Loader2 as Loader2Icon
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { MapContainer, TileLayer, Circle, Popup, useMap } from 'react-leaflet';
@@ -442,6 +442,23 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState([{ text: "Trinetra AI online. Connected to DB. Awaiting commands.", sender: 'ai' }]);
   const [dbLogs, setDbLogs] = useState([]);
 
+  // Telemetry & SMS State
+  const [telemetry, setTelemetry] = useState({ signal: 98, latency: 12, aiConf: 94, uptime: 99.7 });
+  const [smsVisible, setSmsVisible] = useState(false);
+  const [smsText, setSmsText] = useState("");
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+        setTelemetry(prev => ({
+            signal: Math.max(80, Math.min(100, prev.signal + (Math.random() * 4 - 2))),
+            latency: Math.max(5, Math.min(50, prev.latency + (Math.random() * 6 - 3))),
+            aiConf: Math.max(85, Math.min(99, prev.aiConf + (Math.random() * 4 - 2))),
+            uptime: prev.uptime
+        }));
+    }, 2000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Fetch from Real Backend DB
   const isInitialLoad = useRef(true);
   useEffect(() => {
@@ -562,6 +579,9 @@ export default function App() {
           ];
           voiceRef.current.speak(criticalMessages[Math.floor(Math.random() * criticalMessages.length)], 'critical');
         }
+        setSmsText(`ALERT: Intruders at Sector 7 (${personCount} Pax). Evacuate / Deploy QRF.`);
+        setSmsVisible(true);
+        setTimeout(() => setSmsVisible(false), 6000);
       } else if (threatLevel === 'WARNING') {
         playDetectionBeep();
         addLog(`[SEC-7] WARNING: Movement detected — ${primary} | Risk: ${maxRisk}% | Tracking...`, 'warning');
@@ -712,6 +732,31 @@ export default function App() {
       <MobileAlert threatLevel={detectionData.threatLevel} riskScore={detectionData.riskScore} threatClass={detectionData.primaryClass} />
       <WalkieTalkie isOpen={walkieOpen} onToggle={() => setWalkieOpen(!walkieOpen)} threatLevel={detectionData.threatLevel} detectedClass={detectionData.primaryClass} />
       <AIThreatAnalyst isOpen={analystOpen} onToggle={() => setAnalystOpen(!analystOpen)} detectionData={detectionData} />
+
+      <AnimatePresence>
+        {smsVisible && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 20, scale: 1 }}
+            exit={{ opacity: 0, y: -50, scale: 0.9 }}
+            style={{
+              position: 'fixed', top: '10px', right: '20px', zIndex: 99999,
+              background: '#fff', color: '#000', padding: '12px 18px',
+              borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+              display: 'flex', alignItems: 'center', gap: '12px',
+              fontFamily: 'sans-serif', minWidth: '300px'
+            }}
+          >
+            <div style={{ background: '#22c55e', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+              💬
+            </div>
+            <div>
+              <div style={{ fontSize: '12px', color: '#666', fontWeight: 'bold' }}>Messages • Now</div>
+              <div style={{ fontSize: '14px', fontWeight: '600', marginTop: '2px' }}>{smsText}</div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Classification Banner */}
       <div className="classification-banner">
@@ -883,6 +928,26 @@ export default function App() {
                   ))}
                 </div>
 
+                {/* System Health Telemetry Overlay */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginTop: 4 }}>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>SIGNAL</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--safe)', fontWeight: 'bold' }}>{telemetry.signal.toFixed(0)}%</div>
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>LATENCY</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--warning)', fontWeight: 'bold' }}>{telemetry.latency.toFixed(0)}ms</div>
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>AI CONFIDENCE</div>
+                        <div style={{ fontSize: '0.8rem', color: '#a855f7', fontWeight: 'bold' }}>{telemetry.aiConf.toFixed(0)}%</div>
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>UPTIME</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--safe)', fontWeight: 'bold' }}>{telemetry.uptime}%</div>
+                    </div>
+                </div>
+
                 {/* Real-World Modules Section */}
                 <div style={{ fontSize: '0.6rem', color: 'var(--accent)', letterSpacing: 2, fontFamily: "'Share Tech Mono'", marginTop: 4 }}>
                   ACTIVE DEFENCE MODULES
@@ -940,19 +1005,34 @@ export default function App() {
                 className="live-feed-container"
               >
                 {/* Simulated camera background */}
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  background: simActive
-                    ? 'radial-gradient(ellipse at 40% 50%, rgba(15,25,15,0.95), rgba(5,10,5,1))'
-                    : 'radial-gradient(ellipse at center, rgba(10,15,10,0.7), rgba(3,5,3,1))',
-                  transition: 'background 1s ease'
-                }}>
-                  {/* Grid overlay */}
-                  <div style={{
-                    position: 'absolute', inset: 0,
-                    backgroundImage: 'linear-gradient(rgba(34,197,94,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(34,197,94,0.03) 1px, transparent 1px)',
-                    backgroundSize: '40px 40px'
-                  }} />
+                <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+                    {simActive ? (
+                        <>
+                            <div className="loading-spinner" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--accent)', zIndex: 0 }}>
+                                <Loader2Icon size={32} style={{ animation: 'spin 2s linear infinite' }} />
+                                <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
+                            </div>
+                            <video
+                                autoPlay
+                                loop
+                                muted
+                                playsInline
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isNightMode ? 0.4 : 0.8, filter: isNightMode ? 'grayscale(100%) contrast(150%) hue-rotate(90deg)' : 'none', position: 'relative', zIndex: 1 }}
+                                src={simActive ? "https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4" : ""}
+                            />
+                        </>
+                    ) : (
+                        <div style={{
+                            position: 'absolute', inset: 0,
+                            background: 'radial-gradient(ellipse at center, rgba(10,15,10,0.7), rgba(3,5,3,1))',
+                        }}>
+                             <div style={{
+                                position: 'absolute', inset: 0,
+                                backgroundImage: 'linear-gradient(rgba(34,197,94,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(34,197,94,0.03) 1px, transparent 1px)',
+                                backgroundSize: '40px 40px'
+                             }} />
+                        </div>
+                    )}
                 </div>
 
                 {/* Detection canvas */}
@@ -967,6 +1047,7 @@ export default function App() {
                         {simActive ? <><div className="rec-dot" /> LIVE — SEC-7</> : <><Eye size={12} /> STANDBY</>}
                       </div>
                       {simActive && <div className="hud-badge info">SIM: {tick}s | {phase.label}</div>}
+                      {isNightMode && <div className="hud-badge" style={{ background: 'none', border: '1px solid #10b981', color: '#10b981' }}>THERMAL CAM READY</div>}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       {detectionData.objectCount > 0 && (

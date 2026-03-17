@@ -85,12 +85,27 @@ export default function WalkieTalkie({ isOpen, onToggle, threatLevel = 'LOW', de
     const lastThreatRef = useRef('LOW');
     const transmissionIdx = useRef(0);
 
+    const staticAudioRef = useRef(null);
+
     // Auto-transmit when threat level changes
     useEffect(() => {
         if (threatLevel !== lastThreatRef.current && threatLevel !== 'LOW') {
             lastThreatRef.current = threatLevel;
 
-            playRadioStatic(400);
+            if (threatLevel === 'CRITICAL' && staticAudioRef.current) {
+                staticAudioRef.current.currentTime = 0;
+                staticAudioRef.current.volume = 0.5;
+                staticAudioRef.current.play().catch(() => playRadioStatic(400));
+                setTimeout(() => {
+                    if (staticAudioRef.current) {
+                        staticAudioRef.current.pause();
+                        staticAudioRef.current.currentTime = 0;
+                    }
+                }, 500); // 0.5s burst
+            } else {
+                playRadioStatic(400);
+            }
+
             setTimeout(() => {
                 playBeep();
                 const transmission = INCOMING_TRANSMISSIONS[transmissionIdx.current % INCOMING_TRANSMISSIONS.length];
@@ -144,6 +159,7 @@ export default function WalkieTalkie({ isOpen, onToggle, threatLevel = 'LOW', de
 
     return (
         <>
+            <audio ref={staticAudioRef} src="https://assets.mixkit.co/sfx/preview/mixkit-radio-static-noise-2258.mp3" preload="auto" />
             {/* Toggle Button */}
             <button
                 className={`walkie-toggle ${isOpen ? 'open' : ''} ${messages.length > 0 && !isOpen ? 'has-messages' : ''}`}

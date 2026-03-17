@@ -179,8 +179,21 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled }) {
                         <div key={cam.id}
                             className={`cctv-feed ${isCritical ? 'critical' : hasDetections ? 'degraded' : ''}`}
                             onClick={() => setExpandedCam(index)}
+                            style={{ position: 'relative' }}
                         >
-                            <canvas ref={el => canvasRefs.current[index] = el} className="cctv-noise" />
+                            <video
+                                autoPlay
+                                loop
+                                muted
+                                playsInline
+                                style={{
+                                    position: 'absolute', inset: 0,
+                                    width: '100%', height: '100%',
+                                    objectFit: 'cover', zIndex: 0, opacity: 0.6
+                                }}
+                                src="https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4"
+                            />
+                            <canvas ref={el => canvasRefs.current[index] = el} className="cctv-noise" style={{ position: 'relative', zIndex: 1 }} />
 
                             <div className="cctv-overlay">
                                 <div className="cctv-top-bar">
@@ -232,8 +245,20 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled }) {
                                 <span style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>{CAMERAS[expandedCam].coords}</span>
                                 <button className="cctv-close-btn" onClick={() => setExpandedCam(null)}><X size={14} /></button>
                             </div>
-                            <div className="cctv-modal-feed">
-                                <canvas ref={modalCanvasRef} style={{ width: '100%', height: '100%' }} />
+                            <div className="cctv-modal-feed" style={{ position: 'relative' }}>
+                                <video
+                                    autoPlay
+                                    loop
+                                    muted
+                                    playsInline
+                                    style={{
+                                        position: 'absolute', inset: 0,
+                                        width: '100%', height: '100%',
+                                        objectFit: 'cover', zIndex: 0, opacity: 0.6
+                                    }}
+                                    src="https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4"
+                                />
+                                <canvas ref={modalCanvasRef} style={{ width: '100%', height: '100%', position: 'relative', zIndex: 1 }} />
                                 <div className="cctv-modal-rec"><div className="rec-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', animation: 'breathe 1.5s infinite' }} /> REC</div>
                                 <div className="video-scanlines" />
                                 <div style={{ position: 'absolute', bottom: 10, left: 10, display: 'flex', gap: 6 }}>
