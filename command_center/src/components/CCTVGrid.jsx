@@ -6,33 +6,33 @@ const CAMERAS = [
     {
         id: 'CAM-01', name: 'MAIN GATE — SEC-7A', coords: 'N28°38\'12" E77°13\'04"',
         scenario: [
-            { time: [0, 15], detections: [], status: 'CLEAR' },
-            { time: [15, 25], detections: [{ class: 'vehicle', conf: 82, x: 30, y: 40, w: 22, h: 14, risk: 55 }], status: 'VEHICLE APPROACHING' },
-            { time: [25, 40], detections: [{ class: 'person', conf: 91, x: 55, y: 30, w: 10, h: 28, risk: 75 }], status: 'PERSONNEL EXITING VEHICLE' },
-            { time: [40, 180], detections: [], status: 'ACCESS GRANTED' },
+            { time: [0, 6], detections: [], status: 'CLEAR' },
+            { time: [6, 12], detections: [{ class: 'vehicle', conf: 82, x: 20, y: 40, w: 22, h: 14, risk: 55, dx: 4 }], status: 'VEHICLE APPROACHING' },
+            { time: [12, 18], detections: [{ class: 'person', conf: 91, x: 45, y: 30, w: 10, h: 28, risk: 75, dx: 1 }], status: 'PERSONNEL EXITING VEHICLE' },
+            { time: [18, 180], detections: [], status: 'ACCESS GRANTED' },
         ]
     },
     {
         id: 'CAM-02', name: 'PERIMETER NORTH', coords: 'N28°38\'18" E77°13\'09"',
         scenario: [
-            { time: [0, 75], detections: [], status: 'SCANNING' },
+            { time: [0, 8], detections: [], status: 'SCANNING' },
             {
-                time: [75, 90], detections: [
-                    { class: 'person', conf: 68, x: 65, y: 35, w: 8, h: 22, risk: 62 },
-                    { class: 'person', conf: 55, x: 72, y: 38, w: 7, h: 20, risk: 58 },
+                time: [8, 15], detections: [
+                    { class: 'person', conf: 68, x: 80, y: 35, w: 9, h: 22, risk: 62, dx: -3 },
+                    { class: 'person', conf: 55, x: 90, y: 38, w: 8, h: 20, risk: 58, dx: -3.5 },
                 ], status: '⚠ 2 UNKNOWNS DETECTED'
             },
-            { time: [90, 105], detections: [{ class: 'person', conf: 78, x: 50, y: 30, w: 12, h: 30, risk: 82 }], status: '⚠ BREACH ATTEMPT' },
-            { time: [105, 180], detections: [], status: 'THREAT NEUTRALIZED' },
+            { time: [15, 25], detections: [{ class: 'person', conf: 92, x: 50, y: 30, w: 18, h: 45, risk: 92, dx: -1 }], status: '⚠ BREACH ATTEMPT - COMBATANT' },
+            { time: [25, 180], detections: [], status: 'THREAT NEUTRALIZED' },
         ]
     },
     {
         id: 'CAM-03', name: 'EAST WATCHTOWER', coords: 'N28°38\'15" E77°13\'15"',
         scenario: [
-            { time: [0, 125], detections: [], status: 'CLEAR' },
-            { time: [125, 140], detections: [{ class: 'animal', conf: 88, x: 40, y: 50, w: 15, h: 10, risk: 20 }], status: 'WILDLIFE (STRAY DOG)' },
-            { time: [140, 155], detections: [], status: 'CLEAR — AUTO-CLASSIFIED' },
-            { time: [155, 180], detections: [{ class: 'drone', conf: 73, x: 50, y: 15, w: 8, h: 5, risk: 90 }], status: '⚠ UAV IN AIRSPACE' },
+            { time: [0, 20], detections: [], status: 'CLEAR' },
+            { time: [20, 30], detections: [{ class: 'animal', conf: 88, x: 10, y: 50, w: 15, h: 10, risk: 20, dx: 3 }], status: 'WILDLIFE (STRAY DOG)' },
+            { time: [30, 40], detections: [], status: 'CLEAR — AUTO-CLASSIFIED' },
+            { time: [40, 180], detections: [{ class: 'drone', conf: 73, x: 20, y: 15, w: 8, h: 5, risk: 90, dx: 5, dy: 2 }], status: '⚠ UAV IN AIRSPACE' },
         ]
     },
     {
@@ -43,33 +43,43 @@ const CAMERAS = [
     },
 ];
 
-function drawCameraDetections(canvas, detections, tick) {
-    if (!canvas) return;
+function drawCameraDetections(canvas, phase, tick) {
+    if (!canvas || !phase) return;
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
 
-    // Static noise background
+    // Dynamic noise background (with low opacity to see the video!)
     const imgData = ctx.createImageData(W, H);
     for (let i = 0; i < imgData.data.length; i += 4) {
         const v = Math.random() * 20;
         imgData.data[i] = v; imgData.data[i + 1] = v + 5; imgData.data[i + 2] = v;
-        imgData.data[i + 3] = 255;
+        imgData.data[i + 3] = 40; // Reduced opacity to 15% so video shows perfectly!
     }
     ctx.putImageData(imgData, 0, 0);
 
     // Scan line
-    const scanY = (tick * 6) % H;
+    const scanY = (tick * 60) % H;
     ctx.fillStyle = 'rgba(34,197,94,0.06)';
     ctx.fillRect(0, scanY, W, 3);
 
     // Detections
-    const jitter = Math.sin(tick * 0.5) * 1.5;
+    const jitter = Math.sin(tick * 5) * 1.5;
+    const phaseStart = phase.time[0];
+    const detections = phase.detections;
+
     detections.forEach(det => {
-        const x = (det.x / 100) * W + jitter;
-        const y = (det.y / 100) * H + jitter;
+        const tDiff = tick - phaseStart;
+        const xOff = det.dx ? tDiff * det.dx : 0;
+        const yOff = det.dy ? tDiff * det.dy : 0;
+
+        const x = ((det.x + xOff) / 100) * W + jitter;
+        const y = ((det.y + yOff) / 100) * H + jitter;
         const w = (det.w / 100) * W;
         const h = (det.h / 100) * H;
+        
+        if (x < -W || x > W*2) return; // simple clamp
+
         const color = det.risk > 70 ? '#ef4444' : det.risk > 40 ? '#f59e0b' : '#22c55e';
         const conf = Math.min(99, det.conf + Math.floor(Math.random() * 3 - 1));
 
@@ -87,7 +97,7 @@ function drawCameraDetections(canvas, detections, tick) {
         ctx.beginPath(); ctx.moveTo(x + w - cl, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cl); ctx.stroke();
 
         // Label
-        const label = `${det.class} ${conf}%`;
+        const label = `${det.class} ${conf}% [${det.risk > 70 ? 'CRIT' : 'WARN'}]`;
         ctx.font = '10px "Share Tech Mono"';
         const tw = ctx.measureText(label).width + 6;
         ctx.fillStyle = color;
@@ -105,7 +115,7 @@ function drawCameraDetections(canvas, detections, tick) {
     ctx.setLineDash([]);
 }
 
-export default function CCTVGrid({ active = false, voiceRef, voiceEnabled }) {
+export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDetectionData, setSmsText, setSmsVisible, playDetectionBeep }) {
     const [expandedCam, setExpandedCam] = useState(null);
     const [tick, setTick] = useState(0);
     const canvasRefs = useRef([]);
@@ -113,7 +123,8 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled }) {
     const prevStatusRef = useRef({});
 
     useEffect(() => {
-        const timer = setInterval(() => setTick(t => (t + 1) % 180), 1000);
+        // High refresh rate tick (10x faster updates, interpolates 0.1s slices)
+        const timer = setInterval(() => setTick(t => Number((t + 0.1).toFixed(1)) % 180), 100);
         return () => clearInterval(timer);
     }, []);
 
@@ -124,13 +135,24 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled }) {
                 const canvas = canvasRefs.current[i];
                 canvas.width = canvas.parentElement?.clientWidth || 320;
                 canvas.height = canvas.parentElement?.clientHeight || 200;
-                drawCameraDetections(canvas, phase.detections, tick);
+                drawCameraDetections(canvas, phase, tick);
 
                 const status = phase.status;
                 if (prevStatusRef.current[cam.id] !== status && status !== 'CLEAR' && status !== 'SCANNING' && status !== 'SECURE — NO MOVEMENT') {
                     if (status.includes('⚠') && voiceRef?.current && voiceEnabled) {
                         const txt = `CCTV Alert. ${cam.name}. ${status.replace('⚠', '')}. Security detail respond.`;
                         voiceRef.current.speak(txt, 'critical');
+                        
+                        if (setDetectionData && status.includes('BREACH')) {
+                            setDetectionData(prev => ({ ...prev, threatLevel: 'CRITICAL', riskScore: 95, primaryClass: 'ARMED INTRUDER', personCount: 2, label: cam.id }));
+                            if (playDetectionBeep) playDetectionBeep();
+                            if (setSmsText) {
+                                setSmsText(`ALERT: ${status.replace('⚠', '')} at ${cam.name}. Deploy QRF immediately.`);
+                                setSmsVisible(true);
+                                setTimeout(() => setSmsVisible(false), 6000);
+                            }
+                        }
+
                     } else if (voiceRef?.current && voiceEnabled && phase.detections.length > 0) {
                         const txt = `CCTV Update. ${cam.name}. ${status}.`;
                         voiceRef.current.speak(txt, 'normal');
@@ -138,6 +160,9 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled }) {
                 } else if (prevStatusRef.current[cam.id] !== status && (status === 'CLEAR' || status === 'THREAT NEUTRALIZED')) {
                     if (voiceRef?.current && voiceEnabled) {
                         voiceRef.current.speak(`CCTV All clear. ${cam.name}.`);
+                    }
+                    if (setDetectionData && prevStatusRef.current[cam.id]?.includes('BREACH')) {
+                        setDetectionData(prev => ({ ...prev, threatLevel: 'LOW', riskScore: 0, primaryClass: 'NONE', personCount: 0, label: 'IDLE' }));
                     }
                 }
                 prevStatusRef.current[cam.id] = status;
@@ -151,9 +176,9 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled }) {
             const cam = CAMERAS[expandedCam];
             const phase = cam.scenario.find(s => tick >= s.time[0] && tick < s.time[1]);
             if (phase) {
-                modalCanvasRef.current.width = 900;
-                modalCanvasRef.current.height = 506;
-                drawCameraDetections(modalCanvasRef.current, phase.detections, tick);
+                modalCanvasRef.current.width = modalCanvasRef.current.parentElement?.clientWidth || 900;
+                modalCanvasRef.current.height = modalCanvasRef.current.parentElement?.clientHeight || 506;
+                drawCameraDetections(modalCanvasRef.current, phase, tick);
             }
         }
     }, [tick, expandedCam]);

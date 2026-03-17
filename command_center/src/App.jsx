@@ -449,12 +449,12 @@ export default function App() {
 
   useEffect(() => {
     const timer = setInterval(() => {
-        setTelemetry(prev => ({
-            signal: Math.max(80, Math.min(100, prev.signal + (Math.random() * 4 - 2))),
-            latency: Math.max(5, Math.min(50, prev.latency + (Math.random() * 6 - 3))),
-            aiConf: Math.max(85, Math.min(99, prev.aiConf + (Math.random() * 4 - 2))),
-            uptime: prev.uptime
-        }));
+      setTelemetry(prev => ({
+        signal: Math.max(80, Math.min(100, prev.signal + (Math.random() * 4 - 2))),
+        latency: Math.max(5, Math.min(50, prev.latency + (Math.random() * 6 - 3))),
+        aiConf: Math.max(85, Math.min(99, prev.aiConf + (Math.random() * 4 - 2))),
+        uptime: prev.uptime
+      }));
     }, 2000);
     return () => clearInterval(timer);
   }, []);
@@ -643,30 +643,30 @@ export default function App() {
     if (tp.action && tp.detected !== prevTrackRef.current) {
       addLog(`[TRK-2] ${tp.action}`, tp.detected ? 'warning' : 'normal');
       if (tp.detected) {
-          setDetectionData(prev => ({ ...prev, threatLevel: 'CRITICAL', riskScore: 92, primaryClass: tp.object.toUpperCase(), personCount: 0, label: 'TRACK-GUARD' }));
-          setSmsText(`ALERT: Track Guard - ${tp.object.toUpperCase()} on railway line. Train auto-braked.`);
-          setSmsVisible(true);
-          setTimeout(() => setSmsVisible(false), 6000);
-          if (voiceRef.current && voiceEnabled) {
-              playKlaxon();
-              const trackMessages = [
-          `Track Guard alert. ${tp.object} detected on railway track Kilo Mike 142. Auto brake signal transmitted to Train 12042 Rajdhani Express. Estimated time to impact ${eti} seconds.`,
-          `Railway safety warning. Obstruction confirmed on track section. ${tp.object} at ${tp.distance} meters. Emergency brake command sent. Indian Railways control room notified.`,
-          `Attention. Track Guard AI has identified a ${tp.object} crossing the track ahead. Speed of approaching train ${tp.trainSpeed} kilometers per hour. Auto brake engaged. Distance ${tp.distance} meters.`,
-          `Rail corridor alert. Wildlife incursion detected. ${tp.object} on active track near Kilo Mike 142. Brake signal dispatched. All trains in sector slowing to safety speed.`,
-          `Emergency track alert. ${tp.object} confirmed on railway line. AI confidence high. Auto brake protocol activated for approaching Rajdhani Express. Control room standing by.`
-        ];
-        voiceRef.current.speak(trackMessages[Math.floor(Math.random() * trackMessages.length)], 'critical');
+        setDetectionData(prev => ({ ...prev, threatLevel: 'CRITICAL', riskScore: 92, primaryClass: tp.object.toUpperCase(), personCount: 0, label: 'TRACK-GUARD' }));
+        setSmsText(`ALERT: Track Guard - ${tp.object.toUpperCase()} on railway line. Train auto-braked.`);
+        setSmsVisible(true);
+        setTimeout(() => setSmsVisible(false), 6000);
+        if (voiceRef.current && voiceEnabled) {
+          playKlaxon();
+          const trackMessages = [
+            `Track Guard alert. ${tp.object} detected on railway track Kilo Mike 142. Auto brake signal transmitted to Train 12042 Rajdhani Express. Estimated time to impact ${eti} seconds.`,
+            `Railway safety warning. Obstruction confirmed on track section. ${tp.object} at ${tp.distance} meters. Emergency brake command sent. Indian Railways control room notified.`,
+            `Attention. Track Guard AI has identified a ${tp.object} crossing the track ahead. Speed of approaching train ${tp.trainSpeed} kilometers per hour. Auto brake engaged. Distance ${tp.distance} meters.`,
+            `Rail corridor alert. Wildlife incursion detected. ${tp.object} on active track near Kilo Mike 142. Brake signal dispatched. All trains in sector slowing to safety speed.`,
+            `Emergency track alert. ${tp.object} confirmed on railway line. AI confidence high. Auto brake protocol activated for approaching Rajdhani Express. Control room standing by.`
+          ];
+          voiceRef.current.speak(trackMessages[Math.floor(Math.random() * trackMessages.length)], 'critical');
         }
       } else if (!tp.detected && prevTrackRef.current) {
         setDetectionData(prev => ({ ...prev, threatLevel: 'LOW', riskScore: 0, primaryClass: 'NONE', personCount: 0, label: 'TRACK-GUARD' }));
         if (voiceRef.current && voiceEnabled) {
-            const trackClear = [
+          const trackClear = [
             'Track Guard all clear. Obstruction has cleared the railway line. Track is safe for train passage. Resuming normal monitoring.',
             'Railway corridor clear. Wildlife has moved away from track. Brake signal released. Trains may proceed at normal speed.',
             'Track section clear. No further obstructions detected. Indian Railways control room notified. Normal operations resumed.'
-            ];
-            voiceRef.current.speak(trackClear[Math.floor(Math.random() * trackClear.length)]);
+          ];
+          voiceRef.current.speak(trackClear[Math.floor(Math.random() * trackClear.length)]);
         }
       }
     }
@@ -699,7 +699,7 @@ export default function App() {
       ];
       voiceRef.current.speak(scanStartMessages[Math.floor(Math.random() * scanStartMessages.length)]);
     }
-      setTimeout(() => {
+    setTimeout(() => {
       const anomalies = [
         { lat: 23.6152, lng: 85.2859, radius: 400, risk: 85 },
         { lat: 23.6052, lng: 85.2719, radius: 250, risk: 60 },
@@ -943,22 +943,22 @@ export default function App() {
 
                 {/* System Health Telemetry Overlay */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginTop: 4 }}>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>SIGNAL</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--safe)', fontWeight: 'bold' }}>{telemetry.signal.toFixed(0)}%</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>LATENCY</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--warning)', fontWeight: 'bold' }}>{telemetry.latency.toFixed(0)}ms</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>AI CONFIDENCE</div>
-                        <div style={{ fontSize: '0.8rem', color: '#a855f7', fontWeight: 'bold' }}>{telemetry.aiConf.toFixed(0)}%</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>UPTIME</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--safe)', fontWeight: 'bold' }}>{telemetry.uptime}%</div>
-                    </div>
+                  <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>SIGNAL</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--safe)', fontWeight: 'bold' }}>{telemetry.signal.toFixed(0)}%</div>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>LATENCY</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--warning)', fontWeight: 'bold' }}>{telemetry.latency.toFixed(0)}ms</div>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>AI CONFIDENCE</div>
+                    <div style={{ fontSize: '0.8rem', color: '#a855f7', fontWeight: 'bold' }}>{telemetry.aiConf.toFixed(0)}%</div>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>UPTIME</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--safe)', fontWeight: 'bold' }}>{telemetry.uptime}%</div>
+                  </div>
                 </div>
 
                 {/* Real-World Modules Section */}
@@ -1019,33 +1019,33 @@ export default function App() {
               >
                 {/* Simulated camera background */}
                 <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-                    {simActive ? (
-                        <>
-                            <div className="loading-spinner" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--accent)', zIndex: 0 }}>
-                                <Loader2Icon size={32} style={{ animation: 'spin 2s linear infinite' }} />
-                                <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
-                            </div>
-                            <video
-                                autoPlay
-                                loop
-                                muted
-                                playsInline
-                                style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isNightMode ? 0.4 : 0.8, filter: isNightMode ? 'grayscale(100%) contrast(150%) hue-rotate(90deg)' : 'none', position: 'relative', zIndex: 1 }}
-                                src={simActive ? "https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4" : ""}
-                            />
-                        </>
-                    ) : (
-                        <div style={{
-                            position: 'absolute', inset: 0,
-                            background: 'radial-gradient(ellipse at center, rgba(10,15,10,0.7), rgba(3,5,3,1))',
-                        }}>
-                             <div style={{
-                                position: 'absolute', inset: 0,
-                                backgroundImage: 'linear-gradient(rgba(34,197,94,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(34,197,94,0.03) 1px, transparent 1px)',
-                                backgroundSize: '40px 40px'
-                             }} />
-                        </div>
-                    )}
+                  {simActive ? (
+                    <>
+                      <div className="loading-spinner" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--accent)', zIndex: 0 }}>
+                        <Loader2Icon size={32} style={{ animation: 'spin 2s linear infinite' }} />
+                        <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
+                      </div>
+                      <video
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isNightMode ? 0.4 : 0.8, filter: isNightMode ? 'grayscale(100%) contrast(150%) hue-rotate(90deg)' : 'none', position: 'relative', zIndex: 1 }}
+                        src={simActive ? "https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4" : ""}
+                      />
+                    </>
+                  ) : (
+                    <div style={{
+                      position: 'absolute', inset: 0,
+                      background: 'radial-gradient(ellipse at center, rgba(10,15,10,0.7), rgba(3,5,3,1))',
+                    }}>
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        backgroundImage: 'linear-gradient(rgba(34,197,94,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(34,197,94,0.03) 1px, transparent 1px)',
+                        backgroundSize: '40px 40px'
+                      }} />
+                    </div>
+                  )}
                 </div>
 
                 {/* Detection canvas */}
@@ -1174,7 +1174,7 @@ export default function App() {
             )}
 
             {/* ── CCTV ── */}
-            {activeTab === 'CCTV' && <CCTVGrid active={true} voiceRef={voiceRef} voiceEnabled={voiceEnabled} />}
+            {activeTab === 'CCTV' && <CCTVGrid active={true} voiceRef={voiceRef} voiceEnabled={voiceEnabled} setDetectionData={setDetectionData} setSmsText={setSmsText} setSmsVisible={setSmsVisible} playDetectionBeep={playDetectionBeep} />}
 
             {/* ── GEO-EYE ── */}
             {activeTab === 'GEO-EYE' && (
