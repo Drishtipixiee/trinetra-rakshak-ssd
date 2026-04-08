@@ -148,7 +148,7 @@ flowchart TB
     subgraph BACKEND [" 🐍 Backend — Flask + Vercel Serverless "]
         API[REST API<br/>8 endpoints]
         FUZZY[Fuzzy Logic Engine<br/>scikit-fuzzy · 9 rules]
-        PREDICT[ Threat Predictor<br/>Heuristic classifier]
+        PREDICT[Threat Predictor<br/>Heuristic classifier]
         API --> FUZZY
         API --> PREDICT
     end
@@ -164,7 +164,7 @@ flowchart TB
 
 ## Project Structure
 
-```
+```text
 trinetra-rakshak-ssd/
 ├── command_center/              # React Frontend (Vercel)
 │   ├── src/
@@ -206,7 +206,7 @@ trinetra-rakshak-ssd/
 | Interconnected State logic across modules | Complete threat response pipeline |
 | ESRI satellite map tiles | Threat scenarios (60-second scripts) |
 
-##  Live URLs
+## Live URLs
 
 | Service | URL |
 |---------|-----|
