@@ -157,7 +157,11 @@ export default function AIThreatAnalyst({ isOpen, onToggle, detectionData }) {
         if (msgEndRef.current) msgEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isTyping]);
 
-    const handleSend = () => {
+    const API_URL = import.meta.env.PROD
+        ? 'https://backend-ten-fawn-25.vercel.app'
+        : 'http://127.0.0.1:5000';
+
+    const handleSend = async () => {
         if (!input.trim()) return;
         const userMsg = {
             id: Date.now(),
@@ -166,18 +170,48 @@ export default function AIThreatAnalyst({ isOpen, onToggle, detectionData }) {
             time: new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' })
         };
         setMessages(prev => [...prev, userMsg]);
+        const currentInput = input.trim();
         setInput('');
         setIsTyping(true);
 
-        // Simulate AI thinking delay
+        // Try real Claude API first, fall back to local keyword engine
+        try {
+            const res = await fetch(`${API_URL}/api/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: currentInput,
+                    score: detectionData.riskScore || 0,
+                    module: detectionData.label || 'UNKNOWN',
+                }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setMessages(prev => [...prev, {
+                    id: Date.now(),
+                    role: 'ai',
+                    text: data.response,
+                    time: new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' }),
+                    source: data.source || 'api',
+                }]);
+                setIsTyping(false);
+                return;
+            }
+        } catch (err) {
+            console.warn('[AI Analyst] API unreachable, using local engine:', err.message);
+        }
+
+        // Fallback: local keyword-matching response
         const delay = 600 + Math.random() * 1200;
         setTimeout(() => {
-            const response = getAIResponse(userMsg.text, detectionData);
+            const response = getAIResponse(currentInput, detectionData);
             setMessages(prev => [...prev, {
                 id: Date.now(),
                 role: 'ai',
                 text: response,
-                time: new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' })
+                time: new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' }),
+                source: 'local',
             }]);
             setIsTyping(false);
         }, delay);
