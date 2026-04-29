@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Video, Maximize2, X, AlertTriangle, Shield } from 'lucide-react';
+import { Video, Maximize2, X, AlertTriangle, Shield, Camera, CameraOff } from 'lucide-react';
 
 const CAMERAS = [
     {
@@ -121,6 +121,89 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
     const canvasRefs = useRef([]);
     const modalCanvasRef = useRef(null);
     const prevStatusRef = useRef({});
+
+    // Live webcam state
+    const [liveStream, setLiveStream] = useState(null);
+    const [liveError, setLiveError] = useState('');
+    const liveVideoRef = useRef(null);
+    const liveCanvasRef = useRef(null);
+    const liveAnimRef = useRef(null);
+
+    const startLiveFeed = async () => {
+        setLiveError('');
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 640, height: 360 }
+            });
+            setLiveStream(stream);
+            if (liveVideoRef.current) {
+                liveVideoRef.current.srcObject = stream;
+            }
+        } catch (err) {
+            if (err.name === 'NotAllowedError') {
+                setLiveError('Camera permission denied. Allow access in browser settings.');
+            } else if (err.name === 'NotFoundError') {
+                setLiveError('No camera device found on this system.');
+            } else {
+                setLiveError(`Camera error: ${err.message}`);
+            }
+        }
+    };
+
+    const stopLiveFeed = () => {
+        if (liveStream) {
+            liveStream.getTracks().forEach(t => t.stop());
+            setLiveStream(null);
+        }
+        if (liveAnimRef.current) {
+            cancelAnimationFrame(liveAnimRef.current);
+            liveAnimRef.current = null;
+        }
+    };
+
+    // Draw live video frames + AI overlay onto canvas
+    useEffect(() => {
+        if (!liveStream || !liveVideoRef.current || !liveCanvasRef.current) return;
+
+        const video = liveVideoRef.current;
+        const canvas = liveCanvasRef.current;
+        const ctx = canvas.getContext('2d');
+
+        const drawFrame = () => {
+            if (!liveStream) return;
+            canvas.width = canvas.parentElement?.clientWidth || 320;
+            canvas.height = canvas.parentElement?.clientHeight || 200;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // AI scan line overlay on live feed
+            const scanY = (Date.now() * 0.06) % canvas.height;
+            ctx.fillStyle = 'rgba(34,197,94,0.06)';
+            ctx.fillRect(0, scanY, canvas.width, 3);
+
+            // Crosshair overlay
+            ctx.strokeStyle = 'rgba(34,197,94,0.15)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath(); ctx.moveTo(canvas.width / 2, 0); ctx.lineTo(canvas.width / 2, canvas.height); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, canvas.height / 2); ctx.lineTo(canvas.width, canvas.height / 2); ctx.stroke();
+            ctx.setLineDash([]);
+
+            liveAnimRef.current = requestAnimationFrame(drawFrame);
+        };
+
+        video.onloadedmetadata = () => drawFrame();
+
+        return () => {
+            if (liveAnimRef.current) cancelAnimationFrame(liveAnimRef.current);
+        };
+    }, [liveStream]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (liveStream) liveStream.getTracks().forEach(t => t.stop());
+        };
+    }, []);
 
     useEffect(() => {
         // High refresh rate tick (10x faster updates, interpolates 0.1s slices)
@@ -268,6 +351,90 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
                         </div>
                     );
                 })}
+
+                {/* CAM-05: LIVE WEBCAM FEED */}
+                <div
+                    className={`cctv-feed ${liveStream ? 'degraded' : ''}`}
+                    style={{ position: 'relative' }}
+                >
+                    {/* Hidden video element for getUserMedia */}
+                    <video
+                        ref={liveVideoRef}
+                        autoPlay muted playsInline
+                        style={{ display: 'none' }}
+                    />
+
+                    {liveStream ? (
+                        <canvas
+                            ref={liveCanvasRef}
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1 }}
+                        />
+                    ) : (
+                        <div style={{
+                            position: 'absolute', inset: 0,
+                            display: 'flex', flexDirection: 'column',
+                            alignItems: 'center', justifyContent: 'center',
+                            background: 'rgba(0,0,0,0.9)', zIndex: 1, gap: 8
+                        }}>
+                            <Camera size={24} style={{ color: 'var(--accent)', opacity: 0.5 }} />
+                            <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)', textAlign: 'center', padding: '0 8px' }}>
+                                {liveError || 'Press START to activate live camera feed'}
+                            </div>
+                            {liveError && (
+                                <div style={{ fontSize: '0.5rem', color: 'var(--danger)', textAlign: 'center', padding: '0 8px' }}>
+                                    {liveError}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="cctv-overlay">
+                        <div className="cctv-top-bar">
+                            <div className="cctv-id">
+                                <span className={`cctv-rec-dot ${liveStream ? 'recording' : ''}`} style={liveStream ? { background: '#ef4444' } : {}} />
+                                CAM-05
+                            </div>
+                            <div className="cctv-status" style={liveStream ? { color: '#22c55e' } : {}}>
+                                {liveStream ? 'LIVE FEED ACTIVE' : 'STANDBY'}
+                            </div>
+                        </div>
+
+                        <div className="cctv-crosshair"><div className="ch-h" /><div className="ch-v" /></div>
+
+                        <div className="cctv-bottom-bar">
+                            <div>
+                                <div className="cctv-name">LIVE CAM -- LOCAL DEVICE</div>
+                                <div className="cctv-coords">getUserMedia WebRTC</div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                                {!liveStream ? (
+                                    <button
+                                        onClick={startLiveFeed}
+                                        style={{
+                                            background: 'rgba(34,197,94,0.2)', border: '1px solid var(--accent)',
+                                            color: 'var(--accent)', padding: '2px 8px', borderRadius: 4,
+                                            cursor: 'pointer', fontFamily: "'Share Tech Mono'", fontSize: '0.5rem'
+                                        }}
+                                    >
+                                        START
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={stopLiveFeed}
+                                        style={{
+                                            background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444',
+                                            color: '#ef4444', padding: '2px 8px', borderRadius: 4,
+                                            cursor: 'pointer', fontFamily: "'Share Tech Mono'", fontSize: '0.5rem'
+                                        }}
+                                    >
+                                        STOP
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="cctv-scanlines" />
+                </div>
             </div>
 
             {/* Expanded Modal */}

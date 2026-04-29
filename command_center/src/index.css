@@ -1728,8 +1728,8 @@ body.alert-mode .hud-container {
 
 .cctv-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-auto-rows: 1fr;
   gap: 4px;
   flex: 1;
   min-height: 0;
@@ -1814,6 +1814,7 @@ body.alert-mode .hud-container {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  pointer-events: auto;
 }
 
 .cctv-name {
