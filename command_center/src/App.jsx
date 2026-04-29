@@ -122,93 +122,204 @@ function useSimulationEngine(liveActive, trackActive) {
   return { tick: liveTick, trackTick, phase, trackPhase };
 }
 
-// ─── Canvas Renderer for simulated detections ───
+// --- Canvas Renderer for simulated detections (MILITARY-GRADE) ---
 function drawSimulatedDetections(canvas, detections, tick) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
 
-  // Subtle movement noise based on tick
-  const jitter = () => (Math.sin(tick * 0.7 + Math.random()) * 2);
+  const jitter = () => (Math.sin(tick * 0.7 + Math.random()) * 1.2);
 
-  detections.forEach(det => {
+  // Grid overlay
+  ctx.strokeStyle = 'rgba(34,197,94,0.04)';
+  ctx.lineWidth = 0.5;
+  for (let gx = 0; gx < W; gx += 60) {
+    ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+  }
+  for (let gy = 0; gy < H; gy += 60) {
+    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+  }
+
+  detections.forEach((det, idx) => {
     const x = (det.x / 100) * W + jitter();
     const y = (det.y / 100) * H + jitter();
     const w = (det.w / 100) * W;
     const h = (det.h / 100) * H;
     const conf = det.confidence + Math.floor(Math.random() * 4 - 2);
-    const label = `${det.class} ${Math.min(99, Math.max(50, conf))}%`;
-
     const color = det.risk > 70 ? '#ef4444' : det.risk > 40 ? '#f59e0b' : '#22c55e';
+    const rgbStr = det.risk > 70 ? '239,68,68' : det.risk > 40 ? '245,158,11' : '34,197,94';
 
-    // Main bounding box
+    // Glow zone around target
+    const gradient = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, Math.max(w,h));
+    gradient.addColorStop(0, `rgba(${rgbStr}, 0.08)`);
+    gradient.addColorStop(1, 'transparent');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x - w*0.3, y - h*0.3, w*1.6, h*1.6);
+
+    // Tracking trail (motion history)
+    if (det.dx || det.dy) {
+      ctx.strokeStyle = `rgba(${rgbStr}, 0.15)`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      const trailLen = 8;
+      for (let t = 0; t < trailLen; t++) {
+        const tx = x - (det.dx || 0) * t * 3;
+        const ty = y - (det.dy || 0) * t * 3;
+        ctx.globalAlpha = 0.3 - (t * 0.035);
+        ctx.strokeRect(tx, ty, w, h);
+      }
+      ctx.globalAlpha = 1;
+      ctx.setLineDash([]);
+    }
+
+    // Main bounding box with corner brackets
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
-    ctx.setLineDash([]);
     ctx.strokeRect(x, y, w, h);
 
-    // Corner brackets (tactical look)
     const cl = Math.min(w, h) * 0.25;
     ctx.lineWidth = 3;
-    ctx.strokeStyle = color;
-    // Top-left
     ctx.beginPath(); ctx.moveTo(x, y + cl); ctx.lineTo(x, y); ctx.lineTo(x + cl, y); ctx.stroke();
-    // Top-right
     ctx.beginPath(); ctx.moveTo(x + w - cl, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + cl); ctx.stroke();
-    // Bottom-left
     ctx.beginPath(); ctx.moveTo(x, y + h - cl); ctx.lineTo(x, y + h); ctx.lineTo(x + cl, y + h); ctx.stroke();
-    // Bottom-right
     ctx.beginPath(); ctx.moveTo(x + w - cl, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cl); ctx.stroke();
 
-    // Human Figure Drawing (Dots and Lines inside the box)
+    // Realistic human silhouette (replaces stick figure)
     if (det.class === 'person') {
-      ctx.strokeStyle = `rgba(${color === '#ef4444' ? '239,68,68' : '34,197,94'}, 0.8)`;
-      ctx.fillStyle = ctx.strokeStyle;
-      ctx.lineWidth = 2;
+      ctx.fillStyle = `rgba(${rgbStr}, 0.35)`;
+      const cx = x + w / 2;
+      const headR = w * 0.12;
+      const shY = y + headR * 4;
+      const hipY = y + h * 0.55;
+      const walkPhase = Math.sin(tick * 1.5 + idx) * 0.15;
 
-      const cx = x + w / 2;     // Center X
-      const top = y + 4;        // Top padding
-      const bot = y + h - 4;    // Bottom padding
-      const headR = w * 0.15;   // Head radius
-
-      // Head (dot)
+      // Head
       ctx.beginPath();
-      ctx.arc(cx, top + headR, headR, 0, Math.PI * 2);
+      ctx.arc(cx, y + headR * 2, headR, 0, Math.PI * 2);
       ctx.fill();
 
-      // Spine (line)
-      const neckY = top + headR * 2 + 2;
-      const pelvisY = y + h * 0.55;
-      ctx.beginPath(); ctx.moveTo(cx, neckY); ctx.lineTo(cx, pelvisY); ctx.stroke();
-
-      // Arms (lines)
-      const shoulderY = neckY + 4;
+      // Torso (filled shape)
       ctx.beginPath();
-      ctx.moveTo(cx, shoulderY); ctx.lineTo(cx - w * 0.35, shoulderY + h * 0.2 + (Math.sin(tick) * 4)); // Left Arm (swinging)
-      ctx.moveTo(cx, shoulderY); ctx.lineTo(cx + w * 0.35, shoulderY + h * 0.2 - (Math.sin(tick) * 4)); // Right Arm (swinging)
+      ctx.moveTo(cx - w * 0.2, shY);
+      ctx.lineTo(cx + w * 0.2, shY);
+      ctx.lineTo(cx + w * 0.15, hipY);
+      ctx.lineTo(cx - w * 0.15, hipY);
+      ctx.closePath();
+      ctx.fill();
+
+      // Arms
+      ctx.strokeStyle = `rgba(${rgbStr}, 0.5)`;
+      ctx.lineWidth = w * 0.06;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx - w * 0.2, shY + 4);
+      ctx.lineTo(cx - w * 0.4, shY + h * 0.22 + walkPhase * 30);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + w * 0.2, shY + 4);
+      ctx.lineTo(cx + w * 0.4, shY + h * 0.22 - walkPhase * 30);
       ctx.stroke();
 
-      // Legs (lines)
+      // Legs
       ctx.beginPath();
-      ctx.moveTo(cx, pelvisY); ctx.lineTo(cx - w * 0.25, bot - (Math.cos(tick) * 4)); // Left Leg (walking)
-      ctx.moveTo(cx, pelvisY); ctx.lineTo(cx + w * 0.25, bot + (Math.cos(tick) * 4)); // Right Leg (walking)
+      ctx.moveTo(cx - w * 0.1, hipY);
+      ctx.lineTo(cx - w * 0.2, y + h - 6 + walkPhase * 20);
       ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + w * 0.1, hipY);
+      ctx.lineTo(cx + w * 0.2, y + h - 6 - walkPhase * 20);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+
+      // Weapon indicator for high-risk
+      if (det.risk > 70) {
+        ctx.strokeStyle = 'rgba(239,68,68,0.6)';
+        ctx.lineWidth = 2;
+        const weaponX = cx + w * 0.42;
+        const weaponY = shY + h * 0.1;
+        ctx.beginPath();
+        ctx.moveTo(weaponX, weaponY);
+        ctx.lineTo(weaponX + 8, weaponY + 18);
+        ctx.stroke();
+        // Red pulsing danger indicator
+        const pulseR = 6 + Math.sin(tick * 3) * 2;
+        ctx.beginPath();
+        ctx.arc(weaponX + 4, weaponY + 22, pulseR, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(239,68,68, ${0.4 + Math.sin(tick * 3) * 0.3})`;
+        ctx.stroke();
+      }
+    }
+
+    // --- Vehicle silhouette ---
+    if (det.class === 'vehicle') {
+      ctx.fillStyle = `rgba(${rgbStr}, 0.25)`;
+      const vx = x + w * 0.05, vy = y + h * 0.3;
+      const vw = w * 0.9, vh = h * 0.5;
+      ctx.fillRect(vx, vy, vw, vh);
+      ctx.fillRect(vx + vw * 0.1, vy - vh * 0.4, vw * 0.6, vh * 0.45);
+      // Wheels
+      ctx.fillStyle = `rgba(${rgbStr}, 0.4)`;
+      ctx.beginPath(); ctx.arc(vx + vw * 0.2, vy + vh, w * 0.06, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(vx + vw * 0.8, vy + vh, w * 0.06, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // --- Drone silhouette ---
+    if (det.class === 'drone') {
+      ctx.strokeStyle = `rgba(${rgbStr}, 0.6)`;
+      ctx.lineWidth = 1.5;
+      const dcx = x + w/2, dcy = y + h/2;
+      // X frame
+      ctx.beginPath(); ctx.moveTo(dcx - w*0.35, dcy - h*0.3); ctx.lineTo(dcx + w*0.35, dcy + h*0.3); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(dcx + w*0.35, dcy - h*0.3); ctx.lineTo(dcx - w*0.35, dcy + h*0.3); ctx.stroke();
+      // Rotors
+      [[-0.35,-0.3],[0.35,-0.3],[-0.35,0.3],[0.35,0.3]].forEach(([ox,oy]) => {
+        const rx = dcx + w * ox, ry = dcy + h * oy;
+        ctx.beginPath();
+        ctx.arc(rx, ry, w * 0.1, 0, Math.PI * 2);
+        ctx.stroke();
+      });
     }
 
     // Label
-    ctx.font = '13px "Share Tech Mono"';
+    const label = `${det.class.toUpperCase()} ${Math.min(99, Math.max(50, conf))}%`;
+    ctx.font = '12px "Share Tech Mono"';
     const textW = ctx.measureText(label).width + 10;
     ctx.fillStyle = color;
     ctx.fillRect(x, y - 20, textW, 18);
     ctx.fillStyle = '#000';
+    ctx.font = 'bold 11px "Share Tech Mono"';
     ctx.fillText(label, x + 5, y - 6);
 
-    // Risk bar below box
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    // Risk bar
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(x, y + h + 4, w, 6);
     ctx.fillStyle = color;
     ctx.fillRect(x, y + h + 4, w * (det.risk / 100), 6);
+
+    // Distance readout
+    const dist = Math.floor(80 + det.risk * 2 + Math.sin(tick) * 10);
+    ctx.font = '9px "Share Tech Mono"';
+    ctx.fillStyle = `rgba(${rgbStr}, 0.7)`;
+    ctx.fillText(`${dist}m | TGT-${String(idx + 1).padStart(2,'0')}`, x, y + h + 18);
+
+    // Motion vector arrow
+    if (det.dx) {
+      const arrowX = x + w / 2;
+      const arrowY = y + h + 28;
+      const aLen = det.dx * 4;
+      ctx.strokeStyle = `rgba(${rgbStr}, 0.5)`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(arrowX, arrowY);
+      ctx.lineTo(arrowX + aLen, arrowY);
+      ctx.lineTo(arrowX + aLen - Math.sign(aLen) * 5, arrowY - 3);
+      ctx.moveTo(arrowX + aLen, arrowY);
+      ctx.lineTo(arrowX + aLen - Math.sign(aLen) * 5, arrowY + 3);
+      ctx.stroke();
+      ctx.font = '8px "Share Tech Mono"';
+      ctx.fillText(`V:${Math.abs(det.dx * 12).toFixed(0)}km/h`, arrowX + aLen + 6, arrowY + 3);
+    }
   });
 
   // Scan line effect
@@ -217,12 +328,17 @@ function drawSimulatedDetections(canvas, detections, tick) {
   ctx.fillRect(0, scanY, W, 4);
 
   // Crosshair center
-  ctx.strokeStyle = 'rgba(34, 197, 94, 0.15)';
+  ctx.strokeStyle = 'rgba(34, 197, 94, 0.12)';
   ctx.lineWidth = 1;
   ctx.setLineDash([8, 4]);
   ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
   ctx.setLineDash([]);
+
+  // Coordinate readout bottom-left
+  ctx.font = '9px "Share Tech Mono"';
+  ctx.fillStyle = 'rgba(34,197,94,0.35)';
+  ctx.fillText(`N28°38'12" E77°13'04" | ALT:412m | AZ:${((tick * 2) % 360).toFixed(0)}°`, 8, H - 8);
 }
 
 // ─── Typewriter ───
@@ -1139,16 +1255,12 @@ export default function App() {
                 <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
                   {simActive ? (
                     <>
-                      <div className="loading-spinner" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--accent)', zIndex: 0 }}>
-                        <Loader2Icon size={32} style={{ animation: 'spin 2s linear infinite' }} />
-                        <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
-                      </div>
                       <video
                         autoPlay
                         loop
                         muted
                         playsInline
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isNightMode ? 0.4 : 0.8, filter: isNightMode ? 'grayscale(100%) contrast(150%) hue-rotate(90deg)' : 'none', position: 'relative', zIndex: 1 }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isNightMode ? 0.4 : 0.75, filter: isNightMode ? 'grayscale(100%) contrast(150%) brightness(0.7) hue-rotate(90deg)' : 'saturate(0.85) contrast(1.1)', position: 'relative', zIndex: 1 }}
                         src={simActive ? "https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4" : ""}
                       />
                     </>

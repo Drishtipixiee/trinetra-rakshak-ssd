@@ -4,7 +4,8 @@ import { Video, Maximize2, X, AlertTriangle, Shield, Camera, CameraOff } from 'l
 
 const CAMERAS = [
     {
-        id: 'CAM-01', name: 'MAIN GATE — SEC-7A', coords: 'N28°38\'12" E77°13\'04"',
+        id: 'CAM-01', name: 'MAIN GATE -- SEC-7A', coords: 'N28°38\'12" E77°13\'04"',
+        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4',
         scenario: [
             { time: [0, 6], detections: [], status: 'CLEAR' },
             { time: [6, 12], detections: [{ class: 'vehicle', conf: 82, x: 20, y: 40, w: 22, h: 14, risk: 55, dx: 4 }], status: 'VEHICLE APPROACHING' },
@@ -14,31 +15,34 @@ const CAMERAS = [
     },
     {
         id: 'CAM-02', name: 'PERIMETER NORTH', coords: 'N28°38\'18" E77°13\'09"',
+        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-dry-field-landscape-background-43346-large.mp4',
         scenario: [
             { time: [0, 8], detections: [], status: 'SCANNING' },
             {
                 time: [8, 15], detections: [
                     { class: 'person', conf: 68, x: 80, y: 35, w: 9, h: 22, risk: 62, dx: -3 },
                     { class: 'person', conf: 55, x: 90, y: 38, w: 8, h: 20, risk: 58, dx: -3.5 },
-                ], status: '⚠ 2 UNKNOWNS DETECTED'
+                ], status: '!! 2 UNKNOWNS DETECTED'
             },
-            { time: [15, 25], detections: [{ class: 'person', conf: 92, x: 50, y: 30, w: 18, h: 45, risk: 92, dx: -1 }], status: '⚠ BREACH ATTEMPT - COMBATANT' },
+            { time: [15, 25], detections: [{ class: 'person', conf: 92, x: 50, y: 30, w: 18, h: 45, risk: 92, dx: -1 }], status: '!! BREACH ATTEMPT - COMBATANT' },
             { time: [25, 180], detections: [], status: 'THREAT NEUTRALIZED' },
         ]
     },
     {
         id: 'CAM-03', name: 'EAST WATCHTOWER', coords: 'N28°38\'15" E77°13\'15"',
+        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-green-grass-waving-on-a-hill-40745-large.mp4',
         scenario: [
             { time: [0, 20], detections: [], status: 'CLEAR' },
             { time: [20, 30], detections: [{ class: 'animal', conf: 88, x: 10, y: 50, w: 15, h: 10, risk: 20, dx: 3 }], status: 'WILDLIFE (STRAY DOG)' },
-            { time: [30, 40], detections: [], status: 'CLEAR — AUTO-CLASSIFIED' },
-            { time: [40, 180], detections: [{ class: 'drone', conf: 73, x: 20, y: 15, w: 8, h: 5, risk: 90, dx: 5, dy: 2 }], status: '⚠ UAV IN AIRSPACE' },
+            { time: [30, 40], detections: [], status: 'CLEAR -- AUTO-CLASSIFIED' },
+            { time: [40, 180], detections: [{ class: 'drone', conf: 73, x: 20, y: 15, w: 8, h: 5, risk: 90, dx: 5, dy: 2 }], status: '!! UAV IN AIRSPACE' },
         ]
     },
     {
         id: 'CAM-04', name: 'COMMAND BUNKER', coords: 'N28°38\'10" E77°13\'00"',
+        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-concrete-wall-with-light-beam-effects-9553-large.mp4',
         scenario: [
-            { time: [0, 180], detections: [], status: 'SECURE — NO MOVEMENT' },
+            { time: [0, 180], detections: [], status: 'SECURE -- NO MOVEMENT' },
         ]
     },
 ];
@@ -49,14 +53,20 @@ function drawCameraDetections(canvas, phase, tick) {
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
 
-    // Dynamic noise background (with low opacity to see the video!)
+    // Lighter noise overlay (to blend with video)
     const imgData = ctx.createImageData(W, H);
-    for (let i = 0; i < imgData.data.length; i += 4) {
-        const v = Math.random() * 20;
-        imgData.data[i] = v; imgData.data[i + 1] = v + 5; imgData.data[i + 2] = v;
-        imgData.data[i + 3] = 40; // Reduced opacity to 15% so video shows perfectly!
+    for (let i = 0; i < imgData.data.length; i += 16) {
+        const v = Math.random() * 15;
+        imgData.data[i] = v; imgData.data[i + 1] = v + 3; imgData.data[i + 2] = v;
+        imgData.data[i + 3] = 20;
     }
     ctx.putImageData(imgData, 0, 0);
+
+    // Grid
+    ctx.strokeStyle = 'rgba(34,197,94,0.03)';
+    ctx.lineWidth = 0.5;
+    for (let gx = 0; gx < W; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
+    for (let gy = 0; gy < H; gy += 40) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
 
     // Scan line
     const scanY = (tick * 60) % H;
@@ -68,7 +78,7 @@ function drawCameraDetections(canvas, phase, tick) {
     const phaseStart = phase.time[0];
     const detections = phase.detections;
 
-    detections.forEach(det => {
+    detections.forEach((det, idx) => {
         const tDiff = tick - phaseStart;
         const xOff = det.dx ? tDiff * det.dx : 0;
         const yOff = det.dy ? tDiff * det.dy : 0;
@@ -78,10 +88,18 @@ function drawCameraDetections(canvas, phase, tick) {
         const w = (det.w / 100) * W;
         const h = (det.h / 100) * H;
         
-        if (x < -W || x > W*2) return; // simple clamp
+        if (x < -W || x > W*2) return;
 
         const color = det.risk > 70 ? '#ef4444' : det.risk > 40 ? '#f59e0b' : '#22c55e';
+        const rgbStr = det.risk > 70 ? '239,68,68' : det.risk > 40 ? '245,158,11' : '34,197,94';
         const conf = Math.min(99, det.conf + Math.floor(Math.random() * 3 - 1));
+
+        // Glow halo
+        const gradient = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, Math.max(w,h) * 0.8);
+        gradient.addColorStop(0, `rgba(${rgbStr}, 0.1)`);
+        gradient.addColorStop(1, 'transparent');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x - w*0.2, y - h*0.2, w*1.4, h*1.4);
 
         // Box
         ctx.strokeStyle = color;
@@ -96,23 +114,74 @@ function drawCameraDetections(canvas, phase, tick) {
         ctx.beginPath(); ctx.moveTo(x, y + h - cl); ctx.lineTo(x, y + h); ctx.lineTo(x + cl, y + h); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(x + w - cl, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cl); ctx.stroke();
 
+        // Human silhouette
+        if (det.class === 'person') {
+            ctx.fillStyle = `rgba(${rgbStr}, 0.3)`;
+            const cx = x + w/2, headR = w * 0.12;
+            const shY = y + headR * 4, hipY = y + h * 0.55;
+            ctx.beginPath(); ctx.arc(cx, y + headR * 2, headR, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(cx - w*0.18, shY); ctx.lineTo(cx + w*0.18, shY); ctx.lineTo(cx + w*0.13, hipY); ctx.lineTo(cx - w*0.13, hipY); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = `rgba(${rgbStr}, 0.4)`;
+            ctx.lineWidth = w * 0.05;
+            ctx.lineCap = 'round';
+            const wk = Math.sin(tick * 1.5 + idx) * 0.12;
+            ctx.beginPath(); ctx.moveTo(cx - w*0.18, shY+3); ctx.lineTo(cx - w*0.35, shY + h*0.2 + wk*25); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx + w*0.18, shY+3); ctx.lineTo(cx + w*0.35, shY + h*0.2 - wk*25); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx - w*0.08, hipY); ctx.lineTo(cx - w*0.18, y+h-4 + wk*15); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx + w*0.08, hipY); ctx.lineTo(cx + w*0.18, y+h-4 - wk*15); ctx.stroke();
+            ctx.lineCap = 'butt';
+        }
+
+        // Vehicle silhouette
+        if (det.class === 'vehicle') {
+            ctx.fillStyle = `rgba(${rgbStr}, 0.2)`;
+            ctx.fillRect(x + w*0.05, y + h*0.3, w*0.9, h*0.5);
+            ctx.fillRect(x + w*0.15, y + h*0.1, w*0.5, h*0.25);
+        }
+
+        // Drone silhouette
+        if (det.class === 'drone') {
+            ctx.strokeStyle = `rgba(${rgbStr}, 0.5)`; ctx.lineWidth = 1.5;
+            const dcx = x+w/2, dcy = y+h/2;
+            ctx.beginPath(); ctx.moveTo(dcx-w*0.3, dcy-h*0.25); ctx.lineTo(dcx+w*0.3, dcy+h*0.25); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(dcx+w*0.3, dcy-h*0.25); ctx.lineTo(dcx-w*0.3, dcy+h*0.25); ctx.stroke();
+            [[-0.3,-0.25],[0.3,-0.25],[-0.3,0.25],[0.3,0.25]].forEach(([ox,oy]) => {
+                ctx.beginPath(); ctx.arc(dcx+w*ox, dcy+h*oy, w*0.08, 0, Math.PI*2); ctx.stroke();
+            });
+        }
+
         // Label
-        const label = `${det.class} ${conf}% [${det.risk > 70 ? 'CRIT' : 'WARN'}]`;
+        const label = `${det.class.toUpperCase()} ${conf}% [${det.risk > 70 ? 'CRIT' : det.risk > 40 ? 'WARN' : 'LOW'}]`;
         ctx.font = '10px "Share Tech Mono"';
         const tw = ctx.measureText(label).width + 6;
         ctx.fillStyle = color;
         ctx.fillRect(x, y - 14, tw, 13);
         ctx.fillStyle = '#000';
+        ctx.font = 'bold 9px "Share Tech Mono"';
         ctx.fillText(label, x + 3, y - 3);
+
+        // Risk bar
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x, y + h + 2, w, 4);
+        ctx.fillStyle = color; ctx.fillRect(x, y + h + 2, w * (det.risk / 100), 4);
+
+        // Distance
+        ctx.font = '8px "Share Tech Mono"';
+        ctx.fillStyle = `rgba(${rgbStr}, 0.6)`;
+        ctx.fillText(`${Math.floor(60 + det.risk * 1.5)}m | TGT-${String(idx+1).padStart(2,'0')}`, x, y + h + 14);
     });
 
     // Crosshair
-    ctx.strokeStyle = 'rgba(34,197,94,0.1)';
+    ctx.strokeStyle = 'rgba(34,197,94,0.08)';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
     ctx.setLineDash([]);
+
+    // Timestamp
+    ctx.font = '8px "Share Tech Mono"';
+    ctx.fillStyle = 'rgba(34,197,94,0.25)';
+    ctx.fillText(new Date().toISOString().slice(11, 19) + ' UTC', W - 80, H - 6);
 }
 
 export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDetectionData, setSmsText, setSmsVisible, playDetectionBeep }) {
@@ -221,9 +290,9 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
                 drawCameraDetections(canvas, phase, tick);
 
                 const status = phase.status;
-                if (prevStatusRef.current[cam.id] !== status && status !== 'CLEAR' && status !== 'SCANNING' && status !== 'SECURE — NO MOVEMENT') {
-                    if (status.includes('⚠') && voiceRef?.current && voiceEnabled) {
-                        const txt = `CCTV Alert. ${cam.name}. ${status.replace('⚠', '')}. Security detail respond.`;
+                if (prevStatusRef.current[cam.id] !== status && status !== 'CLEAR' && status !== 'SCANNING' && status !== 'SECURE -- NO MOVEMENT') {
+                    if (status.includes('!!') && voiceRef?.current && voiceEnabled) {
+                        const txt = `CCTV Alert. ${cam.name}. ${status.replace('!!', '')}. Security detail respond.`;
                         voiceRef.current.speak(txt, 'critical');
                         
                         if (setDetectionData && status.includes('BREACH')) {
@@ -299,7 +368,7 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
                                     width: '100%', height: '100%',
                                     objectFit: 'cover', zIndex: 0, opacity: 0.6
                                 }}
-                                src="https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4"
+                            src={cam.videoUrl}
                             />
                             <canvas ref={el => canvasRefs.current[index] = el} className="cctv-noise" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1 }} />
                             
