@@ -7,7 +7,8 @@ import {
   BarChart3, Eye, Users, Play, Square, Volume2, VolumeX, LayoutDashboard, Cpu, Wifi, MapPin, Clock, Loader2 as Loader2Icon
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { MapContainer, TileLayer, Circle, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, WMSTileLayer, Circle, Popup, useMap } from 'react-leaflet';
+import { logThreatEvent, fetchThreatLogs } from './lib/supabase';
 
 // AI Systems
 import AIVoiceSystem, { playSiren, playKlaxon, playDetectionBeep, playSuccessChime, playHighPitchAlarm } from './components/AIVoiceSystem';
@@ -418,6 +419,64 @@ const TABS = [
 ];
 
 // ════════════════════════════════════════
+//  GEO-EYE PANEL with ISRO Bhuvan WMS
+// ════════════════════════════════════════
+
+function GeoEyePanel({ geoData, triggerGeoScan }) {
+  const [showBhuvan, setShowBhuvan] = useState(false);
+
+  return (
+    <motion.div key="geoeye" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: 0, borderRadius: 0 }}>
+      <div className="topo-bg" />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--accent)', letterSpacing: 2, fontSize: '0.75rem' }}>
+        <span><Scan size={13} style={{ verticalAlign: 'middle' }} /> GIS: JHARKHAND MINING CORRIDOR</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            onClick={() => setShowBhuvan(!showBhuvan)}
+            style={{
+              background: showBhuvan ? 'rgba(168,85,247,0.2)' : 'transparent',
+              border: `1px solid ${showBhuvan ? '#a855f7' : 'var(--accent)'}`,
+              color: showBhuvan ? '#a855f7' : 'var(--accent)',
+              padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit',
+              fontSize: '0.6rem', borderRadius: 4, letterSpacing: 1,
+              transition: 'all 0.3s ease'
+            }}
+          >
+            {showBhuvan ? 'ISRO BHUVAN ON' : 'ISRO / ESRI'}
+          </button>
+          <button onClick={triggerGeoScan} disabled={geoData.scanning}
+            style={{ background: geoData.scanning ? 'var(--warning)' : 'transparent', border: '1px solid var(--accent)', color: geoData.scanning ? '#000' : 'var(--accent)', padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.65rem', borderRadius: 4 }}>
+            {geoData.scanning ? 'SCANNING...' : 'RUN SCAN'}
+          </button>
+        </div>
+      </div>
+      <div style={{ flex: 1, borderRadius: 6, overflow: 'hidden', border: `1px solid ${geoData.scanning ? 'var(--warning)' : 'var(--glass-border)'}`, position: 'relative' }}>
+        <MapContainer center={[23.6102, 85.2799]} zoom={13} style={{ height: '100%', width: '100%', backgroundColor: '#0a0a0a' }}>
+          <MapController scanning={geoData.scanning} />
+          <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" />
+          {showBhuvan && (
+            <WMSTileLayer
+              url="https://bhuvan-vec1.nrsc.gov.in/bhuvan/wms"
+              layers="india3"
+              format="image/png"
+              transparent={true}
+              attribution="&copy; ISRO Bhuvan"
+            />
+          )}
+          {geoData.changes.map((c, i) => (
+            <Circle key={i} center={[c.lat, c.lng]} radius={c.radius} pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.5 }}>
+              <Popup><strong>RISK: {c.risk}%</strong><br />Suspected illegal mining.</Popup>
+            </Circle>
+          ))}
+        </MapContainer>
+        {geoData.scanning && <div className="radar-overlay" />}
+      </div>
+    </motion.div>
+  );
+}
+
+// ════════════════════════════════════════
 //  MAIN APP
 // ════════════════════════════════════════
 
@@ -547,6 +606,63 @@ export default function App() {
     setLogs(prev => [...prev.slice(-30), { id: Date.now() + Math.random(), text, type }]);
   }, []);
 
+  // === REAL FUZZY ENGINE API ===
+  const [fuzzyReasoning, setFuzzyReasoning] = useState('');
+  const fuzzyTimerRef = useRef(null);
+
+  const getRealFuzzyScore = useCallback(async (velocity, proximity, visibility) => {
+    try {
+      const res = await fetch(`${API_URL}/api/fuzzy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ velocity, proximity, visibility }),
+      });
+      if (!res.ok) throw new Error('Fuzzy API error');
+      const data = await res.json();
+      return { score: data.risk_score ?? data.score ?? 0, reasoning: data.reasoning ?? '' };
+    } catch (err) {
+      console.warn('[Fuzzy] API unreachable, using local score:', err.message);
+      return null;
+    }
+  }, []);
+
+  // Call fuzzy API every 5s during active simulation
+  useEffect(() => {
+    if (!simActive) {
+      if (fuzzyTimerRef.current) clearInterval(fuzzyTimerRef.current);
+      return;
+    }
+    fuzzyTimerRef.current = setInterval(async () => {
+      const dets = phase.detections;
+      if (dets.length === 0) return;
+      const maxRiskDet = dets.reduce((a, b) => (a.risk > b.risk ? a : b), dets[0]);
+      const velocity = maxRiskDet.risk > 60 ? 70 + Math.random() * 30 : 20 + Math.random() * 40;
+      const proximity = maxRiskDet.risk > 60 ? 30 + Math.random() * 70 : 150 + Math.random() * 200;
+      const visibility = maxRiskDet.risk > 60 ? 20 + Math.random() * 30 : 60 + Math.random() * 40;
+
+      const result = await getRealFuzzyScore(velocity, proximity, visibility);
+      if (result) {
+        setFuzzyReasoning(result.reasoning);
+        // Also POST to /api/alert with the fuzzy score
+        try {
+          await fetch(`${API_URL}/api/alert`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ score: result.score, module: 'BORDER-SENTRY', message: result.reasoning }),
+          });
+        } catch (_) { /* alert dispatch is best-effort */ }
+      }
+    }, 5000);
+    return () => { if (fuzzyTimerRef.current) clearInterval(fuzzyTimerRef.current); };
+  }, [simActive, phase, getRealFuzzyScore]);
+
+  // === SUPABASE THREAT LOGGING ===
+  const logToSupabase = useCallback((module, score, details) => {
+    if (score > 50) {
+      logThreatEvent(module, score, details).catch(() => {});
+    }
+  }, []);
+
   // ═══ MAIN LIVE SIMULATION EFFECT ═══
   useEffect(() => {
     // Strict separation: If CCTV is open, do not run global LIVE sim interactions
@@ -568,7 +684,8 @@ export default function App() {
     if (threatLevel !== prevThreatRef.current) {
       if (threatLevel === 'CRITICAL') {
         playSiren(1500);
-        addLog(`[SEC-7] ⚠ CRITICAL: ${personCount} hostile(s) detected | Risk: ${maxRisk}% | AI Confidence: ${maxConf}%`, 'critical');
+        addLog(`[SEC-7] CRITICAL: ${personCount} hostile(s) detected | Risk: ${maxRisk}% | AI Confidence: ${maxConf}%`, 'critical');
+        logToSupabase('BORDER-SENTRY', maxRisk, `CRITICAL: ${personCount} hostile(s), conf ${maxConf}%`);
         if (voiceRef.current && voiceEnabled) {
           const criticalMessages = [
             `Critical alert. ${personCount} hostile targets confirmed in Sector 7 Alpha. Fuzzy risk score ${maxRisk} percent. Quick Reaction Force has been dispatched. All units respond immediately.`,
@@ -584,7 +701,8 @@ export default function App() {
         setTimeout(() => setSmsVisible(false), 6000);
       } else if (threatLevel === 'WARNING') {
         playDetectionBeep();
-        addLog(`[SEC-7] WARNING: Movement detected — ${primary} | Risk: ${maxRisk}% | Tracking...`, 'warning');
+        addLog(`[SEC-7] WARNING: Movement detected -- ${primary} | Risk: ${maxRisk}% | Tracking...`, 'warning');
+        logToSupabase('BORDER-SENTRY', maxRisk, `WARNING: ${primary} detected at perimeter`);
         if (voiceRef.current && voiceEnabled) {
           const warningMessages = [
             `Warning. Unidentified ${primary.toLowerCase()} detected approaching perimeter. Risk level ${maxRisk} percent. AI is tracking movement pattern.`,
@@ -597,7 +715,7 @@ export default function App() {
         }
       } else if (prevThreatRef.current !== 'LOW') {
         playSuccessChime();
-        addLog(`[SEC-7] ✓ Threat cleared. Sector secure. Resuming surveillance.`, 'normal');
+        addLog(`[SEC-7] Threat cleared. Sector secure. Resuming surveillance.`, 'normal');
         if (voiceRef.current && voiceEnabled) {
           const clearMessages = [
             'All clear. Threat has been neutralized. Sector 7 returning to green status. Resuming normal surveillance operations.',
@@ -628,7 +746,7 @@ export default function App() {
       drawSimulatedDetections(canvasRef.current, dets, tick);
     }
 
-  }, [tick, simActive, phase, activeTab, addLog, voiceEnabled]);
+  }, [tick, simActive, phase, activeTab, addLog, voiceEnabled, logToSupabase]);
 
   // ═══ TRACK GUARD SIMULATION EFFECT ═══
   useEffect(() => {
@@ -1079,6 +1197,11 @@ export default function App() {
                       <div className="detection-stat" style={{ color: 'var(--text-main)' }}>
                         <Target size={12} /> RISK: <span style={{ color: isAlert ? 'var(--danger)' : detectionData.threatLevel === 'WARNING' ? 'var(--warning)' : 'var(--safe)', fontWeight: 'bold', fontSize: '1rem' }}>{detectionData.riskScore}%</span>
                       </div>
+                      {fuzzyReasoning && (
+                        <div className="detection-stat" style={{ color: 'rgba(168,85,247,0.9)', fontSize: '0.6rem', maxWidth: 400 }}>
+                          <Cpu size={10} /> {fuzzyReasoning}
+                        </div>
+                      )}
                       {detectionData.primaryClass !== 'None' && (
                         <div className="detection-stat" style={{ color: 'rgba(255,255,255,0.6)' }}>
                           <Eye size={12} /> {detectionData.primaryClass} — CONF: {detectionData.maxConfidence}%
@@ -1176,31 +1299,9 @@ export default function App() {
             {/* ── CCTV ── */}
             {activeTab === 'CCTV' && <CCTVGrid active={true} voiceRef={voiceRef} voiceEnabled={voiceEnabled} setDetectionData={setDetectionData} setSmsText={setSmsText} setSmsVisible={setSmsVisible} playDetectionBeep={playDetectionBeep} />}
 
-            {/* ── GEO-EYE ── */}
+            {/* -- GEO-EYE with ISRO Bhuvan WMS -- */}
             {activeTab === 'GEO-EYE' && (
-              <motion.div key="geoeye" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: 0, borderRadius: 0 }}>
-                <div className="topo-bg" />
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--accent)', letterSpacing: 2, fontSize: '0.75rem' }}>
-                  <span><Scan size={13} style={{ verticalAlign: 'middle' }} /> GIS: JHARKHAND MINING CORRIDOR</span>
-                  <button onClick={triggerGeoScan} disabled={geoData.scanning}
-                    style={{ background: geoData.scanning ? 'var(--warning)' : 'transparent', border: '1px solid var(--accent)', color: geoData.scanning ? '#000' : 'var(--accent)', padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.65rem', borderRadius: 4 }}>
-                    {geoData.scanning ? 'SCANNING...' : 'RUN SCAN'}
-                  </button>
-                </div>
-                <div style={{ flex: 1, borderRadius: 6, overflow: 'hidden', border: `1px solid ${geoData.scanning ? 'var(--warning)' : 'var(--glass-border)'}`, position: 'relative' }}>
-                  <MapContainer center={[23.6102, 85.2799]} zoom={13} style={{ height: '100%', width: '100%', backgroundColor: '#0a0a0a' }}>
-                    <MapController scanning={geoData.scanning} />
-                    <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles © Esri" />
-                    {geoData.changes.map((c, i) => (
-                      <Circle key={i} center={[c.lat, c.lng]} radius={c.radius} pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.5 }}>
-                        <Popup><strong>RISK: {c.risk}%</strong><br />Suspected illegal mining.</Popup>
-                      </Circle>
-                    ))}
-                  </MapContainer>
-                  {geoData.scanning && <div className="radar-overlay" />}
-                </div>
-              </motion.div>
+              <GeoEyePanel geoData={geoData} triggerGeoScan={triggerGeoScan} />
             )}
 
             {/* ── TRACK GUARD ── */}
