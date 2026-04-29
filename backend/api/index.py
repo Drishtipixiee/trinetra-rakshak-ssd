@@ -17,6 +17,7 @@ if parent_dir not in sys.path:
 
 from logic.fuzzy_engine import ReasoningEngine
 from logic.threat_predictor import ThreatPredictor
+from logic.alert_manager import dispatch_alerts
 from models import db, Incident, User
 from fpdf import FPDF
 
@@ -227,19 +228,78 @@ def view_database():
     return html
 
 # ═══════════════════════════════════════════
-#  AI CHATBOT ENGINE
+#  ALERT DISPATCH ENGINE
 # ═══════════════════════════════════════════
+
+@app.route('/api/alert', methods=['POST'])
+def send_alert():
+    """Dispatch real alerts via Telegram, Twilio SMS, and WhatsApp."""
+    data = request.json
+    score = float(data.get('score', 0))
+    module = data.get('module', 'UNKNOWN')
+    message = data.get('message', 'Alert triggered by Trinetra Rakshak.')
+
+    try:
+        results = dispatch_alerts(score, module, message)
+        return jsonify({
+            "status": "dispatched",
+            "level": results["level"],
+            "telegram": results["telegram"],
+            "sms": results["sms"],
+            "whatsapp": results["whatsapp"],
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# ═══════════════════════════════════════════
+#  AI CHATBOT ENGINE — CLAUDE POWERED
+# ═══════════════════════════════════════════
+
+TRINETRA_SYSTEM_PROMPT = (
+    "You are the AI Threat Analyst for Trinetra Rakshak, India's defense surveillance "
+    "system covering Border-Sentry (BSF perimeter), GEO-EYE (Jharkhand satellite mining "
+    "detection), and Track-Guard (railway wildlife detection). Answer questions about "
+    "threat scores, fuzzy logic reasoning, patrol recommendations, and module status. "
+    "Be concise, tactical, and professional. Max 3 sentences per response."
+)
 
 @app.route('/api/chat', methods=['POST'])
 def chat_with_ai():
     data = request.json
-    query = data.get("query", "").lower()
+    user_message = data.get('message', data.get('query', ''))
+    score = data.get('score', 0)
+    module = data.get('module', 'UNKNOWN')
+
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+
+    if api_key:
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+
+            context_prefix = f"[Current threat score: {score}% | Active module: {module}] "
+            full_message = context_prefix + user_message
+
+            response = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=256,
+                system=TRINETRA_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": full_message}],
+            )
+
+            response_text = response.content[0].text
+            return jsonify({"response": response_text, "timestamp": datetime.utcnow().isoformat(), "source": "claude"})
+        except Exception as e:
+            # Fall back to local response on any Claude error
+            pass
+
+    # Fallback: local keyword-based response
     recent = Incident.query.order_by(Incident.timestamp.desc()).first()
     if recent:
         response_text = f"System online. Latest scan in {recent.sector} shows a {recent.type} alert. Status: {recent.severity}."
     else:
         response_text = "All systems green. No active threats detected in Sector 7."
-    return jsonify({"response": response_text, "timestamp": datetime.utcnow().isoformat()})
+    return jsonify({"response": response_text, "timestamp": datetime.utcnow().isoformat(), "source": "local"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
