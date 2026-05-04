@@ -236,6 +236,6 @@ flowchart TB
 
 **Built for India's defense and security infrastructure**
 
-*Ministry of Defence -- India*
+
 
 </div>
