@@ -4,7 +4,7 @@
 
 ### त्रिनेत्र रक्षक -- "Three-Eyed Guardian"
 
-### AI-Powered Integrated Command & Control Surveillance System
+### AI-Powered Integrated Command & Control Surveillance System.
 
 [![Live Demo](https://img.shields.io/badge/LIVE-Command_Center-22c55e?style=for-the-badge)](https://trinetra-rakshak-ssd.vercel.app)
 [![DB Viewer](https://img.shields.io/badge/ADMIN-DB_Viewer-0ea5e9?style=for-the-badge)](https://backend-ten-fawn-25.vercel.app/admin/db)
