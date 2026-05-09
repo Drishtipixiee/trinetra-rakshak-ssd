@@ -76,7 +76,7 @@ When the fuzzy risk score crosses thresholds, real alerts fire:
 - The frontend also shows WhatsApp-style and SMS-style phone notifications with delivery receipts (Sent -> Delivered -> Read)
 - An **Incident Report** can be generated on-demand with full threat summary, response actions, and AI analysis
 
-### 5. AI Threat Analyst (Claude-Powered)
+### 5. AI Threat Analyst 
 The AI chatbot panel uses **Anthropic's Claude API** (claude-haiku-4-5-20251001) with a defense-focused system prompt. It receives the current threat score and active module as context, enabling it to give tactical advice. If the API is unavailable, it falls back to a local keyword-matching engine.
 
 ### 6. CCTV Grid (5 Cameras)
