@@ -416,6 +416,14 @@ const LoginOverlay = ({ onLogin }) => {
           setStatus('SUCCESS');
           // Store session
           sessionStorage.setItem('trinetra_auth', JSON.stringify({ user: username, time: Date.now() }));
+          
+          // Log login
+          fetch(`${API_URL}/api/log_login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ officer_id: username, timestamp: new Date().toISOString(), ip: '192.168.0.1' })
+          }).catch(e => console.warn('Audit log failed', e));
+
           setTimeout(() => onLogin(username), 1000);
         }, 800);
       } else {
@@ -585,12 +593,26 @@ function GeoEyePanel({ geoData, triggerGeoScan }) {
               attribution="&copy; ISRO Bhuvan"
             />
           )}
-          {geoData.changes.map((c, i) => (
-            <Circle key={i} center={[c.lat, c.lng]} radius={c.radius} pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.5 }}>
-              <Popup><strong>RISK: {c.risk}%</strong><br />Suspected illegal mining.</Popup>
-            </Circle>
-          ))}
+          {geoData.changes.map((c, i) => {
+            const riskColor = c.risk > 70 ? '#ef4444' : c.risk > 50 ? '#f59e0b' : '#22c55e';
+            return (
+              <Circle key={i} center={[c.lat, c.lng]} radius={c.radius} pathOptions={{ color: riskColor, fillColor: riskColor, fillOpacity: 0.5 }}>
+                <Popup><strong>RISK: {c.risk}%</strong><br />Suspected illegal mining.</Popup>
+              </Circle>
+            );
+          })}
         </MapContainer>
+        
+        {/* Heatmap Legend */}
+        {geoData.changes.length > 0 && (
+          <div style={{ position: 'absolute', bottom: 20, left: 20, background: 'rgba(0,0,0,0.8)', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--glass-border)', zIndex: 1000, fontSize: '0.7rem', color: '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ fontWeight: 'bold', marginBottom: 4 }}>THREAT HEATMAP</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }}/> HIGH RISK (&gt;70%)</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }}/> MED RISK (50-70%)</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e' }}/> LOW RISK (&lt;50%)</div>
+          </div>
+        )}
+
         {geoData.scanning && <div className="radar-overlay" />}
       </div>
     </motion.div>
@@ -603,7 +625,9 @@ function GeoEyePanel({ geoData, triggerGeoScan }) {
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [apiOffline, setApiOffline] = useState(false);
   const [activeTab, setActiveTab] = useState('DASHBOARD');
+  const [sessionTime, setSessionTime] = useState(7200);
   const [logs, setLogs] = useState([{ id: 1, text: "[SYS] All subsystems initialized. Defense grid online.", type: "normal" }]);
   const logsEndRef = useRef(null);
 
@@ -626,6 +650,37 @@ export default function App() {
   const [telemetry, setTelemetry] = useState({ signal: 98, latency: 12, aiConf: 94, uptime: 99.7 });
   const [smsVisible, setSmsVisible] = useState(false);
   const [smsText, setSmsText] = useState("");
+
+  // Session Expiry logic
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const authData = JSON.parse(sessionStorage.getItem('trinetra_auth'));
+    if (!authData) { setIsAuthenticated(false); return; }
+    
+    const elapsed = Math.floor((Date.now() - authData.time) / 1000);
+    const remaining = 7200 - elapsed;
+    if (remaining <= 0) {
+      sessionStorage.removeItem('trinetra_auth');
+      setIsAuthenticated(false);
+      alert('SESSION EXPIRED — Re-authenticate');
+      return;
+    }
+    setSessionTime(remaining);
+
+    const timer = setInterval(() => {
+      setSessionTime(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          sessionStorage.removeItem('trinetra_auth');
+          setIsAuthenticated(false);
+          alert('SESSION EXPIRED — Re-authenticate');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -733,17 +788,19 @@ export default function App() {
 
   const getRealFuzzyScore = useCallback(async (velocity, proximity, visibility) => {
     try {
-      const res = await fetch(`${API_URL}/api/fuzzy`, {
+      const res = await fetch(`${API_URL}/api/evaluate_threat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ velocity, proximity, visibility }),
       });
       if (!res.ok) throw new Error('Fuzzy API error');
       const data = await res.json();
-      return { score: data.risk_score ?? data.score ?? 0, reasoning: data.reasoning ?? '' };
+      setApiOffline(false);
+      return { score: data.score ?? 0, reasoning: data.explanation ?? '' };
     } catch (err) {
       console.warn('[Fuzzy] API unreachable, using local score:', err.message);
-      return null;
+      setApiOffline(true);
+      return { score: null, reasoning: '' };
     }
   }, []);
 
@@ -803,10 +860,20 @@ export default function App() {
 
     // Log + AI Voice on threat level change
     if (threatLevel !== prevThreatRef.current) {
+      if (threatLevel === 'CRITICAL' || threatLevel === 'WARNING') {
+         // POST to backend API
+         fetch(`${API_URL}/api/log_incident`, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ type: primary, sector: 'SEC-7A', severity: threatLevel, details: `Risk: ${maxRisk}%` })
+         }).catch(() => setApiOffline(true));
+      }
+
       if (threatLevel === 'CRITICAL') {
         playSiren(1500);
         addLog(`[SEC-7] CRITICAL: ${personCount} hostile(s) detected | Risk: ${maxRisk}% | AI Confidence: ${maxConf}%`, 'critical');
         logToSupabase('BORDER-SENTRY', maxRisk, `CRITICAL: ${personCount} hostile(s), conf ${maxConf}%`);
+        
         if (voiceRef.current && voiceEnabled) {
           const criticalMessages = [
             `Critical alert. ${personCount} hostile targets confirmed in Sector 7 Alpha. Fuzzy risk score ${maxRisk} percent. Quick Reaction Force has been dispatched. All units respond immediately.`,
@@ -824,6 +891,7 @@ export default function App() {
         playDetectionBeep();
         addLog(`[SEC-7] WARNING: Movement detected -- ${primary} | Risk: ${maxRisk}% | Tracking...`, 'warning');
         logToSupabase('BORDER-SENTRY', maxRisk, `WARNING: ${primary} detected at perimeter`);
+
         if (voiceRef.current && voiceEnabled) {
           const warningMessages = [
             `Warning. Unidentified ${primary.toLowerCase()} detected approaching perimeter. Risk level ${maxRisk} percent. AI is tracking movement pattern.`,
@@ -879,6 +947,10 @@ export default function App() {
     const eti = speedMs > 0 ? Math.round(tp.distance / speedMs) : 99;
     setTrackData({ detected: tp.detected, object: tp.object, trainSpeed: tp.trainSpeed, distance: tp.distance, timeToImpact: eti });
 
+    if (eti === 0 && tp.detected && eti !== prevTrackRef.current) {
+        playKlaxon();
+    }
+    
     if (tp.action && tp.detected !== prevTrackRef.current) {
       addLog(`[TRK-2] ${tp.action}`, tp.detected ? 'warning' : 'normal');
       if (tp.detected) {
@@ -1022,6 +1094,14 @@ export default function App() {
           <div className="header-title-group">
             <div className="header-title"><Shield size={16} /> TRINETRA RAKSHAK</div>
             <div className="header-subtitle">INTEGRATED COMMAND & CONTROL — SECTOR 7</div>
+          </div>
+          {apiOffline && (
+            <div style={{ marginLeft: 16, background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444', color: '#ef4444', padding: '2px 8px', borderRadius: 4, fontSize: '0.6rem', fontFamily: "'Share Tech Mono'" }}>
+              ⚠ API OFFLINE — LOCAL MODE
+            </div>
+          )}
+          <div style={{ marginLeft: 16, background: 'rgba(56,189,248,0.1)', border: '1px solid #38bdf8', color: '#38bdf8', padding: '2px 8px', borderRadius: 4, fontSize: '0.6rem', fontFamily: "'Share Tech Mono'" }}>
+            Session: {Math.floor(sessionTime / 3600).toString().padStart(2, '0')}:{(Math.floor(sessionTime / 60) % 60).toString().padStart(2, '0')}:{(sessionTime % 60).toString().padStart(2, '0')} remaining
           </div>
         </div>
         <div className="header-right">
@@ -1458,13 +1538,31 @@ export default function App() {
 
                     {/* Obstruction Marker */}
                     {trackData.detected && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 2 }} animate={{ opacity: 1, scale: 1 }}
-                        style={{ position: 'absolute', left: '40%', top: '20%', width: '20%', height: 40, background: 'rgba(239,68,68,0.3)', border: '2px dashed var(--danger)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, boxShadow: '0 0 30px rgba(239,68,68,0.5)' }}>
-                        <div className="pulse-text" style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold', textShadow: '0 0 10px #000' }}>
-                          ⚠ {trackData.object.toUpperCase()}
+                      <>
+                        <motion.div
+                          initial={{ opacity: 0, scale: 2 }} animate={{ opacity: 1, scale: 1 }}
+                          style={{ position: 'absolute', left: '40%', top: '20%', width: '20%', height: 40, background: 'rgba(239,68,68,0.3)', border: '2px dashed var(--danger)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, boxShadow: '0 0 30px rgba(239,68,68,0.5)' }}>
+                          <div className="pulse-text" style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold', textShadow: '0 0 10px #000' }}>
+                            ⚠ {trackData.object.toUpperCase()}
+                          </div>
+                        </motion.div>
+
+                        {/* TIME TO IMPACT & AUTO-BRAKE OVERLAY */}
+                        <div style={{ position: 'absolute', top: '40%', left: 0, right: 0, zIndex: 50, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                           {trackData.timeToImpact <= 0 ? (
+                             <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="pulse-bg" style={{ background: 'rgba(239,68,68,0.9)', padding: '16px 32px', borderRadius: 8, border: '2px solid #fff', boxShadow: '0 0 50px #ef4444' }}>
+                                <h2 style={{ color: '#fff', margin: 0, fontSize: '1.5rem', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>⚠ EMERGENCY BRAKE ACTIVATED ⚠</h2>
+                             </motion.div>
+                           ) : (
+                             <div style={{ background: 'rgba(0,0,0,0.8)', padding: '12px 24px', borderRadius: 8, border: '2px solid var(--danger)', boxShadow: '0 0 20px rgba(239,68,68,0.5)' }}>
+                                <div style={{ color: 'var(--danger)', fontSize: '0.9rem', fontWeight: 'bold', textAlign: 'center', marginBottom: 4 }}>IMPACT IN</div>
+                                <div style={{ color: '#fff', fontSize: '2.5rem', fontFamily: "'Share Tech Mono'", fontWeight: 'bold', lineHeight: 1 }}>
+                                  00:{String(trackData.timeToImpact).padStart(2, '0')}
+                                </div>
+                             </div>
+                           )}
                         </div>
-                      </motion.div>
+                      </>
                     )}
 
                     {/* Train Element */}

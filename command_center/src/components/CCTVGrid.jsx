@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Video, Maximize2, X, AlertTriangle, Shield, Camera, CameraOff } from 'lucide-react';
+import { Video, Maximize2, X, AlertTriangle, Shield, Camera, CameraOff, Download } from 'lucide-react';
 
 const CAMERAS = [
     {
@@ -188,8 +188,25 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
     const [expandedCam, setExpandedCam] = useState(null);
     const [tick, setTick] = useState(0);
     const canvasRefs = useRef([]);
+    const videoRefs = useRef([]);
     const modalCanvasRef = useRef(null);
     const prevStatusRef = useRef({});
+
+    const downloadSnapshot = (index, camId) => {
+        const video = videoRefs.current[index];
+        const canvas = canvasRefs.current[index];
+        if (!video || !canvas) return;
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width || 320;
+        tempCanvas.height = canvas.height || 200;
+        const ctx = tempCanvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+        ctx.drawImage(canvas, 0, 0);
+        const link = document.createElement('a');
+        link.download = `${camId}_${Date.now()}.png`;
+        link.href = tempCanvas.toDataURL('image/png');
+        link.click();
+    };
 
     // Live webcam state
     const [liveStream, setLiveStream] = useState(null);
@@ -352,6 +369,14 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
                     const hasDetections = phase.detections.length > 0;
                     const isCritical = phase.detections.some(d => d.risk > 70);
 
+                    const camFilters = {
+                        'CAM-01': 'brightness(1.1)',
+                        'CAM-02': 'sepia(1) hue-rotate(90deg) saturate(3) brightness(0.8)',
+                        'CAM-03': 'contrast(1.2) grayscale(0.2)',
+                        'CAM-04': 'sepia(1) hue-rotate(300deg) saturate(3) brightness(0.6)'
+                    };
+                    const isOffline = cam.id === 'CAM-04' && Math.floor(tick / 20) % 3 === 2;
+
                     return (
                         <div key={cam.id}
                             className={`cctv-feed ${isCritical ? 'critical' : hasDetections ? 'degraded' : ''}`}
@@ -363,13 +388,21 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
                                 loop
                                 muted
                                 playsInline
+                                ref={el => videoRefs.current[index] = el}
                                 style={{
                                     position: 'absolute', inset: 0,
                                     width: '100%', height: '100%',
-                                    objectFit: 'cover', zIndex: 0, opacity: 0.6
+                                    objectFit: 'cover', zIndex: 0, 
+                                    opacity: isOffline ? 0 : 0.6,
+                                    filter: camFilters[cam.id] || 'none'
                                 }}
-                            src={cam.videoUrl}
+                                src={cam.videoUrl}
                             />
+                            {isOffline && (
+                                <div style={{ position: 'absolute', inset: 0, background: '#111', zIndex: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontFamily: "'Share Tech Mono'", fontSize: '1.2rem' }}>
+                                    <CameraOff size={24} style={{marginRight: 8}}/> OFFLINE
+                                </div>
+                            )}
                             <canvas ref={el => canvasRefs.current[index] = el} className="cctv-noise" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1 }} />
                             
                             {/* Real-world analogy: Face Capture Snapshot */}
@@ -415,6 +448,9 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
 
                             <button className="cctv-expand-btn" onClick={(e) => { e.stopPropagation(); setExpandedCam(index); }}>
                                 <Maximize2 size={12} />
+                            </button>
+                            <button className="cctv-expand-btn" style={{ right: 30 }} onClick={(e) => { e.stopPropagation(); downloadSnapshot(index, cam.id); }}>
+                                <Download size={12} />
                             </button>
                             <div className="cctv-scanlines" />
                         </div>

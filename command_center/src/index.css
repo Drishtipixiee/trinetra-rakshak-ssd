@@ -2465,3 +2465,34 @@ body.alert-mode .hud-container {
   50% { opacity: 0.5; }
   100% { transform: scaleY(1); opacity: 0; }
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .cctv-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(5, 1fr);
+  }
+  .top-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+  .module-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .module-tab {
+    white-space: nowrap;
+  }
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+  .hud-container {
+    overflow-y: auto;
+  }
+}

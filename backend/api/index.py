@@ -4,10 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 import sys
 import os
 import random
-import shutil
 from datetime import datetime, timedelta
-import threading
-import time
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Path adjustment for Vercel and local modules
@@ -18,14 +15,10 @@ if parent_dir not in sys.path:
 from logic.fuzzy_engine import ReasoningEngine
 from logic.threat_predictor import ThreatPredictor
 from logic.alert_manager import dispatch_alerts
-from models import db, Incident, User
-from fpdf import FPDF
+from models import db, Incident, User, LoginAudit
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
-
-# DB Configuration - Use /tmp for Vercel Serverless environment
-basedir = os.path.abspath(os.path.dirname(__file__))
+CORS(app, origins=["https://commandcenter-seven.vercel.app", "http://localhost:5173", "https://trinetra-rakshak-ssd.vercel.app"])
 
 # Vercel specifies the execution environment in `/var/task`, but this is read-only. We must write to `/tmp`
 is_vercel = os.environ.get('VERCEL', False)
@@ -40,7 +33,7 @@ if is_vercel:
 else:
     db_path = os.path.join(parent_dir, 'trinetra.db')
 
-postgres_url = os.environ.get('POSTGRES_URL')
+postgres_url = os.environ.get('POSTGRES_URL') or os.environ.get('DATABASE_URL') or os.environ.get('DB_URL')
 if postgres_url:
     # SQLAlchemy requires postgresql:// instead of postgres://
     if postgres_url.startswith("postgres://"):
@@ -114,6 +107,21 @@ def login():
             "message": "Invalid credentials or unauthorized clearance."
         }), 401
 
+@app.route('/api/log_login', methods=['POST'])
+def log_login():
+    data = request.json
+    try:
+        new_login = LoginAudit(
+            officer_id=data.get('officer_id', 'UNKNOWN'),
+            ip=data.get('ip', '0.0.0.0')
+        )
+        db.session.add(new_login)
+        db.session.commit()
+        return jsonify({"status": "success"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 # ═══════════════════════════════════════════
 #  DASHBOARD ENDPOINTS
 # ═══════════════════════════════════════════
@@ -167,8 +175,6 @@ def start_simulation():
     scenario = data.get('scenario', 'INTRUSION')
     count = int(data.get('count', 3))
     
-    # In Vercel serverless, background threads might be killed immediately.
-    # For simulation, we'll just insert one immediate record to show it works.
     with app.app_context():
         sector_map = {"INTRUSION": ["SEC-7A"], "WILDLIFE": ["TRK-2"], "DRONE": ["AIR-1"], "MINING": ["GEO-3"]}
         desc_map = {"INTRUSION": ["Intruder detected."], "WILDLIFE": ["Animal on track."], "DRONE": ["UAV spotted."], "MINING": ["Terrain change."]}
@@ -228,6 +234,12 @@ def view_database():
     """
     for u in users:
         html += f"<tr><td>{u.id}</td><td><b>{u.username}</b></td><td>{u.role}</td><td style='font-family: monospace; font-size: 11px; color: #94a3b8;'>{u.password_hash}</td></tr>"
+    
+    html += "</table><h2>Audit Trail (Recent Logins)</h2><table><tr><th>ID</th><th>Officer ID</th><th>IP</th><th>Timestamp</th></tr>"
+    logins = LoginAudit.query.order_by(LoginAudit.timestamp.desc()).limit(5).all()
+    for l in logins:
+        html += f"<tr><td>{l.id}</td><td>{l.officer_id}</td><td>{l.ip}</td><td>{l.timestamp}</td></tr>"
+
     html += "</table><h2>Live Incident Logs</h2><table><tr><th>ID</th><th>Timestamp</th><th>Type</th><th>Sector</th><th>Severity</th></tr>"
     for inc in incidents:
         html += f"<tr><td>INC-{1000+inc.id}</td><td>{inc.timestamp}</td><td>{inc.type}</td><td>{inc.sector}</td><td>{inc.severity}</td></tr>"
@@ -240,7 +252,6 @@ def view_database():
 
 @app.route('/api/alert', methods=['POST'])
 def send_alert():
-    """Dispatch real alerts via Telegram, Twilio SMS, and WhatsApp."""
     data = request.json
     score = float(data.get('score', 0))
     module = data.get('module', 'UNKNOWN')
@@ -297,7 +308,6 @@ def chat_with_ai():
             response_text = response.content[0].text
             return jsonify({"response": response_text, "timestamp": datetime.utcnow().isoformat(), "source": "claude"})
         except Exception as e:
-            # Fall back to local response on any Claude error
             pass
 
     # Fallback: local keyword-based response
@@ -309,64 +319,47 @@ def chat_with_ai():
     return jsonify({"response": response_text, "timestamp": datetime.utcnow().isoformat(), "source": "local"})
 
 # ═══════════════════════════════════════════
-#  INCIDENT REPORT EMAIL ENGINE
+#  INCIDENT LOGGING & API
 # ═══════════════════════════════════════════
 
-@app.route('/api/report/email', methods=['POST'])
-def send_report_email():
-    """Send an incident report via email using SMTP."""
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "ok", "timestamp": datetime.utcnow().isoformat()})
+
+@app.route('/api/log_incident', methods=['POST'])
+def log_incident():
     data = request.json
-    to_email = data.get('to', os.environ.get('ALERT_EMAIL', ''))
-    subject = data.get('subject', 'TRINETRA RAKSHAK -- Incident Report')
-    body = data.get('body', '')
-
-    smtp_email = os.environ.get('SMTP_EMAIL')
-    smtp_password = os.environ.get('SMTP_PASSWORD')
-
-    if not smtp_email or not smtp_password:
-        return jsonify({"status": "skipped", "message": "SMTP credentials not configured. Set SMTP_EMAIL and SMTP_PASSWORD env vars."}), 200
-
-    if not to_email:
-        return jsonify({"status": "error", "message": "No recipient email specified."}), 400
-
     try:
-        import smtplib
-        from email.mime.text import MIMEText
-        from email.mime.multipart import MIMEMultipart
+        new_inc = Incident(
+            type=data.get('type', 'UNKNOWN'),
+            sector=data.get('sector', 'UNKNOWN'),
+            severity=data.get('severity', 'LOW'),
+            description=data.get('details', '')
+        )
+        db.session.add(new_inc)
+        db.session.commit()
+        return jsonify({"status": "success", "id": new_inc.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-        msg = MIMEMultipart('alternative')
-        msg['From'] = smtp_email
-        msg['To'] = to_email
-        msg['Subject'] = subject
-
-        # Plain text version
-        msg.attach(MIMEText(body, 'plain'))
-
-        # HTML version
-        html_body = body.replace('\\n', '<br>').replace('\n', '<br>')
-        html_content = f"""<html><body style="background:#0a0a0a;color:#e0e0e0;font-family:monospace;padding:20px;">
-        <h2 style="color:#22c55e;">TRINETRA RAKSHAK -- Incident Report</h2>
-        <pre style="color:#e0e0e0;line-height:1.6;">{body}</pre>
-        <hr style="border-color:#333;"/>
-        <p style="color:#555;font-size:0.8em;">Auto-generated by Trinetra Rakshak AI Surveillance System</p>
-        </body></html>"""
-        msg.attach(MIMEText(html_content, 'html'))
-
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
-            server.starttls()
-            server.login(smtp_email, smtp_password)
-            recipient_list = [e.strip() for e in to_email.split(',')] if ',' in to_email else [to_email]
-            for recipient in recipient_list:
-                if recipient:
-                    if "To" in msg:
-                        msg.replace_header("To", recipient)
-                    else:
-                        msg.add_header("To", recipient)
-                    server.send_message(msg)
-
-        return jsonify({"status": "sent", "to": to_email})
+@app.route('/api/evaluate_threat', methods=['POST'])
+def evaluate_threat():
+    data = request.json
+    vel = float(data.get('velocity', 0))
+    prox = float(data.get('proximity', 0))
+    vis = float(data.get('visibility', 0))
+    
+    try:
+        score = ai_engine.compute_risk(vel, prox, vis)
+        rule_desc = f"velocity={vel}, proximity={prox}m"
+        return jsonify({
+            "status": "success", 
+            "score": score, 
+            "explanation": f"HIGH RISK: {rule_desc} triggered fuzzy threshold." if score > 70 else f"LOW RISK: {rule_desc}"
+        })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)

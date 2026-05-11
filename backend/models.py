@@ -34,3 +34,11 @@ class User(db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False) # Will store SHA-256 string
     role = db.Column(db.String(20), default="OFFICER")
+
+class LoginAudit(db.Model):
+    __tablename__ = 'login_audit'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    officer_id = db.Column(db.String(50), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    ip = db.Column(db.String(50), nullable=False)
