@@ -39,6 +39,11 @@ const API_URL = import.meta.env.PROD
 function MapController({ scanning }) {
   const map = useMap();
   useEffect(() => {
+    // Force map resize to fix Leaflet rendering bug (half map loaded issue)
+    setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 400);
+
     if (scanning) {
       map.flyTo([23.6202, 85.2899], 14, { duration: 2.5 });
     } else {

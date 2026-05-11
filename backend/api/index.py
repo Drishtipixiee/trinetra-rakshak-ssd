@@ -40,7 +40,14 @@ if is_vercel:
 else:
     db_path = os.path.join(parent_dir, 'trinetra.db')
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
+postgres_url = os.environ.get('POSTGRES_URL')
+if postgres_url:
+    # SQLAlchemy requires postgresql:// instead of postgres://
+    if postgres_url.startswith("postgres://"):
+        postgres_url = postgres_url.replace("postgres://", "postgresql://", 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = postgres_url
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
