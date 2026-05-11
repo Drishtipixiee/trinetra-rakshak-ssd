@@ -348,7 +348,14 @@ def send_report_email():
         with smtplib.SMTP('smtp.gmail.com', 587) as server:
             server.starttls()
             server.login(smtp_email, smtp_password)
-            server.send_message(msg)
+            recipient_list = [e.strip() for e in to_email.split(',')] if ',' in to_email else [to_email]
+            for recipient in recipient_list:
+                if recipient:
+                    if "To" in msg:
+                        msg.replace_header("To", recipient)
+                    else:
+                        msg.add_header("To", recipient)
+                    server.send_message(msg)
 
         return jsonify({"status": "sent", "to": to_email})
     except Exception as e:

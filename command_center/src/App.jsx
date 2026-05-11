@@ -1419,57 +1419,111 @@ export default function App() {
             {/* ── TRACK GUARD ── */}
             {activeTab === 'TRACK-GUARD' && (
               <motion.div key="track" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', margin: 0, borderRadius: 0 }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent)', fontSize: '0.85rem', marginBottom: '0.5rem' }}><Train size={16} /> TRACK-GUARD — RAILWAY SAFETY OVERWATCH</h3>
-                <div style={{ flex: 1, display: 'flex', gap: '0.5rem' }}>
-                  <div style={{ flex: 2, background: 'repeating-linear-gradient(90deg, #111, #111 40px, #1a1a1a 40px, #1a1a1a 42px)', position: 'relative', border: '1px solid rgba(80,80,80,0.3)', overflow: 'hidden', borderRadius: 8 }}>
-                    <div style={{ position: 'absolute', top: '50%', width: '100%', height: '3px', background: '#333' }} />
-                    <div style={{ position: 'absolute', top: '55%', width: '100%', height: '3px', background: '#333' }} />
+                className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', margin: 0, borderRadius: 12, overflow: 'hidden' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontSize: '1rem', padding: '12px 16px', background: 'rgba(0,0,0,0.6)', margin: 0, borderBottom: '1px solid var(--glass-border)' }}><Train size={18} /> TRACK-GUARD — AUTONOMOUS RAILWAY OVERWATCH</h3>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '16px', gap: '16px', background: 'linear-gradient(180deg, rgba(5,20,5,0.8) 0%, rgba(0,0,0,0.95) 100%)' }}>
+                  
+                  {/* Dynamic Track Visualizer */}
+                  <div style={{ 
+                    flex: 1, 
+                    position: 'relative', 
+                    borderRadius: 12, 
+                    overflow: 'hidden', 
+                    border: `1px solid ${trackData.detected ? 'var(--danger)' : 'var(--safe)'}`,
+                    boxShadow: trackData.detected ? 'inset 0 0 50px rgba(239,68,68,0.2)' : 'inset 0 0 30px rgba(34,197,94,0.1)'
+                  }}>
+                    {/* Parallax moving ground */}
+                    <div style={{
+                      position: 'absolute', inset: 0,
+                      background: 'repeating-linear-gradient(0deg, #0a110a, #0a110a 20px, #050a05 20px, #050a05 40px)',
+                      opacity: 0.6,
+                      animation: trackActive && trackData.trainSpeed > 0 ? `scrollDown ${200/trackData.trainSpeed}s linear infinite` : 'none'
+                    }} />
+
+                    {/* Central Track Lines */}
+                    <div style={{ position: 'absolute', top: 0, bottom: 0, left: '40%', width: 4, background: 'linear-gradient(180deg, transparent, #555, transparent)' }} />
+                    <div style={{ position: 'absolute', top: 0, bottom: 0, left: '60%', width: 4, background: 'linear-gradient(180deg, transparent, #555, transparent)' }} />
+                    
+                    {/* Track Sleepers (Horizontal bars) */}
+                    <div style={{
+                      position: 'absolute', inset: 0, left: '38%', right: '38%',
+                      background: 'repeating-linear-gradient(180deg, transparent, transparent 40px, #222 40px, #222 48px)',
+                      animation: trackActive && trackData.trainSpeed > 0 ? `scrollDown ${200/trackData.trainSpeed}s linear infinite` : 'none'
+                    }} />
+
+                    {/* Obstruction Marker */}
                     {trackData.detected && (
                       <motion.div
-                        initial={{ scale: 0 }} animate={{ scale: 1 }}
-                        style={{ position: 'absolute', left: '70%', top: '44%', background: 'var(--warning)', padding: '4px 12px', borderRadius: 8, color: '#000', fontWeight: 'bold', zIndex: 10, fontSize: '0.7rem', boxShadow: '0 0 20px rgba(245,158,11,0.4)' }}>
-                        ⚠ {trackData.object}
+                        initial={{ opacity: 0, scale: 2 }} animate={{ opacity: 1, scale: 1 }}
+                        style={{ position: 'absolute', left: '40%', top: '20%', width: '20%', height: 40, background: 'rgba(239,68,68,0.3)', border: '2px dashed var(--danger)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, boxShadow: '0 0 30px rgba(239,68,68,0.5)' }}>
+                        <div className="pulse-text" style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold', textShadow: '0 0 10px #000' }}>
+                          ⚠ {trackData.object.toUpperCase()}
+                        </div>
                       </motion.div>
                     )}
+
+                    {/* Train Element */}
                     <motion.div
-                      animate={{ left: trackData.detected ? `${Math.min(60, 20 + trackTick)}%` : '-10%' }}
-                      transition={{ duration: 1, ease: 'linear' }}
-                      style={{ position: 'absolute', top: '44%', width: 55, height: 28, background: 'var(--accent)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold', fontSize: 9, boxShadow: '0 0 12px var(--accent-glow)' }}>
-                      🚂 12042
+                      animate={{ top: trackData.detected ? `${Math.max(30, 80 - (100 - trackData.distance/20))}%` : '80%' }}
+                      transition={{ duration: 0.5, ease: 'linear' }}
+                      style={{ 
+                        position: 'absolute', left: '42%', width: '16%', height: 80, 
+                        background: 'linear-gradient(180deg, var(--accent) 0%, #0a2e14 100%)', 
+                        borderRadius: '12px 12px 4px 4px', 
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', 
+                        zIndex: 20, boxShadow: '0 -10px 40px var(--accent-glow)',
+                        border: '2px solid var(--accent)'
+                      }}>
+                        <div style={{ width: '60%', height: 10, background: '#fff', opacity: 0.8, borderRadius: 10, marginTop: 10, boxShadow: '0 -5px 20px #fff' }} />
+                        <div style={{ marginTop: 'auto', marginBottom: 10, color: '#000', fontWeight: '900', fontSize: '0.7rem', fontFamily: "'Share Tech Mono'" }}>RAJDHANI</div>
                     </motion.div>
+
+                    {/* Scan Radar Sweep */}
+                    <div style={{
+                      position: 'absolute', left: '20%', right: '20%', bottom: '20%', height: '60%',
+                      background: 'linear-gradient(0deg, rgba(34,197,94,0.2) 0%, transparent 100%)',
+                      borderBottom: '2px solid var(--accent)',
+                      opacity: trackActive ? 0.5 : 0,
+                      transformOrigin: 'bottom center',
+                      animation: 'radarSweepTrack 3s ease-in-out infinite alternate'
+                    }} />
+
+                    {/* Start Button Overlay */}
                     {!trackActive && (
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 20 }}>
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 30, backdropFilter: 'blur(4px)' }}>
                         <motion.button
-                          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                          whileHover={{ scale: 1.05, boxShadow: '0 0 30px var(--accent-glow)' }} whileTap={{ scale: 0.95 }}
                           onClick={() => {
                             setTrackActive(true);
-                            addLog("[SYS] ▶ Track Guard simulation started.", "safe");
+                            addLog("[SYS] ▶ Track Guard autonomous scanning online.", "safe");
                           }}
                           style={{
-                            background: 'rgba(34,197,94,0.15)', border: '1px solid var(--accent)',
-                            borderRadius: 8, padding: '10px 20px', cursor: 'pointer',
-                            color: 'var(--accent)', fontFamily: "'Share Tech Mono'", fontSize: '0.8rem',
-                            letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 8
+                            background: 'rgba(34,197,94,0.1)', border: '2px solid var(--accent)',
+                            borderRadius: 12, padding: '16px 32px', cursor: 'pointer',
+                            color: 'var(--accent)', fontFamily: "'Share Tech Mono'", fontSize: '1rem',
+                            letterSpacing: 2, display: 'flex', alignItems: 'center', gap: 12,
+                            fontWeight: 'bold'
                           }}
                         >
-                          <Play size={16} /> START RAILWAY SIM
+                          <Play size={20} fill="currentColor" /> INITIATE TRACK SCAN
                         </motion.button>
                       </div>
                     )}
                   </div>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                      <div className="label">OBSTRUCTION</div>
-                      <div className="value" style={{ color: trackData.detected ? 'var(--warning)' : 'var(--safe)', fontSize: '1rem' }}>{trackData.object}</div>
+
+                  {/* Telemetry Dashboard */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                    <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start', background: 'rgba(0,0,0,0.5)', padding: '12px 16px' }}>
+                      <div className="label" style={{ color: 'var(--text-dim)' }}>AI CLASSIFICATION</div>
+                      <div className="value" style={{ color: trackData.detected ? 'var(--danger)' : 'var(--safe)', fontSize: '1.2rem', marginTop: 4 }}>{trackData.object.toUpperCase()}</div>
                     </div>
-                    <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                      <div className="label">DISTANCE / SPEED</div>
-                      <div className="value" style={{ color: 'var(--warning)', fontSize: '1rem' }}>{Math.round(trackData.distance)}m / {trackData.trainSpeed}km/h</div>
+                    <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start', background: 'rgba(0,0,0,0.5)', padding: '12px 16px' }}>
+                      <div className="label" style={{ color: 'var(--text-dim)' }}>TRAIN TELEMETRY</div>
+                      <div className="value" style={{ color: 'var(--accent)', fontSize: '1.2rem', marginTop: 4 }}>{trackData.trainSpeed} KM/H <span style={{ fontSize: '0.6rem', opacity: 0.5 }}>SPD</span> | {Math.round(trackData.distance)}M <span style={{ fontSize: '0.6rem', opacity: 0.5 }}>DIST</span></div>
                     </div>
-                    <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                      <div className="label">TIME TO IMPACT</div>
-                      <div className="value" style={{ color: trackData.timeToImpact < 30 ? 'var(--danger)' : 'var(--safe)' }}>{trackData.timeToImpact}s</div>
+                    <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start', background: trackData.timeToImpact < 30 ? 'rgba(239,68,68,0.1)' : 'rgba(0,0,0,0.5)', padding: '12px 16px', border: trackData.timeToImpact < 30 ? '1px solid var(--danger)' : '1px solid rgba(34,197,94,0.1)' }}>
+                      <div className="label" style={{ color: trackData.timeToImpact < 30 ? 'var(--danger)' : 'var(--text-dim)' }}>EST. TIME TO IMPACT</div>
+                      <div className="value" style={{ color: trackData.timeToImpact < 30 ? 'var(--danger)' : 'var(--safe)', fontSize: '1.5rem', marginTop: 4 }}>{trackData.timeToImpact}s</div>
                     </div>
                   </div>
                 </div>

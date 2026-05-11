@@ -166,7 +166,12 @@ def send_email(message, level="CRITICAL"):
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
             server.login(smtp_email, smtp_password)
-            server.send_message(msg)
+            # If to_email contains commas, split it and send to multiple recipients
+            recipient_list = [e.strip() for e in to_email.split(',')] if ',' in to_email else [to_email]
+            for recipient in recipient_list:
+                if recipient:
+                    msg.replace_header("To", recipient) if "To" in msg else msg.add_header("To", recipient)
+                    server.send_message(msg)
 
         logger.info(f"Email alert sent to {to_email}")
         return True

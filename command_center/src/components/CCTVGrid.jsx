@@ -5,7 +5,7 @@ import { Video, Maximize2, X, AlertTriangle, Shield, Camera, CameraOff } from 'l
 const CAMERAS = [
     {
         id: 'CAM-01', name: 'MAIN GATE -- SEC-7A', coords: 'N28°38\'12" E77°13\'04"',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4',
+        videoUrl: 'https://player.vimeo.com/external/372335195.sd.mp4?s=1272718104526017b2b0dd894fc5c5a70660f5e1&profile_id=164&oauth2_token_id=57447761',
         scenario: [
             { time: [0, 6], detections: [], status: 'CLEAR' },
             { time: [6, 12], detections: [{ class: 'vehicle', conf: 82, x: 20, y: 40, w: 22, h: 14, risk: 55, dx: 4 }], status: 'VEHICLE APPROACHING' },
@@ -15,7 +15,7 @@ const CAMERAS = [
     },
     {
         id: 'CAM-02', name: 'PERIMETER NORTH', coords: 'N28°38\'18" E77°13\'09"',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-dry-field-landscape-background-43346-large.mp4',
+        videoUrl: 'https://player.vimeo.com/external/403562308.sd.mp4?s=d0dbdf7c5555d496e73687c4da2a01dcd3f9dc3b&profile_id=165&oauth2_token_id=57447761',
         scenario: [
             { time: [0, 8], detections: [], status: 'SCANNING' },
             {
@@ -30,7 +30,7 @@ const CAMERAS = [
     },
     {
         id: 'CAM-03', name: 'EAST WATCHTOWER', coords: 'N28°38\'15" E77°13\'15"',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-green-grass-waving-on-a-hill-40745-large.mp4',
+        videoUrl: 'https://player.vimeo.com/external/371433846.sd.mp4?s=236e788bc59e9a4fba7ba2cefc2754dcd8ea7bc3&profile_id=164&oauth2_token_id=57447761',
         scenario: [
             { time: [0, 20], detections: [], status: 'CLEAR' },
             { time: [20, 30], detections: [{ class: 'animal', conf: 88, x: 10, y: 50, w: 15, h: 10, risk: 20, dx: 3 }], status: 'WILDLIFE (STRAY DOG)' },
@@ -40,7 +40,7 @@ const CAMERAS = [
     },
     {
         id: 'CAM-04', name: 'COMMAND BUNKER', coords: 'N28°38\'10" E77°13\'00"',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-concrete-wall-with-light-beam-effects-9553-large.mp4',
+        videoUrl: 'https://player.vimeo.com/external/403561916.sd.mp4?s=6a3b2b0fc55dfecf734479532408b02c2e0b5df6&profile_id=164&oauth2_token_id=57447761',
         scenario: [
             { time: [0, 180], detections: [], status: 'SECURE -- NO MOVEMENT' },
         ]
@@ -499,6 +499,44 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
                                         STOP
                                     </button>
                                 )}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="cctv-scanlines" />
+                </div>
+
+                {/* CAM-06: OFFLINE / EMPTY */}
+                <div
+                    className="cctv-feed degraded"
+                    style={{ position: 'relative', background: '#0a0a0a' }}
+                >
+                    <div style={{
+                        position: 'absolute', inset: 0,
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center',
+                        zIndex: 1, gap: 8
+                    }}>
+                        <CameraOff size={24} style={{ color: '#555', opacity: 0.5 }} />
+                        <div style={{ fontSize: '0.6rem', color: '#555', textAlign: 'center', letterSpacing: 2, fontFamily: "'Share Tech Mono'" }}>
+                            NO SIGNAL
+                        </div>
+                    </div>
+
+                    <div className="cctv-overlay">
+                        <div className="cctv-top-bar">
+                            <div className="cctv-id" style={{ color: '#555' }}>
+                                <span className="cctv-rec-dot" style={{ background: '#555' }} />
+                                CAM-06
+                            </div>
+                            <div className="cctv-status" style={{ color: '#ef4444', opacity: 0.7 }}>
+                                OFFLINE
+                            </div>
+                        </div>
+
+                        <div className="cctv-bottom-bar">
+                            <div>
+                                <div className="cctv-name" style={{ color: '#555' }}>ARMORY -- SEC-2</div>
+                                <div className="cctv-coords" style={{ color: '#444' }}>MAINTENANCE SCHEDULED</div>
                             </div>
                         </div>
                     </div>
