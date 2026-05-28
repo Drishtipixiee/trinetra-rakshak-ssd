@@ -1,0 +1,1 @@
+Fix map alignment and restore new blue DB viewer with email functionality  
