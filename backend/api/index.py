@@ -674,429 +674,104 @@ ADMIN_DB_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trinetra Rakshak — Command DB Viewer</title>
+  <title>Trinetra DB Viewer (Vercel)</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #0A1628; --card: #0F1F3D; --saffron: #FF6B35; --gold: #FFD700;
-      --blue: #1E88E5; --text: #F0F4FF; --muted: #8FA8C8;
-      --success: #00D4AA; --warn: #FF9500; --danger: #FF3B30;
-    }
-    body {
-      background: linear-gradient(135deg, #0A1628 0%, #0F1F3D 50%, #071020 100%);
-      color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif;
-      min-height: 100vh; padding-bottom: 40px;
-    }
-    header {
-      background: rgba(10,22,40,0.98); backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(255,107,53,0.25);
-      padding: 16px 32px; display: flex; align-items: center;
-      justify-content: space-between; position: sticky; top: 0; z-index: 100;
-    }
-    .logo { display: flex; align-items: center; gap: 12px; }
-    .logo-icon { font-size: 24px; }
-    .logo-text { font-size: 18px; font-weight: 700; letter-spacing: 3px;
-      background: linear-gradient(135deg,#FF6B35,#FFD700);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .logo-sub { font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-top: 2px; }
-    .status-bar {
-      background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.3);
-      border-radius: 8px; padding: 6px 14px; font-size: 11px;
-      color: var(--success); letter-spacing: 1px; display: flex; align-items: center; gap: 8px;
-    }
-    .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--success);
-      animation: pulse 1.5s ease-in-out infinite; }
-    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
-    .container { max-width: 1200px; margin: 0 auto; padding: 24px 32px; }
-
-    /* SYSTEM STATUS BOARD */
-    .system-board {
-      background: rgba(255,107,53,0.08); border: 1px solid rgba(255,107,53,0.2);
-      border-radius: 12px; padding: 20px 24px; margin-bottom: 24px;
-    }
-    .board-title { font-size: 11px; letter-spacing: 3px; color: var(--saffron);
-      font-weight: 700; margin-bottom: 16px; }
-    .board-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
-    .board-item { text-align: center; padding: 12px;
-      background: rgba(255,255,255,0.03); border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.06); }
-    .board-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-bottom: 6px; }
-    .board-value { font-size: 16px; font-weight: 700; }
-    .val-green { color: var(--success); }
-    .val-gold { color: var(--gold); }
-    .val-saffron { color: var(--saffron); }
-
-    /* PERSISTENT DB BANNER */
-    .persistent-banner {
-      background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.3);
-      border-radius: 10px; padding: 14px 20px; margin-bottom: 24px;
-      display: flex; align-items: center; gap: 12px;
-      font-size: 13px; color: var(--success);
-    }
-    .persistent-banner .icon { font-size: 20px; }
-
-    /* SECTION */
-    .section { margin-bottom: 28px; }
-    .section-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 14px;
-    }
-    .section-title { font-size: 12px; letter-spacing: 3px; color: var(--saffron);
-      font-weight: 700; display: flex; align-items: center; gap: 8px; }
-    .count-badge {
-      background: rgba(255,107,53,0.2); border: 1px solid rgba(255,107,53,0.4);
-      border-radius: 20px; padding: 2px 10px; font-size: 11px; color: var(--saffron);
-    }
-
-    /* TABLE */
-    .table-wrap { border-radius: 10px; overflow: hidden;
-      border: 1px solid rgba(255,107,53,0.15); }
-    table { width: 100%; border-collapse: collapse; }
-    thead tr { background: rgba(255,107,53,0.12); }
-    thead th { padding: 10px 14px; text-align: left; font-size: 10px;
-      letter-spacing: 2px; color: var(--saffron); font-weight: 700; }
-    tbody tr { border-top: 1px solid rgba(255,255,255,0.05);
-      transition: background 0.2s; }
-    tbody tr:hover { background: rgba(255,107,53,0.06); }
-    tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-    tbody tr:nth-child(even):hover { background: rgba(255,107,53,0.06); }
-    td { padding: 10px 14px; font-size: 12px; color: var(--text); }
-    td.mono { font-family: 'Courier New', monospace; font-size: 11px; color: var(--muted); }
-    .no-data { text-align: center; padding: 32px; color: var(--muted); font-size: 13px; }
-
-    /* BADGES */
-    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px;
-      font-size: 10px; font-weight: 700; letter-spacing: 1px; }
-    .badge-critical { background: rgba(255,59,48,0.15); color: #FF3B30;
-      border: 1px solid rgba(255,59,48,0.4); }
-    .badge-warning { background: rgba(255,149,0,0.15); color: #FF9500;
-      border: 1px solid rgba(255,149,0,0.4); }
-    .badge-safe { background: rgba(0,212,170,0.12); color: var(--success);
-      border: 1px solid rgba(0,212,170,0.3); }
-    .badge-active { background: rgba(0,212,170,0.12); color: var(--success);
-      border: 1px solid rgba(0,212,170,0.3); }
-    .badge-inactive { background: rgba(255,59,48,0.1); color: #FF3B30;
-      border: 1px solid rgba(255,59,48,0.3); }
-
-    /* HASH reveal */
-    .hash-text { max-width: 150px; overflow: hidden; text-overflow: ellipsis;
-      white-space: nowrap; display: inline-block; vertical-align: middle; }
-    .reveal-btn { background: none; border: 1px solid rgba(30,136,229,0.4);
-      color: #1E88E5; border-radius: 4px; padding: 2px 8px; font-size: 10px;
-      cursor: pointer; margin-left: 4px; }
-    .reveal-btn:hover { background: rgba(30,136,229,0.15); }
-
-    /* QUICK ACTIONS */
-    .quick-actions {
-      background: var(--card); border: 1px solid rgba(255,107,53,0.15);
-      border-radius: 12px; padding: 20px 24px;
-    }
-    .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 14px; }
-    .action-btn {
-      padding: 12px 16px; border-radius: 8px; border: none; cursor: pointer;
-      font-size: 12px; font-weight: 600; letter-spacing: 1px; transition: all 0.2s;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .action-btn:hover { transform: translateY(-2px); }
-    .btn-warn { background: rgba(255,149,0,0.15); color: var(--warn);
-      border: 1px solid rgba(255,149,0,0.4); }
-    .btn-blue { background: rgba(30,136,229,0.15); color: var(--blue);
-      border: 1px solid rgba(30,136,229,0.4); }
-    .btn-saffron { background: linear-gradient(135deg,#FF6B35,#FF8C00);
-      color: #fff; box-shadow: 0 4px 15px rgba(255,107,53,0.3); }
-    .btn-saffron:hover { box-shadow: 0 6px 20px rgba(255,107,53,0.5); }
-
-    /* REFRESH */
-    .refresh-bar { text-align: right; color: var(--muted); font-size: 11px;
-      margin-bottom: 8px; }
-
-    @media (max-width: 600px) {
-      header { padding: 12px 16px; }
-      .container { padding: 16px; }
-      .board-grid { grid-template-columns: repeat(2, 1fr); }
-    }
+    body { font-family: 'Segoe UI', sans-serif; background: #0b1121; color: #f8fafc; padding: 20px; }
+    h1, h2 { color: #00b4d8; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-top: 30px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: #1a2035; }
+    th { background: #00AEEF; color: #fff; padding: 12px; text-align: left; }
+    td { padding: 10px; border-bottom: 1px solid #334155; }
+    tr:hover { background: #2a344a; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+    .demo-note { background: #334155; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem; border-left: 4px solid #f59e0b; }
+    .action-btn { background: #00AEEF; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+    .action-btn:hover { background: #0096cc; }
   </style>
 </head>
 <body>
-  <header>
-    <div class="logo">
-      <span class="logo-icon">🛡️</span>
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h1>🛡️ Trinetra Rakshak - Master Database Viewer</h1>
       <div>
-        <div class="logo-text">TRINETRA RAKSHAK</div>
-        <div class="logo-sub">त्रिनेत्र रक्षक — COMMAND DATABASE VIEWER</div>
+          <button class="action-btn" onclick="exportJSON()">📥 Export JSON</button>
+          <button class="action-btn" onclick="sendTestAlert()">📧 Send Test Alert</button>
       </div>
-    </div>
-    <div class="status-bar">
-      <div class="pulse"></div>
-      SYSTEM ONLINE | DB: {{ db_type }}
-    </div>
-  </header>
-
-  <div class="container">
-    <div class="refresh-bar" id="refresh-counter">Auto-refresh in <span id="countdown">30</span>s</div>
-
-    <!-- PERSISTENT DB BANNER -->
-    {% if db_type == 'PostgreSQL' %}
-    <div class="persistent-banner">
-      <span class="icon">✅</span>
-      <div>
-        <strong>PERSISTENT DATABASE</strong> — Data syncs across all users and sessions in real-time.
-        Connected to PostgreSQL cloud database. Data is permanent and globally consistent.
-      </div>
-    </div>
-    {% else %}
-    <div class="persistent-banner" style="background:rgba(255,149,0,0.1);border-color:rgba(255,149,0,0.3);color:var(--warn);">
-      <span class="icon">⚠️</span>
-      <div>
-        <strong>DEVELOPMENT MODE</strong> — Using SQLite (local/ephemeral). 
-        Set DATABASE_URL environment variable for persistent PostgreSQL storage.
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- SYSTEM STATUS BOARD -->
-    <div class="system-board">
-      <div class="board-title">SYSTEM STATUS BOARD</div>
-      <div class="board-grid">
-        <div class="board-item">
-          <div class="board-label">DATABASE TYPE</div>
-          <div class="board-value val-gold">{{ db_type }}</div>
-        </div>
-        <div class="board-item">
-          <div class="board-label">CONNECTION</div>
-          <div class="board-value val-green">LIVE</div>
-        </div>
-        <div class="board-item">
-          <div class="board-label">REGISTERED OFFICERS</div>
-          <div class="board-value val-saffron">{{ user_count }}</div>
-        </div>
-        <div class="board-item">
-          <div class="board-label">TOTAL INCIDENTS</div>
-          <div class="board-value val-saffron">{{ incident_count }}</div>
-        </div>
-        <div class="board-item">
-          <div class="board-label">ALERT RECIPIENTS</div>
-          <div class="board-value val-green">{{ recipient_count }}</div>
-        </div>
-        <div class="board-item">
-          <div class="board-label">LAST LOGIN</div>
-          <div class="board-value" style="font-size:11px;color:var(--muted);">{{ last_login }}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- REGISTERED PERSONNEL -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-title">👮 REGISTERED PERSONNEL
-          <span class="count-badge">{{ users|length }}</span>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th><th>OFFICER ID</th><th>ROLE</th><th>PASSWORD HASH</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for u in users %}
-            <tr>
-              <td class="mono">{{ u.id }}</td>
-              <td><strong>{{ u.username }}</strong></td>
-              <td><span class="badge badge-safe">{{ u.role }}</span></td>
-              <td class="mono">
-                <span class="hash-text" id="hash-{{ u.id }}">••••••••••••••••</span>
-                <button class="reveal-btn" onclick="toggleHash('{{ u.id }}', '{{ u.password_hash }}')">REVEAL</button>
-              </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="4" class="no-data">No officers registered</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- INCIDENTS -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-title">🚨 LIVE INCIDENTS
-          <span class="count-badge">{{ incidents|length }}</span>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th><th>TIMESTAMP</th><th>TYPE</th><th>SECTOR</th>
-              <th>SEVERITY</th><th>RISK SCORE</th><th>STATUS</th><th>DESCRIPTION</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for inc in incidents %}
-            <tr>
-              <td class="mono">#{{ inc.id }}</td>
-              <td class="mono" style="white-space:nowrap;">{{ inc.timestamp.strftime('%Y-%m-%d %H:%M') if inc.timestamp else 'N/A' }}</td>
-              <td>{{ inc.type }}</td>
-              <td style="color: var(--gold); font-weight:600;">{{ inc.sector }}</td>
-              <td>
-                {% if inc.severity == 'CRITICAL' %}
-                  <span class="badge badge-critical">CRITICAL</span>
-                {% elif inc.severity == 'WARNING' %}
-                  <span class="badge badge-warning">WARNING</span>
-                {% else %}
-                  <span class="badge badge-safe">{{ inc.severity }}</span>
-                {% endif %}
-              </td>
-              <td style="font-weight:700;color:{% if inc.risk_score >= 75 %}#FF3B30{% elif inc.risk_score >= 50 %}#FF9500{% else %}#00D4AA{% endif %};">
-                {{ inc.risk_score }}/100
-              </td>
-              <td><span class="badge badge-active">{{ inc.status }}</span></td>
-              <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ inc.description }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="8" class="no-data">No incidents recorded</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ALERT RECIPIENTS -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-title">📧 ALERT RECIPIENTS
-          <span class="count-badge">{{ recipients|length }}</span>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th><th>NAME</th><th>EMAIL</th><th>ROLE</th>
-              <th>PHONE</th><th>STATUS</th><th>ADDED</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for r in recipients %}
-            <tr>
-              <td class="mono">{{ r.id }}</td>
-              <td><strong>{{ r.name }}</strong></td>
-              <td class="mono">{{ r.email }}</td>
-              <td><span class="badge badge-safe">{{ r.role }}</span></td>
-              <td class="mono">{{ r.phone or '—' }}</td>
-              <td>
-                {% if r.active %}
-                  <span class="badge badge-active">ACTIVE</span>
-                {% else %}
-                  <span class="badge badge-inactive">INACTIVE</span>
-                {% endif %}
-              </td>
-              <td class="mono">{{ r.added_at.strftime('%Y-%m-%d') if r.added_at else 'N/A' }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="7" class="no-data">No alert recipients configured</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- LOGIN AUDIT -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-title">📋 LOGIN AUDIT TRAIL
-          <span class="count-badge">{{ audits|length }}</span>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>ID</th><th>OFFICER ID</th><th>IP ADDRESS</th><th>TIMESTAMP</th></tr>
-          </thead>
-          <tbody>
-            {% for a in audits %}
-            <tr>
-              <td class="mono">{{ a.id }}</td>
-              <td><strong>{{ a.officer_id }}</strong></td>
-              <td class="mono">{{ a.ip }}</td>
-              <td class="mono">{{ a.timestamp.strftime('%Y-%m-%d %H:%M:%S') if a.timestamp else 'N/A' }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="4" class="no-data">No login records</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- QUICK ACTIONS -->
-    <div class="quick-actions">
-      <div class="section-title">⚡ QUICK ACTIONS</div>
-      <div class="action-grid" style="margin-top:16px;">
-        <button class="action-btn btn-warn" onclick="clearOldIncidents()">
-          🗑️ Clear Incidents (&gt;7 days)
-        </button>
-        <button class="action-btn btn-blue" onclick="exportJSON()">
-          📥 Export All Data as JSON
-        </button>
-        <button class="action-btn btn-saffron" onclick="sendTestAlert()">
-          📧 Send Test Alert to All
-        </button>
-      </div>
-      <div id="action-result" style="margin-top:12px;font-size:12px;color:var(--success);display:none;"></div>
-    </div>
   </div>
+  
+  <div id="action-result" style="color: #00D4AA; font-weight: bold; margin-bottom: 15px;"></div>
+
+  <h2>Registered Personnel</h2>
+  <table>
+    <tr><th>ID</th><th>Officer ID</th><th>Role</th><th>Password Hash (Scrypt)</th></tr>
+    {% for u in users %}
+    <tr>
+      <td>{{ u.id }}</td>
+      <td><b>{{ u.username }}</b></td>
+      <td>{{ u.role }}</td>
+      <td style='font-family: monospace; font-size: 11px; color: #94a3b8;'>{{ u.password_hash }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" style="text-align:center; padding: 20px;">No personnel registered</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Audit Trail (Recent Logins)</h2>
+  <table>
+    <tr><th>ID</th><th>Officer ID</th><th>IP</th><th>Timestamp</th></tr>
+    {% for a in audits %}
+    <tr>
+      <td>{{ a.id }}</td>
+      <td>{{ a.officer_id }}</td>
+      <td>{{ a.ip }}</td>
+      <td>{{ a.timestamp.strftime('%Y-%m-%d %H:%M:%S') if a.timestamp else 'N/A' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" style="text-align:center; padding: 20px;">No recent logins</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Live Incident Logs</h2>
+  <table>
+    <tr><th>ID</th><th>Timestamp</th><th>Type</th><th>Sector</th><th>Severity</th></tr>
+    {% for inc in incidents %}
+    <tr>
+      <td>INC-{{ 1000 + inc.id }}</td>
+      <td>{{ inc.timestamp.strftime('%Y-%m-%d %H:%M:%S.%f') if inc.timestamp else 'N/A' }}</td>
+      <td>{{ inc.type }}</td>
+      <td>{{ inc.sector }}</td>
+      <td>{{ inc.severity }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" style="text-align:center; padding: 20px;">No incidents recorded</td></tr>
+    {% endfor %}
+  </table>
+  
+  <h2>Alert Recipients</h2>
+  <table>
+    <tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Phone</th><th>Status</th></tr>
+    {% for r in recipients %}
+    <tr>
+      <td>{{ r.id }}</td>
+      <td>{{ r.name }}</td>
+      <td>{{ r.email }}</td>
+      <td>{{ r.role }}</td>
+      <td>{{ r.phone or '—' }}</td>
+      <td>{{ 'ACTIVE' if r.active else 'INACTIVE' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" style="text-align:center; padding: 20px;">No alert recipients configured</td></tr>
+    {% endfor %}
+  </table>
 
   <script>
-    // Hash reveal toggle
-    const hashData = {};
-    function toggleHash(id, hash) {
-      const el = document.getElementById('hash-' + id);
-      const btn = el.nextElementSibling;
-      if (hashData[id]) {
-        el.textContent = '••••••••••••••••';
-        btn.textContent = 'REVEAL';
-        hashData[id] = false;
-      } else {
-        el.textContent = hash;
-        btn.textContent = 'HIDE';
-        hashData[id] = true;
-      }
-    }
-
-    // Countdown and auto-refresh
-    let countdown = 30;
-    const countEl = document.getElementById('countdown');
-    setInterval(() => {
-      countdown--;
-      if (countdown <= 0) { location.reload(); }
-      else { countEl.textContent = countdown; }
-    }, 1000);
-
-    // Quick actions
     async function showResult(msg, ok) {
       const el = document.getElementById('action-result');
-      el.style.display = 'block';
-      el.style.color = ok ? 'var(--success)' : 'var(--warn)';
+      el.style.color = ok ? '#00D4AA' : '#FF3B30';
       el.textContent = msg;
-      setTimeout(() => { el.style.display = 'none'; }, 5000);
+      setTimeout(() => { el.textContent = ''; }, 5000);
     }
-
-    async function clearOldIncidents() {
-      if (!confirm('Clear all incidents older than 7 days?')) return;
-      const res = await fetch('/api/clear-old-incidents', { method: 'POST' });
-      const data = await res.json();
-      showResult(data.message, res.ok);
-      setTimeout(() => location.reload(), 2000);
-    }
-
     async function exportJSON() {
       window.open('/api/export-data', '_blank');
     }
-
     async function sendTestAlert() {
       const res = await fetch('/api/send-test-alert', { method: 'POST' });
       const data = await res.json();

@@ -1,0 +1,1 @@
+Hardcode DB_TYPE to PostgreSQL  
