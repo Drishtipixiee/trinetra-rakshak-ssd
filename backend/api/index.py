@@ -115,7 +115,7 @@ with app.app_context():
     if AlertRecipient.query.count() == 0:
         seed = AlertRecipient(
             name='Drishti Admin',
-            email='drishti@example.com',
+            email='drishtimishra168@gmail.com',
             role='Admin',
             phone='+91-9999999999',
             active=True
@@ -639,21 +639,29 @@ def start_simulation():
     scenario = data.get('scenario', 'BORDER_INTRUSION')
 
     scenarios = {
-        'BORDER_INTRUSION': [
+        'INTRUSION': [
             {'type': 'PERSON', 'sector': 'SEC-7A', 'severity': 'WARNING', 'risk_score': 55,
              'description': 'Unidentified individual approaching perimeter at KM-142'},
             {'type': 'PERSON', 'sector': 'SEC-7A', 'severity': 'CRITICAL', 'risk_score': 87,
              'description': 'Multi-target intrusion — armed personnel detected at border fence SEC-7A'},
         ],
-        'DRONE_ALERT': [
+        'DRONE': [
             {'type': 'DRONE', 'sector': 'SEC-7B', 'severity': 'WARNING', 'risk_score': 61,
              'description': 'Unregistered quadcopter detected at 80m altitude'},
             {'type': 'DRONE', 'sector': 'SEC-7B', 'severity': 'CRITICAL', 'risk_score': 92,
              'description': 'Armed drone with payload detected — engagement protocol initiated'},
+        ],
+        'WILDLIFE': [
+            {'type': 'WILDLIFE', 'sector': 'KM-142', 'severity': 'WARNING', 'risk_score': 45,
+             'description': 'Herd of elephants approaching railway track section KM-142'},
+        ],
+        'MINING': [
+            {'type': 'EXCAVATION', 'sector': 'DHANBAD', 'severity': 'CRITICAL', 'risk_score': 95,
+             'description': 'Illegal heavy machinery operation detected in protected forest corridor'},
         ]
     }
 
-    events = scenarios.get(scenario, scenarios['BORDER_INTRUSION'])
+    events = scenarios.get(scenario, scenarios['INTRUSION'])
     created = []
     for event in events:
         incident = Incident(**event, status='ACTIVE')
