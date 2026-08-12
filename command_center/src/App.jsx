@@ -559,7 +559,7 @@ export default function App() {
   const [logs, setLogs] = useState([{ id: 1, text: "[SYS] All subsystems initialized. Defense grid online.", type: "normal" }]);
   const logsEndRef = useRef(null);
 
-  const canvasRef = useRef(null);
+
 
   // Modes
   const [isNightMode, setIsNightMode] = useState(false);
