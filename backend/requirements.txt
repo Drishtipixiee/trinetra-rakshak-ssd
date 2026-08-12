@@ -8,3 +8,7 @@ psycopg2-binary==2.9.10
 gunicorn==23.0.0
 fpdf2==2.8.3
 requests==2.32.3
+twilio
+anthropic
+psutil
+numpy

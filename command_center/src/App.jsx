@@ -4,11 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Activity, AlertTriangle, Fingerprint, Lock,
   Map as MapIcon, Video, Target, Radio, Scan, Train, Download, Terminal,
-  BarChart3, Eye, Users, Play, Square, Volume2, VolumeX, LayoutDashboard, Cpu, Wifi, MapPin, Clock, Loader2 as Loader2Icon
+  BarChart3, Eye, Users, Play, Square, Volume2, VolumeX, LayoutDashboard, Cpu, Wifi, MapPin, Clock, Loader2 as Loader2Icon, Satellite, Brain
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { MapContainer, TileLayer, WMSTileLayer, Circle, Popup, useMap } from 'react-leaflet';
-import { logThreatEvent, fetchThreatLogs } from './lib/supabase';
+import { logThreatEvent } from './lib/supabase';
+import { loadModel, detectFrame, drawDetections, estimateFuzzyInputs, isModelLoaded, getModelInfo } from './lib/cvEngine';
 
 // AI Systems
 import AIVoiceSystem, { playSiren, playKlaxon, playDetectionBeep, playSuccessChime, playHighPitchAlarm } from './components/AIVoiceSystem';
@@ -28,6 +28,7 @@ import WalkieTalkie from './components/WalkieTalkie';
 import MobileAlert from './components/MobileAlert';
 import AIThreatAnalyst from './components/AIThreatAnalyst';
 import FlowSimulationDashboard from './components/FlowSimulationDashboard';
+import GeoEyePanel from './components/GeoEyePanel';
 
 // ═══════════════════════════════════════════════════
 //  CONFIGURATION & CONSTANTS
@@ -36,99 +37,84 @@ const API_URL = import.meta.env.PROD
   ? 'https://backend-ten-fawn-25.vercel.app'
   : 'http://127.0.0.1:5000';
 
-function MapController({ scanning }) {
-  const map = useMap();
-  useEffect(() => {
-    // Force map resize to fix Leaflet rendering bug (half map loaded issue)
-    setTimeout(() => {
-      if (map) map.invalidateSize();
-    }, 400);
+// ═══════════════════════════════════════════════════
+//  REAL AI DETECTION HOOK — TF.js COCO-SSD
+//  Replaces scripted DETECTION_SCENARIOS timer
+// ═══════════════════════════════════════════════════
+function useRealDetection(active, videoRef, canvasRef) {
+  const [detections, setDetections] = useState([]);
+  const [modelStatus, setModelStatus] = useState('idle'); // idle | loading | ready | error
+  const [modelProgress, setModelProgress] = useState(0);
+  const [modelMessage, setModelMessage] = useState('');
+  const prevDetectionsRef = useRef([]);
+  const rafRef = useRef(null);
+  const tickRef = useRef(0);
 
-    if (scanning) {
-      map.flyTo([23.6202, 85.2899], 14, { duration: 2.5 });
-    } else {
-      map.flyTo([23.6102, 85.2799], 13, { duration: 1.5 });
+  // Load model on mount (cached — only loads once across all uses)
+  useEffect(() => {
+    if (modelStatus !== 'idle') return;
+    setModelStatus('loading');
+    loadModel((progress, message) => {
+      setModelProgress(Math.round(progress * 100));
+      setModelMessage(message);
+    }).then(() => {
+      setModelStatus('ready');
+    }).catch(() => {
+      setModelStatus('error');
+    });
+  }, [modelStatus]);
+
+  // Run inference loop when active + model ready
+  useEffect(() => {
+    if (!active || modelStatus !== 'ready') {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      return;
     }
-  }, [scanning, map]);
-  return null;
+
+    const inferenceLoop = async () => {
+      const video = videoRef?.current;
+      const canvas = canvasRef?.current;
+
+      if (video && canvas) {
+        // Sync canvas size to parent
+        const parent = canvas.parentElement;
+        if (parent) {
+          canvas.width = parent.clientWidth || 960;
+          canvas.height = parent.clientHeight || 540;
+        }
+
+        try {
+          const result = await detectFrame(video, 0.35);
+          setDetections(result);
+          drawDetections(canvas, result, 0, tickRef.current);
+          prevDetectionsRef.current = result;
+          tickRef.current += 1;
+        } catch (_) { /* inference error — skip frame */ }
+      }
+
+      // ~10fps — enough for surveillance, won't block UI
+      rafRef.current = setTimeout(() => {
+        rafRef.current = requestAnimationFrame(inferenceLoop);
+      }, 100);
+    };
+
+    rafRef.current = requestAnimationFrame(inferenceLoop);
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        clearTimeout(rafRef.current);
+      }
+    };
+  }, [active, modelStatus, videoRef, canvasRef]);
+
+  const getPrevDetections = useCallback(() => prevDetectionsRef.current, []);
+
+  return { detections, modelStatus, modelProgress, modelMessage, getPrevDetections };
 }
 
-const DETECTION_SCENARIOS = [
-  // Phase 1: Calm (0-10s)
-  { time: [0, 10], detections: [], label: 'SCANNING' },
-  // Phase 2: First sighting (10-18s)
-  {
-    time: [10, 18], detections: [
-      { class: 'person', confidence: 72, x: 60, y: 35, w: 12, h: 28, risk: 45 }
-    ], label: 'CONTACT'
-  },
-  // Phase 3: Approaching (18-28s)
-  {
-    time: [18, 28], detections: [
-      { class: 'person', confidence: 87, x: 45, y: 25, w: 15, h: 35, risk: 68 },
-      { class: 'backpack', confidence: 61, x: 48, y: 30, w: 6, h: 8, risk: 30 }
-    ], label: 'TRACKING'
-  },
-  // Phase 4: Critical zone (28-38s)
-  {
-    time: [28, 38], detections: [
-      { class: 'person', confidence: 94, x: 35, y: 18, w: 20, h: 45, risk: 88 },
-      { class: 'person', confidence: 78, x: 65, y: 30, w: 14, h: 32, risk: 72 },
-    ], label: 'MULTI-TARGET'
-  },
-  // Phase 5: De-escalation (38-48s)
-  {
-    time: [38, 48], detections: [
-      { class: 'person', confidence: 65, x: 70, y: 40, w: 10, h: 25, risk: 35 }
-    ], label: 'RETREATING'
-  },
-  // Phase 6: Clear (48-60s)
-  { time: [48, 60], detections: [], label: 'ALL CLEAR' },
-];
-
-const TRACK_SCENARIO = [
-  { time: [0, 8], detected: false, object: 'None', trainSpeed: 80, distance: 2000, action: null },
-  { time: [8, 12], detected: true, object: 'Wild Elephant', trainSpeed: 80, distance: 1200, action: 'WILDLIFE DETECTED on track KM-142. Class: Elephant.' },
-  { time: [12, 18], detected: true, object: 'Wild Elephant', trainSpeed: 80, distance: 800, action: null },
-  { time: [18, 22], detected: true, object: 'Wild Elephant', trainSpeed: 45, distance: 500, action: 'Auto-brake signal transmitted to Train #12042 Rajdhani Express.' },
-  { time: [22, 28], detected: true, object: 'Wild Elephant', trainSpeed: 15, distance: 200, action: 'Train decelerating. Elephant moving off track.' },
-  { time: [28, 35], detected: false, object: 'None (Cleared)', trainSpeed: 30, distance: 150, action: 'Track cleared. Resuming normal speed.' },
-  { time: [35, 60], detected: false, object: 'None', trainSpeed: 80, distance: 2000, action: null },
-];
-
-function useSimulationEngine(liveActive, trackActive) {
-  const [liveTick, setLiveTick] = useState(0);
-  const [trackTick, setTrackTick] = useState(0);
-  const [phase, setPhase] = useState(DETECTION_SCENARIOS[0]);
-  const [trackPhase, setTrackPhase] = useState(TRACK_SCENARIO[0]);
-
-  useEffect(() => {
-    if (!liveActive) { setLiveTick(0); return; }
-    const timer = setInterval(() => setLiveTick(t => (t + 1) % 60), 1000);
-    return () => clearInterval(timer);
-  }, [liveActive]);
-
-  useEffect(() => {
-    if (!trackActive) { setTrackTick(0); return; }
-    const timer = setInterval(() => setTrackTick(t => (t + 1) % 60), 1000);
-    return () => clearInterval(timer);
-  }, [trackActive]);
-
-  useEffect(() => {
-    const currentPhase = DETECTION_SCENARIOS.find(s => liveTick >= s.time[0] && liveTick < s.time[1]);
-    if (currentPhase) setPhase(currentPhase);
-  }, [liveTick]);
-
-  useEffect(() => {
-    const currentTrack = TRACK_SCENARIO.find(s => trackTick >= s.time[0] && trackTick < s.time[1]);
-    if (currentTrack) setTrackPhase(currentTrack);
-  }, [trackTick]);
-
-  return { tick: liveTick, trackTick, phase, trackPhase };
-}
-
-// --- Canvas Renderer for simulated detections (MILITARY-GRADE) ---
-function drawSimulatedDetections(canvas, detections, tick) {
+// (drawSimulatedDetections replaced by cvEngine.drawDetections with real TF.js data)
+// --- Legacy placeholder: not used in v2.0 ---
+function _unused_drawSimulatedDetections(canvas, detections, tick) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
@@ -551,73 +537,15 @@ const TABS = [
 //  GEO-EYE PANEL with ISRO Bhuvan WMS
 // ════════════════════════════════════════
 
-function GeoEyePanel({ geoData, triggerGeoScan }) {
-  const [showBhuvan, setShowBhuvan] = useState(false);
+// GeoEyePanel is now a separate component: ./components/GeoEyePanel.jsx
+// Uses real Sentinel-2 WMS + real Jharkhand mining polygons from published sources
+// (Removed old scripted version that used setTimeout + fake circles)
 
-  return (
-    <motion.div key="geoeye" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: 0, borderRadius: 0 }}>
-      <div className="topo-bg" />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--accent)', letterSpacing: 2, fontSize: '0.75rem' }}>
-        <span><Scan size={13} style={{ verticalAlign: 'middle' }} /> GIS: JHARKHAND MINING CORRIDOR</span>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button
-            onClick={() => setShowBhuvan(!showBhuvan)}
-            style={{
-              background: showBhuvan ? 'rgba(168,85,247,0.2)' : 'transparent',
-              border: `1px solid ${showBhuvan ? '#a855f7' : 'var(--accent)'}`,
-              color: showBhuvan ? '#a855f7' : 'var(--accent)',
-              padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit',
-              fontSize: '0.6rem', borderRadius: 4, letterSpacing: 1,
-              transition: 'all 0.3s ease'
-            }}
-          >
-            {showBhuvan ? 'ISRO BHUVAN ON' : 'ISRO / ESRI'}
-          </button>
-          <button onClick={triggerGeoScan} disabled={geoData.scanning}
-            style={{ background: geoData.scanning ? 'var(--warning)' : 'transparent', border: '1px solid var(--accent)', color: geoData.scanning ? '#000' : 'var(--accent)', padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.65rem', borderRadius: 4 }}>
-            {geoData.scanning ? 'SCANNING...' : 'RUN SCAN'}
-          </button>
-        </div>
-      </div>
-      <div style={{ flex: 1, borderRadius: 6, overflow: 'hidden', border: `1px solid ${geoData.scanning ? 'var(--warning)' : 'var(--glass-border)'}`, position: 'relative' }}>
-        <MapContainer center={[23.6102, 85.2799]} zoom={13} style={{ height: '100%', width: '100%', backgroundColor: '#0a0a0a' }}>
-          <MapController scanning={geoData.scanning} />
-          <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" />
-          {showBhuvan && (
-            <WMSTileLayer
-              url="https://bhuvan-vec1.nrsc.gov.in/bhuvan/wms"
-              layers="india3"
-              format="image/png"
-              transparent={true}
-              attribution="&copy; ISRO Bhuvan"
-            />
-          )}
-          {geoData.changes.map((c, i) => {
-            const riskColor = c.risk > 70 ? '#ef4444' : c.risk > 50 ? '#f59e0b' : '#22c55e';
-            return (
-              <Circle key={i} center={[c.lat, c.lng]} radius={c.radius} pathOptions={{ color: riskColor, fillColor: riskColor, fillOpacity: 0.5 }}>
-                <Popup><strong>RISK: {c.risk}%</strong><br />Suspected illegal mining.</Popup>
-              </Circle>
-            );
-          })}
-        </MapContainer>
-        
-        {/* Heatmap Legend */}
-        {geoData.changes.length > 0 && (
-          <div style={{ position: 'absolute', bottom: 20, left: 20, background: 'rgba(0,0,0,0.8)', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--glass-border)', zIndex: 1000, fontSize: '0.7rem', color: '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div style={{ fontWeight: 'bold', marginBottom: 4 }}>THREAT HEATMAP</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }}/> HIGH RISK (&gt;70%)</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }}/> MED RISK (50-70%)</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e' }}/> LOW RISK (&lt;50%)</div>
-          </div>
-        )}
 
-        {geoData.scanning && <div className="radar-overlay" />}
-      </div>
-    </motion.div>
-  );
-}
+
+// ════════════════════════════════════════
+//  MAIN APP
+// ════════════════════════════════════════
 
 // ════════════════════════════════════════
 //  MAIN APP
@@ -742,22 +670,38 @@ export default function App() {
     return () => voiceRef.current?.destroy();
   }, []);
 
-  // Simulation engine
-  const { tick, trackTick, phase, trackPhase } = useSimulationEngine(simActive, trackActive);
+  // ── REAL VIDEO + WEBCAM REFS ──────────────────────────────────────
+  const videoRef = useRef(null);
+  const trackVideoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const trackCanvasRef = useRef(null);
+  const [useWebcam, setUseWebcam] = useState(false);
 
-  // Detection state
+  // ── REAL TF.js DETECTION HOOKS ───────────────────────────────────
+  const {
+    detections: liveDetections,
+    modelStatus,
+    modelProgress,
+    modelMessage,
+    getPrevDetections,
+  } = useRealDetection(simActive, videoRef, canvasRef);
+
+  const {
+    detections: trackDetections,
+    modelStatus: trackModelStatus,
+  } = useRealDetection(trackActive, trackVideoRef, trackCanvasRef);
+
+  // Detection state (updated from real TF.js output)
   const [detectionData, setDetectionData] = useState({
     objectCount: 0, personCount: 0, maxConfidence: 0,
     primaryClass: 'None', threatLevel: 'LOW', riskScore: 0, label: 'IDLE'
   });
 
-  // Track data from simulation
+  // Track data (driven by real TF.js detections on track video)
   const [trackData, setTrackData] = useState({ detected: false, object: 'None', trainSpeed: 80, distance: 2000, timeToImpact: 99 });
-  const [geoData, setGeoData] = useState({ changes: [], scanning: false });
   const [threatHistory, setThreatHistory] = useState([{ time: '00:00', val: 0 }]);
 
   const prevThreatRef = useRef('LOW');
-  const prevTrackRef = useRef(false);
 
   const isAlert = detectionData.threatLevel === 'CRITICAL';
 
@@ -782,57 +726,52 @@ export default function App() {
     setLogs(prev => [...prev.slice(-30), { id: Date.now() + Math.random(), text, type }]);
   }, []);
 
-  // === REAL FUZZY ENGINE API ===
+  // === REAL FUZZY ENGINE API — now fed from REAL TF.js detection outputs ===
   const [fuzzyReasoning, setFuzzyReasoning] = useState('');
   const fuzzyTimerRef = useRef(null);
 
-  const getRealFuzzyScore = useCallback(async (velocity, proximity, visibility) => {
+  const getRealFuzzyScore = useCallback(async (velocity, proximity, visibility, detectedClass = 'unknown') => {
     try {
       const res = await fetch(`${API_URL}/api/evaluate_threat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ velocity, proximity, visibility }),
+        body: JSON.stringify({ velocity, proximity, visibility, detected_class: detectedClass }),
       });
       if (!res.ok) throw new Error('Fuzzy API error');
       const data = await res.json();
       setApiOffline(false);
-      return { score: data.score ?? 0, reasoning: data.explanation ?? '' };
+      return { score: data.risk_score ?? data.score ?? 0, reasoning: data.xai_reasoning ?? data.explanation ?? '' };
     } catch (err) {
-      console.warn('[Fuzzy] API unreachable, using local score:', err.message);
+      console.warn('[Fuzzy] API unreachable:', err.message);
       setApiOffline(true);
       return { score: null, reasoning: '' };
     }
   }, []);
 
-  // Call fuzzy API every 5s during active simulation
+  // Feed REAL TF.js detections into fuzzy engine every 3s
   useEffect(() => {
-    if (!simActive) {
+    if (!simActive || liveDetections.length === 0) {
       if (fuzzyTimerRef.current) clearInterval(fuzzyTimerRef.current);
       return;
     }
     fuzzyTimerRef.current = setInterval(async () => {
-      const dets = phase.detections;
-      if (dets.length === 0) return;
-      const maxRiskDet = dets.reduce((a, b) => (a.risk > b.risk ? a : b), dets[0]);
-      const velocity = maxRiskDet.risk > 60 ? 70 + Math.random() * 30 : 20 + Math.random() * 40;
-      const proximity = maxRiskDet.risk > 60 ? 30 + Math.random() * 70 : 150 + Math.random() * 200;
-      const visibility = maxRiskDet.risk > 60 ? 20 + Math.random() * 30 : 60 + Math.random() * 40;
-
-      const result = await getRealFuzzyScore(velocity, proximity, visibility);
-      if (result) {
+      const inputs = estimateFuzzyInputs(liveDetections, getPrevDetections());
+      const result = await getRealFuzzyScore(
+        inputs.velocity, inputs.proximity, inputs.visibility, inputs.primaryClass
+      );
+      if (result && result.score !== null) {
         setFuzzyReasoning(result.reasoning);
-        // Also POST to /api/alert with the fuzzy score
         try {
           await fetch(`${API_URL}/api/alert`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ score: result.score, module: 'BORDER-SENTRY', message: result.reasoning }),
           });
-        } catch (_) { /* alert dispatch is best-effort */ }
+        } catch (_) { /* best-effort */ }
       }
-    }, 5000);
+    }, 3000);
     return () => { if (fuzzyTimerRef.current) clearInterval(fuzzyTimerRef.current); };
-  }, [simActive, phase, getRealFuzzyScore]);
+  }, [simActive, liveDetections, getPrevDetections, getRealFuzzyScore]);
 
   // === SUPABASE THREAT LOGGING ===
   const logToSupabase = useCallback((module, score, details) => {
@@ -841,162 +780,135 @@ export default function App() {
     }
   }, []);
 
-  // ═══ MAIN LIVE SIMULATION EFFECT ═══
+  // ═══ REAL TF.js LIVE DETECTION EFFECT ═══
+  // Processes REAL detections from COCO-SSD and updates threat state
   useEffect(() => {
-    // Strict separation: If CCTV is open, do not run global LIVE sim interactions
     if (!simActive || activeTab === 'CCTV') return;
 
-    const dets = phase.detections;
-    const maxRisk = dets.length > 0 ? Math.max(...dets.map(d => d.risk)) : 0;
+    const dets = liveDetections;
     const personCount = dets.filter(d => d.class === 'person').length;
     const maxConf = dets.length > 0 ? Math.max(...dets.map(d => d.confidence)) : 0;
-    const primary = personCount > 0 ? 'PERSON' : dets.length > 0 ? dets[0].class.toUpperCase() : 'None';
-    const threatLevel = maxRisk > 70 ? 'CRITICAL' : maxRisk > 35 ? 'WARNING' : 'LOW';
+    const primary = personCount > 0 ? 'PERSON' : dets.length > 0 ? dets[0].label || dets[0].class.toUpperCase() : 'None';
+
+    // Compute fuzzy-like local risk from real bbox data
+    const inputs = estimateFuzzyInputs(dets, getPrevDetections());
+    const localRisk = dets.length > 0
+      ? Math.min(100, (inputs.proximity < 100 ? 70 : inputs.proximity < 250 ? 45 : 20) + (personCount * 15) + (maxConf > 80 ? 10 : 0))
+      : 0;
+
+    const threatLevel = localRisk > 70 ? 'CRITICAL' : localRisk > 35 ? 'WARNING' : 'LOW';
 
     setDetectionData({
-      objectCount: dets.length, personCount, maxConfidence: maxConf,
-      primaryClass: primary, threatLevel, riskScore: maxRisk, label: phase.label
+      objectCount: dets.length,
+      personCount,
+      maxConfidence: maxConf,
+      primaryClass: primary,
+      threatLevel,
+      riskScore: localRisk,
+      label: dets.length > 0 ? 'REAL DETECTION' : 'SCANNING',
     });
 
-    // Log + AI Voice on threat level change
+    // Voice + log on threat level change
     if (threatLevel !== prevThreatRef.current) {
       if (threatLevel === 'CRITICAL' || threatLevel === 'WARNING') {
-         // POST to backend API
-         fetch(`${API_URL}/api/log_incident`, {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ type: primary, sector: 'SEC-7A', severity: threatLevel, details: `Risk: ${maxRisk}%` })
-         }).catch(() => setApiOffline(true));
+        // Log REAL detection to backend
+        fetch(`${API_URL}/api/real_incident`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: primary === 'PERSON' ? 'INTRUSION' : 'DETECTION',
+            sector: 'SEC-7A',
+            severity: threatLevel,
+            description: `TF.js COCO-SSD inference`,
+            risk_score: localRisk,
+            detected_class: primary,
+            confidence: maxConf,
+          })
+        }).catch(() => setApiOffline(true));
       }
 
       if (threatLevel === 'CRITICAL') {
         playSiren(1500);
-        addLog(`[SEC-7] CRITICAL: ${personCount} hostile(s) detected | Risk: ${maxRisk}% | AI Confidence: ${maxConf}%`, 'critical');
-        logToSupabase('BORDER-SENTRY', maxRisk, `CRITICAL: ${personCount} hostile(s), conf ${maxConf}%`);
-        
+        addLog(`[SEC-7] CRITICAL (REAL AI): ${personCount} target(s) | Risk: ${localRisk}% | Conf: ${maxConf}% | COCO-SSD`, 'critical');
+        logToSupabase('BORDER-SENTRY', localRisk, `REAL DETECTION: ${personCount} person(s), conf ${maxConf}%`);
         if (voiceRef.current && voiceEnabled) {
-          const criticalMessages = [
-            `Critical alert. ${personCount} hostile targets confirmed in Sector 7 Alpha. Fuzzy risk score ${maxRisk} percent. Quick Reaction Force has been dispatched. All units respond immediately.`,
-            `Red alert. Perimeter breach detected. ${personCount} intruders at northeast fence line. Risk assessment ${maxRisk} percent critical. Initiating emergency protocol Bravo 7.`,
-            `Attention all stations. Multiple hostiles identified by Border Sentry AI. Threat classification ${primary}. Confidence ${maxConf} percent. Sector 7 lockdown recommended.`,
-            `Emergency. AI sensors confirm ${personCount} unauthorized individuals in restricted zone. Velocity and proximity analysis indicates hostile intent. Risk ${maxRisk} percent. QRF Team Alpha scrambled.`,
-            `Critical threat in Sector 7. ${personCount} targets detected carrying suspicious objects. Alerting Regional Command on frequency 47.5 megahertz. All personnel to defensive positions.`
-          ];
-          voiceRef.current.speak(criticalMessages[Math.floor(Math.random() * criticalMessages.length)], 'critical');
+          voiceRef.current.speak(`Critical alert. Real AI detection confirms ${personCount} person${personCount > 1 ? 's' : ''} in Sector 7. TensorFlow COCO-SSD confidence ${maxConf} percent. Risk score ${localRisk}. Quick reaction force advised.`, 'critical');
         }
-        setSmsText(`ALERT: Intruders at Sector 7 (${personCount} Pax). Evacuate / Deploy QRF.`);
+        setSmsText(`REAL AI ALERT: ${personCount} person(s) at Sector 7. Confidence: ${maxConf}%. Risk: ${localRisk}%.`);
         setSmsVisible(true);
         setTimeout(() => setSmsVisible(false), 6000);
       } else if (threatLevel === 'WARNING') {
         playDetectionBeep();
-        addLog(`[SEC-7] WARNING: Movement detected -- ${primary} | Risk: ${maxRisk}% | Tracking...`, 'warning');
-        logToSupabase('BORDER-SENTRY', maxRisk, `WARNING: ${primary} detected at perimeter`);
-
+        addLog(`[SEC-7] WARNING (REAL AI): ${primary} detected | Conf: ${maxConf}% | Proximity est: ${inputs.proximity.toFixed(0)}m`, 'warning');
+        logToSupabase('BORDER-SENTRY', localRisk, `REAL WARNING: ${primary}`);
         if (voiceRef.current && voiceEnabled) {
-          const warningMessages = [
-            `Warning. Unidentified ${primary.toLowerCase()} detected approaching perimeter. Risk level ${maxRisk} percent. AI is tracking movement pattern.`,
-            `Attention. Motion sensors triggered in Sector 7 Alpha. Possible ${primary.toLowerCase()} contact at medium range. Increasing camera zoom for identification.`,
-            `Advisory. Border Sentry detects movement at northeast quadrant. Classification pending. Current risk assessment ${maxRisk} percent. Monitoring closely.`,
-            `Caution. Thermal signature detected near perimeter fence. AI confidence building. Object classified as ${primary.toLowerCase()}. Tracking has begun.`,
-            `Warning. New contact detected at ${Math.floor(200 + Math.random() * 300)} meters from fence line. Running AI pattern analysis. Stand by for threat update.`
-          ];
-          voiceRef.current.speak(warningMessages[Math.floor(Math.random() * warningMessages.length)]);
+          voiceRef.current.speak(`Warning. Real-time AI detection: ${primary.toLowerCase()} identified at medium range. Confidence ${maxConf} percent. Monitoring.`);
         }
       } else if (prevThreatRef.current !== 'LOW') {
         playSuccessChime();
-        addLog(`[SEC-7] Threat cleared. Sector secure. Resuming surveillance.`, 'normal');
+        addLog(`[SEC-7] All clear. No objects in detection zone. Real AI monitoring active.`, 'normal');
         if (voiceRef.current && voiceEnabled) {
-          const clearMessages = [
-            'All clear. Threat has been neutralized. Sector 7 returning to green status. Resuming normal surveillance operations.',
-            'Situation resolved. No further hostile activity detected. All cameras back to routine scan mode. Force readiness downgraded to normal.',
-            'Stand down. Threat has retreated beyond perimeter range. Sector 7 is now secure. Logging incident for pattern analysis.',
-            'All clear confirmed. AI sensors show no remaining targets in restricted zone. Patrol teams may resume normal routes.',
-            'Threat eliminated from sector. Risk level now zero. Excellent response from all units. Next scheduled patrol at usual rotation.'
-          ];
-          voiceRef.current.speak(clearMessages[Math.floor(Math.random() * clearMessages.length)]);
+          voiceRef.current.speak('All clear. No targets detected. Real-time AI monitoring continues.');
         }
       }
       prevThreatRef.current = threatLevel;
     }
 
-    // Update threat history every 3 ticks
-    if (tick % 3 === 0) {
-      const timeStr = new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' }).slice(3, 8);
-      setThreatHistory(prev => {
-        const h = [...prev, { time: timeStr, val: maxRisk }];
-        return h.length > 20 ? h.slice(1) : h;
-      });
-    }
+    // Update threat history
+    const timeStr = new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' }).slice(3, 8);
+    setThreatHistory(prev => {
+      const h = [...prev, { time: timeStr, val: localRisk }];
+      return h.length > 20 ? h.slice(1) : h;
+    });
 
-    // Draw detections on canvas
-    if (canvasRef.current) {
-      canvasRef.current.width = canvasRef.current.parentElement?.clientWidth || 960;
-      canvasRef.current.height = canvasRef.current.parentElement?.clientHeight || 540;
-      drawSimulatedDetections(canvasRef.current, dets, tick);
-    }
+  }, [liveDetections, simActive, activeTab, addLog, voiceEnabled, logToSupabase, getPrevDetections]);
 
-  }, [tick, simActive, phase, activeTab, addLog, voiceEnabled, logToSupabase]);
-
-  // ═══ TRACK GUARD SIMULATION EFFECT ═══
+  // ═══ REAL TF.js TRACK-GUARD DETECTION EFFECT ═══
   useEffect(() => {
-    if (!trackActive || activeTab === 'CCTV') return;
+    if (!trackActive) return;
 
-    // Track guard updates
-    const tp = trackPhase;
-    const speedMs = tp.trainSpeed * (5 / 18);
-    const eti = speedMs > 0 ? Math.round(tp.distance / speedMs) : 99;
-    setTrackData({ detected: tp.detected, object: tp.object, trainSpeed: tp.trainSpeed, distance: tp.distance, timeToImpact: eti });
+    const TRACK_RELEVANT = ['elephant', 'horse', 'cow', 'dog', 'cat', 'person', 'car', 'truck', 'bus', 'bicycle', 'motorcycle'];
+    const trackObstacles = trackDetections.filter(d => TRACK_RELEVANT.includes(d.class));
+    const detected = trackObstacles.length > 0;
+    const primary = detected ? trackObstacles[0] : null;
 
-    if (eti === 0 && tp.detected && eti !== prevTrackRef.current) {
-        playKlaxon();
-    }
-    
-    if (tp.action && tp.detected !== prevTrackRef.current) {
-      addLog(`[TRK-2] ${tp.action}`, tp.detected ? 'warning' : 'normal');
-      if (tp.detected) {
-        setDetectionData(prev => ({ ...prev, threatLevel: 'CRITICAL', riskScore: 92, primaryClass: tp.object.toUpperCase(), personCount: 0, label: 'TRACK-GUARD' }));
-        setSmsText(`ALERT: Track Guard - ${tp.object.toUpperCase()} on railway line. Train auto-braked.`);
-        setSmsVisible(true);
-        setTimeout(() => setSmsVisible(false), 6000);
-        if (voiceRef.current && voiceEnabled) {
-          playKlaxon();
-          const trackMessages = [
-            `Track Guard alert. ${tp.object} detected on railway track Kilo Mike 142. Auto brake signal transmitted to Train 12042 Rajdhani Express. Estimated time to impact ${eti} seconds.`,
-            `Railway safety warning. Obstruction confirmed on track section. ${tp.object} at ${tp.distance} meters. Emergency brake command sent. Indian Railways control room notified.`,
-            `Attention. Track Guard AI has identified a ${tp.object} crossing the track ahead. Speed of approaching train ${tp.trainSpeed} kilometers per hour. Auto brake engaged. Distance ${tp.distance} meters.`,
-            `Rail corridor alert. Wildlife incursion detected. ${tp.object} on active track near Kilo Mike 142. Brake signal dispatched. All trains in sector slowing to safety speed.`,
-            `Emergency track alert. ${tp.object} confirmed on railway line. AI confidence high. Auto brake protocol activated for approaching Rajdhani Express. Control room standing by.`
-          ];
-          voiceRef.current.speak(trackMessages[Math.floor(Math.random() * trackMessages.length)], 'critical');
-        }
-      } else if (!tp.detected && prevTrackRef.current) {
-        setDetectionData(prev => ({ ...prev, threatLevel: 'LOW', riskScore: 0, primaryClass: 'NONE', personCount: 0, label: 'TRACK-GUARD' }));
-        if (voiceRef.current && voiceEnabled) {
-          const trackClear = [
-            'Track Guard all clear. Obstruction has cleared the railway line. Track is safe for train passage. Resuming normal monitoring.',
-            'Railway corridor clear. Wildlife has moved away from track. Brake signal released. Trains may proceed at normal speed.',
-            'Track section clear. No further obstructions detected. Indian Railways control room notified. Normal operations resumed.'
-          ];
-          voiceRef.current.speak(trackClear[Math.floor(Math.random() * trackClear.length)]);
-        }
+    // Estimate distance from bbox size (larger bbox = closer)
+    const distance = primary ? Math.max(50, 2000 - primary.areaPct * 50) : 2000;
+    const trainSpeed = detected ? Math.max(15, 80 - (2000 - distance) / 30) : 80;
+    const speedMs = trainSpeed * (5 / 18);
+    const timeToImpact = speedMs > 0 ? Math.round(distance / speedMs) : 99;
+
+    setTrackData({
+      detected,
+      object: primary ? (primary.label || primary.class) : 'None',
+      trainSpeed: Math.round(trainSpeed),
+      distance: Math.round(distance),
+      timeToImpact,
+    });
+
+    if (detected && timeToImpact < 30) {
+      playKlaxon();
+      addLog(`[TRK-GUARD] REAL AI DETECTION: ${primary.label} on track | Dist: ${Math.round(distance)}m | ETI: ${timeToImpact}s | Brake recommendation generated`, 'warning');
+      setDetectionData(prev => ({ ...prev, threatLevel: 'CRITICAL', riskScore: 90, primaryClass: (primary.label || '').toUpperCase(), label: 'TRACK-GUARD' }));
+      if (voiceRef.current && voiceEnabled) {
+        voiceRef.current.speak(`Track Guard real AI detection. ${primary.label} on railway corridor. Distance ${Math.round(distance)} meters. Estimated impact in ${timeToImpact} seconds. Brake recommendation signal generated. Note: RDSO live integration not available for prototype.`, 'critical');
       }
     }
-    prevTrackRef.current = tp.detected;
 
-  }, [trackTick, trackActive, activeTab, trackPhase, addLog, voiceEnabled]);
+  }, [trackDetections, trackActive, addLog, voiceEnabled]);
 
-  // Reset when sim stops
+  // Reset when detection stops
   useEffect(() => {
     if (!simActive) {
       setDetectionData({ objectCount: 0, personCount: 0, maxConfidence: 0, primaryClass: 'None', threatLevel: 'LOW', riskScore: 0, label: 'IDLE' });
       prevThreatRef.current = 'LOW';
-      prevTrackRef.current = false;
       if (canvasRef.current) {
         const ctx = canvasRef.current.getContext('2d');
         if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       }
     }
   }, [simActive]);
+
 
   // ─── Geo Scan ───
   const triggerGeoScan = () => {
@@ -1162,7 +1074,7 @@ export default function App() {
                             TRINETRA RAKSHAK — COMMAND OVERVIEW
                           </div>
                           <div style={{ fontSize: '0.5rem', background: 'rgba(34,197,94,0.2)', color: 'var(--accent)', padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(34,197,94,0.3)', marginBottom: 4 }}>
-                            v5.4.10 - LIVE
+                            v2.0.0 — REAL AI
                           </div>
                         </div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', lineHeight: 1.6, maxWidth: '600px' }}>
@@ -1174,7 +1086,7 @@ export default function App() {
                     </div>
                     <motion.button
                       whileHover={{ scale: 1.05, boxShadow: '0 0 25px rgba(34,197,94,0.3)' }} whileTap={{ scale: 0.95 }}
-                      onClick={() => { setActiveTab('LIVE'); setSimActive(true); addLog("[SYS] ▶ Simulation started from Dashboard.", "safe"); }}
+                      onClick={() => { setActiveTab('LIVE'); setSimActive(true); addLog("[SYS] ▶ Real AI detection started from Dashboard — TF.js COCO-SSD loading...", "safe"); }}
                       style={{
                         background: 'rgba(34,197,94,0.15)',
                         border: '2px solid var(--accent)',
@@ -1286,8 +1198,8 @@ export default function App() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
                   {[
-                    { title: 'BORDER-SENTRY', desc: 'Perimeter intrusion detection using AI object recognition. Monitors SEC-7A, 7B, 7C fences 24/7.', status: 'OPERATIONAL', color: 'var(--safe)', tab: 'LIVE' },
-                    { title: 'GEO-EYE', desc: 'Satellite GIS terrain analysis for illegal mining detection in Jharkhand corridor. Weekly scans.', status: 'STANDBY', color: '#f59e0b', tab: 'GEO-EYE' },
+                    { title: 'BORDER-SENTRY', desc: 'REAL perimeter intrusion detection using TF.js COCO-SSD (80 classes). Monitors SEC-7A, 7B fences with real video inference at ~10fps.', status: 'REAL AI ACTIVE', color: '#a855f7', tab: 'LIVE' },
+                    { title: 'GEO-EYE', desc: 'Real Sentinel-2 satellite WMS imagery for illegal mining detection. 5 documented zones in Jharkhand with polygon overlays from published reports.', status: 'SENTINEL-2', color: '#38bdf8', tab: 'GEO-EYE' },
                     { title: 'TRACK-GUARD', desc: 'Railway safety overwatch — detects wildlife & obstructions on tracks. Auto-brake via Indian Railways API.', status: 'MONITORING', color: 'var(--safe)', tab: 'TRACK-GUARD' },
                   ].map((mod, i) => (
                     <div key={i} onClick={() => setActiveTab(mod.tab)} style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: 8, padding: '10px 12px', cursor: 'pointer', transition: 'border-color 0.3s' }}
@@ -1336,17 +1248,20 @@ export default function App() {
               <motion.div key="live" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="live-feed-container"
               >
-                {/* Simulated camera background */}
+                {/* Real video feed (video element for TF.js inference) */}
                 <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
                   {simActive ? (
                     <>
+                      {/* VIDEO ELEMENT — TF.js reads frames from this */}
                       <video
+                        ref={videoRef}
                         autoPlay
                         loop
                         muted
                         playsInline
+                        crossOrigin="anonymous"
                         style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isNightMode ? 0.4 : 0.75, filter: isNightMode ? 'grayscale(100%) contrast(150%) brightness(0.7) hue-rotate(90deg)' : 'saturate(0.85) contrast(1.1)', position: 'relative', zIndex: 1 }}
-                        src={simActive ? "https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4" : ""}
+                        src={useWebcam ? undefined : 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4'}
                       />
                     </>
                   ) : (
@@ -1363,7 +1278,7 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Detection canvas */}
+                {/* Detection canvas — TF.js draws real bboxes here */}
                 <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 2 }} />
                 <div className="video-scanlines" />
 
@@ -1374,7 +1289,16 @@ export default function App() {
                       <div className={`hud-badge ${simActive ? 'live' : 'info'}`}>
                         {simActive ? <><div className="rec-dot" /> LIVE — SEC-7</> : <><Eye size={12} /> STANDBY</>}
                       </div>
-                      {simActive && <div className="hud-badge info">SIM: {tick}s | {phase.label}</div>}
+                      {simActive && modelStatus === 'ready' && (
+                        <div className="hud-badge" style={{ background: 'rgba(168,85,247,0.15)', border: '1px solid #a855f7', color: '#a855f7' }}>
+                          <Brain size={10} /> COCO-SSD ACTIVE
+                        </div>
+                      )}
+                      {simActive && modelStatus === 'loading' && (
+                        <div className="hud-badge info">
+                          <Loader2Icon size={10} className="spin" /> MODEL LOADING {modelProgress}%
+                        </div>
+                      )}
                       {isNightMode && <div className="hud-badge" style={{ background: 'none', border: '1px solid #10b981', color: '#10b981' }}>THERMAL CAM READY</div>}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -1413,31 +1337,63 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Model Loading Overlay */}
+                {simActive && modelStatus === 'loading' && (
+                  <div style={{ position: 'absolute', bottom: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: 'rgba(0,0,0,0.85)', border: '1px solid #a855f7', borderRadius: 10, padding: '12px 20px', minWidth: 280 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <Loader2Icon size={13} className="spin" style={{ color: '#a855f7' }} />
+                      <span style={{ color: '#a855f7', fontSize: '0.65rem', fontFamily: "'Share Tech Mono'" }}>{modelMessage || 'Loading AI model...'}</span>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 4, height: 5 }}>
+                      <div style={{ width: `${modelProgress}%`, height: '100%', background: '#a855f7', borderRadius: 4, transition: 'width 0.3s' }} />
+                    </div>
+                    <div style={{ fontSize: '0.5rem', color: '#475569', marginTop: 5 }}>TF.js COCO-SSD MobileNetV2 — 80 COCO classes</div>
+                  </div>
+                )}
+
                 {/* Center start button when not active */}
                 {!simActive && (
                   <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-                    <div style={{ color: 'var(--accent)', fontFamily: "'Share Tech Mono'", fontSize: '0.8rem', letterSpacing: 2, marginBottom: 16, opacity: 0.6 }}>
-                      SOFTWARE SIMULATION ENGINE
+                    <div style={{ color: '#a855f7', fontFamily: "'Share Tech Mono'", fontSize: '0.7rem', letterSpacing: 2, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Brain size={13} /> REAL-TIME AI DETECTION ENGINE
                     </div>
+                    <div style={{ color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", fontSize: '0.55rem', marginBottom: 16 }}>TensorFlow.js COCO-SSD | 80 Classes | In-Browser Inference</div>
+
+                    {/* Webcam Toggle */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                      <button
+                        onClick={() => setUseWebcam(false)}
+                        style={{ background: !useWebcam ? 'rgba(34,197,94,0.2)' : 'transparent', border: `1px solid ${!useWebcam ? 'var(--accent)' : '#334155'}`, color: !useWebcam ? 'var(--accent)' : '#64748b', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.6rem', borderRadius: 4 }}
+                      >VIDEO FEED</button>
+                      <button
+                        onClick={() => setUseWebcam(true)}
+                        style={{ background: useWebcam ? 'rgba(56,189,248,0.2)' : 'transparent', border: `1px solid ${useWebcam ? '#38bdf8' : '#334155'}`, color: useWebcam ? '#38bdf8' : '#64748b', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.6rem', borderRadius: 4 }}
+                      >WEBCAM (CAM-05)</button>
+                    </div>
+
                     <motion.button
                       whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
                       onClick={() => {
                         setSimActive(true);
-                        addLog("[SYS] ▶ Live simulation started. Scenario: Border intrusion alert.", "safe");
+                        if (useWebcam && videoRef.current) {
+                          navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                            if (videoRef.current) videoRef.current.srcObject = stream;
+                          }).catch(() => { setUseWebcam(false); });
+                        }
+                        addLog('[SYS] ▶ Real AI detection started. Loading TF.js COCO-SSD model...', 'safe');
                       }}
                       style={{
-                        background: 'rgba(34,197,94,0.15)', border: '2px solid var(--accent)',
+                        background: 'rgba(168,85,247,0.15)', border: '2px solid #a855f7',
                         borderRadius: 16, padding: '16px 32px', cursor: 'pointer',
-                        color: 'var(--accent)', fontFamily: "'Share Tech Mono'", fontSize: '0.9rem',
+                        color: '#a855f7', fontFamily: "'Share Tech Mono'", fontSize: '0.9rem',
                         letterSpacing: 2, display: 'flex', alignItems: 'center', gap: 10,
-                        boxShadow: '0 0 30px rgba(34,197,94,0.15)',
-                        transition: 'all 0.3s ease'
+                        boxShadow: '0 0 30px rgba(168,85,247,0.15)', transition: 'all 0.3s ease'
                       }}
                     >
-                      <Play size={20} /> START LIVE SIMULATION
+                      <Play size={20} /> START REAL AI DETECTION
                     </motion.button>
-                    <div style={{ color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", fontSize: '0.55rem', marginTop: 12, textAlign: 'center', maxWidth: 300 }}>
-                      60-second scenario: Border intrusion detection → threat escalation → all clear
+                    <div style={{ color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", fontSize: '0.55rem', marginTop: 12, textAlign: 'center', maxWidth: 320 }}>
+                      Real inference on video frames — detections fed to Fuzzy Logic engine
                     </div>
                   </div>
                 )}
@@ -1496,16 +1452,25 @@ export default function App() {
             {/* ── CCTV ── */}
             {activeTab === 'CCTV' && <CCTVGrid active={true} voiceRef={voiceRef} voiceEnabled={voiceEnabled} setDetectionData={setDetectionData} setSmsText={setSmsText} setSmsVisible={setSmsVisible} playDetectionBeep={playDetectionBeep} />}
 
-            {/* -- GEO-EYE with ISRO Bhuvan WMS -- */}
+            {/* -- GEO-EYE with REAL Sentinel-2 WMS + Documented Mining Zones -- */}
             {activeTab === 'GEO-EYE' && (
-              <GeoEyePanel geoData={geoData} triggerGeoScan={triggerGeoScan} />
+              <GeoEyePanel
+                onThreatDetected={(d) => setDetectionData(prev => ({ ...prev, ...d }))}
+                addLog={addLog}
+                logToSupabase={logToSupabase}
+              />
             )}
 
             {/* ── TRACK GUARD ── */}
             {activeTab === 'TRACK-GUARD' && (
               <motion.div key="track" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', margin: 0, borderRadius: 12, overflow: 'hidden' }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontSize: '1rem', padding: '12px 16px', background: 'rgba(0,0,0,0.6)', margin: 0, borderBottom: '1px solid var(--glass-border)' }}><Train size={18} /> TRACK-GUARD — AUTONOMOUS RAILWAY OVERWATCH</h3>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontSize: '1rem', padding: '12px 16px', background: 'rgba(0,0,0,0.6)', margin: 0, borderBottom: '1px solid var(--glass-border)' }}>
+                  <Train size={18} /> TRACK-GUARD — RAILWAY OBSTRUCTION DETECTION
+                  {trackModelStatus === 'ready' && (
+                    <span style={{ fontSize: '0.55rem', background: 'rgba(168,85,247,0.15)', border: '1px solid #a855f7', color: '#a855f7', padding: '1px 6px', borderRadius: 4, marginLeft: 4 }}>COCO-SSD ACTIVE</span>
+                  )}
+                </h3>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '16px', gap: '16px', background: 'linear-gradient(180deg, rgba(5,20,5,0.8) 0%, rgba(0,0,0,0.95) 100%)' }}>
                   
                   {/* Dynamic Track Visualizer */}
@@ -1517,6 +1482,18 @@ export default function App() {
                     border: `1px solid ${trackData.detected ? 'var(--danger)' : 'var(--safe)'}`,
                     boxShadow: trackData.detected ? 'inset 0 0 50px rgba(239,68,68,0.2)' : 'inset 0 0 30px rgba(34,197,94,0.1)'
                   }}>
+                    {/* Real video feed for TF.js track inference */}
+                    {trackActive && (
+                      <video
+                        ref={trackVideoRef}
+                        autoPlay loop muted playsInline crossOrigin="anonymous"
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.5, zIndex: 0 }}
+                        src="https://assets.mixkit.co/videos/preview/mixkit-train-line-in-the-forest-34238-large.mp4"
+                      />
+                    )}
+                    {/* TF.js detection canvas for track module */}
+                    <canvas ref={trackCanvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 3 }} />
+
                     {/* Parallax moving ground */}
                     <div style={{
                       position: 'absolute', inset: 0,
@@ -1628,6 +1605,13 @@ export default function App() {
                       <div className="label" style={{ color: trackData.timeToImpact < 30 ? 'var(--danger)' : 'var(--text-dim)' }}>EST. TIME TO IMPACT</div>
                       <div className="value" style={{ color: trackData.timeToImpact < 30 ? 'var(--danger)' : 'var(--safe)', fontSize: '1.5rem', marginTop: 4 }}>{trackData.timeToImpact}s</div>
                     </div>
+                      {/* Brake Signal Disclaimer — honest framing */}
+                    {trackData.detected && (
+                      <div style={{ fontSize: '0.55rem', color: '#475569', textAlign: 'center', fontFamily: "'Share Tech Mono'", padding: '4px 8px', background: 'rgba(0,0,0,0.5)', borderRadius: 4, margin: '4px 0' }}>
+                        [⚠] Brake recommendation signal generated. Real train control requires RDSO API (not publicly accessible for prototypes).
+                      </div>
+                    )}
+
                   </div>
                 </div>
               </motion.div>
@@ -1665,7 +1649,7 @@ export default function App() {
                 }
               }}
             >
-              {simActive ? <><Square size={12} /> STOP BORDER</> : <><Play size={12} /> BORDER SIM</>}
+              {simActive ? <><Square size={12} /> STOP DETECTION</> : <><Play size={12} /> START AI DETECT</>}
             </motion.button>
 
             <motion.button
@@ -1689,7 +1673,7 @@ export default function App() {
                 }
               }}
             >
-              {trackActive ? <><Square size={12} /> STOP TRACK</> : <><Play size={12} /> TRACK SIM</>}
+              {trackActive ? <><Square size={12} /> STOP TRACK AI</> : <><Play size={12} /> TRACK AI DETECT</>}
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.95 }}
