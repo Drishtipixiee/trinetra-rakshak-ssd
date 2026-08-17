@@ -1,638 +1,618 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Video, Maximize2, X, AlertTriangle, Shield, Camera, CameraOff, Download } from 'lucide-react';
+import {
+  Video, Maximize2, X, AlertTriangle, Shield, Camera, CameraOff,
+  Download, Eye, ZoomIn, ZoomOut, Radio, RefreshCw, Play, Square, Layers, Sparkles
+} from 'lucide-react';
+import { playDetectionBeep, playKlaxon, playSuccessChime } from './AIVoiceSystem';
 
 const CAMERAS = [
-    {
-        id: 'CAM-01', name: 'MAIN GATE -- SEC-7A', coords: 'N28°38\'12" E77°13\'04"',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-car-approaching-a-security-gate-at-night-42171-large.mp4',
-        scenario: [
-            { time: [0, 6], detections: [], status: 'CLEAR' },
-            { time: [6, 12], detections: [{ class: 'vehicle', conf: 82, x: 20, y: 40, w: 22, h: 14, risk: 55, dx: 4 }], status: 'VEHICLE APPROACHING' },
-            { time: [12, 18], detections: [{ class: 'person', conf: 91, x: 45, y: 30, w: 10, h: 28, risk: 75, dx: 1 }], status: 'PERSONNEL EXITING VEHICLE' },
-            { time: [18, 180], detections: [], status: 'ACCESS GRANTED' },
-        ]
-    },
-    {
-        id: 'CAM-02', name: 'PERIMETER NORTH', coords: 'N28°38\'18" E77°13\'09"',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-security-camera-recording-a-robbery-41484-large.mp4',
-        scenario: [
-            { time: [0, 8], detections: [], status: 'SCANNING' },
-            {
-                time: [8, 15], detections: [
-                    { class: 'person', conf: 68, x: 80, y: 35, w: 9, h: 22, risk: 62, dx: -3 },
-                    { class: 'person', conf: 55, x: 90, y: 38, w: 8, h: 20, risk: 58, dx: -3.5 },
-                ], status: '!! 2 UNKNOWNS DETECTED'
-            },
-            { time: [15, 25], detections: [{ class: 'person', conf: 92, x: 50, y: 30, w: 18, h: 45, risk: 92, dx: -1 }], status: '!! BREACH ATTEMPT - COMBATANT' },
-            { time: [25, 180], detections: [], status: 'THREAT NEUTRALIZED' },
-        ]
-    },
-    {
-        id: 'CAM-03', name: 'EAST WATCHTOWER', coords: 'N28°38\'15" E77°13\'15"',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4',
-        scenario: [
-            { time: [0, 20], detections: [], status: 'CLEAR' },
-            { time: [20, 30], detections: [{ class: 'animal', conf: 88, x: 10, y: 50, w: 15, h: 10, risk: 20, dx: 3 }], status: 'WILDLIFE (STRAY DOG)' },
-            { time: [30, 40], detections: [], status: 'CLEAR -- AUTO-CLASSIFIED' },
-            { time: [40, 180], detections: [{ class: 'drone', conf: 73, x: 20, y: 15, w: 8, h: 5, risk: 90, dx: 5, dy: 2 }], status: '!! UAV IN AIRSPACE' },
-        ]
-    },
-    {
-        id: 'CAM-04', name: 'COMMAND BUNKER', coords: 'N28°38\'10" E77°13\'00"',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-guard-walking-in-the-snow-during-winter-39845-large.mp4',
-        scenario: [
-            { time: [0, 180], detections: [], status: 'SECURE -- NO MOVEMENT' },
-        ]
-    },
+  {
+    id: 'CAM-01',
+    name: 'MAIN GATE // SEC-7A',
+    coords: 'N28°38\'12" E77°13\'04"',
+    type: 'OPTICAL HIGH-RES',
+    fps: 30,
+    feedType: 'GATE_SECURITY',
+    target: { class: 'VEHICLE', conf: 92, risk: 65, label: 'ARMORED SUV' }
+  },
+  {
+    id: 'CAM-02',
+    name: 'PERIMETER FENCE // NORTH',
+    coords: 'N28°38\'18" E77°13\'09"',
+    type: 'THERMAL FLIR',
+    fps: 25,
+    feedType: 'PERIMETER_INTRUSION',
+    target: { class: 'PERSON', conf: 96, risk: 88, label: 'INTRUDER (ARMED)' }
+  },
+  {
+    id: 'CAM-03',
+    name: 'RAILWAY KM-142 CORRIDOR',
+    coords: 'N23°37\'12" E85°16\'47"',
+    type: 'OVERWATCH LONG-RANGE',
+    fps: 30,
+    feedType: 'RAILWAY_ELEPHANT',
+    target: { class: 'WILDLIFE', conf: 94, risk: 78, label: 'ASIAN ELEPHANT' }
+  },
+  {
+    id: 'CAM-04',
+    name: 'MINING DRONE RECON',
+    coords: 'N23°47\'50" E86°25\'10"',
+    type: 'UAV 4K GIMBAL',
+    fps: 60,
+    feedType: 'MINING_QUARRY',
+    target: { class: 'EXCAVATOR', conf: 91, risk: 72, label: 'ILLEGAL QUARRY RIG' }
+  },
+  {
+    id: 'CAM-05',
+    name: 'LOCAL LIVE WEBCAM',
+    coords: 'N28°36\'40" E77°12\'22"',
+    type: 'WEBRTC OPTICAL',
+    fps: 30,
+    feedType: 'LIVE_WEBCAM',
+    target: { class: 'OPERATOR', conf: 98, risk: 15, label: 'AUTHORIZED USER' }
+  },
+  {
+    id: 'CAM-06',
+    name: 'COMMAND BUNKER // SEC-2',
+    coords: 'N28°38\'10" E77°13\'00"',
+    type: 'LOW-LIGHT STARCHECK',
+    fps: 24,
+    feedType: 'ARMORY_VAULT',
+    target: { class: 'SECURE', conf: 99, risk: 10, label: 'ALL CLEAR' }
+  }
 ];
 
-function drawCameraDetections(canvas, phase, tick) {
-    if (!canvas || !phase) return;
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height;
+export default function CCTVGrid({
+  active,
+  voiceRef,
+  voiceEnabled,
+  setDetectionData,
+  setSmsText,
+  setSmsVisible,
+  playDetectionBeep
+}) {
+  const [expandedCam, setExpandedCam] = useState(null);
+  const [nightVision, setNightVision] = useState(false);
+  const [thermalFilter, setThermalFilter] = useState(false);
+  const [webcamStream, setWebcamStream] = useState(null);
+  const [webcamActive, setWebcamActive] = useState(false);
+  const [capturedSnaps, setCapturedSnaps] = useState([]);
+  const [alertCamId, setAlertCamId] = useState('CAM-02');
+
+  const canvasRefs = useRef([]);
+  const modalCanvasRef = useRef(null);
+  const webcamVideoRef = useRef(null);
+  const animRef = useRef(null);
+
+  // Initialize WebRTC Webcam on CAM-05
+  const startWebcam = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      setWebcamStream(stream);
+      setWebcamActive(true);
+      if (webcamVideoRef.current) {
+        webcamVideoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.warn('Webcam permission denied:', err);
+    }
+  };
+
+  const stopWebcam = () => {
+    if (webcamStream) {
+      webcamStream.getTracks().forEach(t => t.stop());
+      setWebcamStream(null);
+      setWebcamActive(false);
+    }
+  };
+
+  // High-Resolution Synthetic/Realistic Surveillance Scene Renderer
+  const drawScene = (ctx, W, H, cam, t) => {
     ctx.clearRect(0, 0, W, H);
 
-    // Lighter noise overlay (to blend with video)
-    const imgData = ctx.createImageData(W, H);
-    for (let i = 0; i < imgData.data.length; i += 16) {
-        const v = Math.random() * 15;
-        imgData.data[i] = v; imgData.data[i + 1] = v + 3; imgData.data[i + 2] = v;
-        imgData.data[i + 3] = 20;
+    // ── 1. BACKGROUND SCENERY DEPENDING ON FEED TYPE ────────────────
+    if (cam.feedType === 'GATE_SECURITY') {
+      // Concrete road, security gate barrier, brick guardhouse, streetlamps
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, '#0f172a');
+      grad.addColorStop(0.5, '#1e293b');
+      grad.addColorStop(1, '#0f172a');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Road pavement
+      ctx.fillStyle = '#334155';
+      ctx.beginPath();
+      ctx.moveTo(W * 0.2, H * 0.45);
+      ctx.lineTo(W * 0.8, H * 0.45);
+      ctx.lineTo(W, H);
+      ctx.lineTo(0, H);
+      ctx.closePath();
+      ctx.fill();
+
+      // Road markings (yellow dashed)
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([12, 8]);
+      ctx.beginPath();
+      ctx.moveTo(W * 0.5, H * 0.45);
+      ctx.lineTo(W * 0.5, H);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Security Boom Barrier (yellow/black stripes)
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(W * 0.25, H * 0.55, W * 0.5, 6);
+
+      // Approaching Vehicle
+      const vProgress = (Math.sin(t * 1.5) + 1) * 0.5;
+      const vX = W * 0.45 + Math.sin(t * 1.2) * 20;
+      const vY = H * 0.5 + vProgress * 40;
+      const vW = 80 + vProgress * 40;
+      const vH = 45 + vProgress * 25;
+
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(vX - vW * 0.5, vY, vW, vH);
+      // Windshield
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(vX - vW * 0.35, vY + 6, vW * 0.7, vH * 0.35);
+      // Headlights glow
+      ctx.fillStyle = 'rgba(254, 240, 138, 0.4)';
+      ctx.beginPath();
+      ctx.moveTo(vX - vW * 0.4, vY + vH * 0.7);
+      ctx.lineTo(vX - vW * 0.9, H);
+      ctx.lineTo(vX - vW * 0.1, H);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(vX + vW * 0.4, vY + vH * 0.7);
+      ctx.lineTo(vX + vW * 0.1, H);
+      ctx.lineTo(vX + vW * 0.9, H);
+      ctx.fill();
+
+      // Bounding Box
+      drawBBox(ctx, vX - vW * 0.55, vY - 4, vW * 1.1, vH * 1.2, 'ARMORED SUV', 92, '#f59e0b');
     }
-    ctx.putImageData(imgData, 0, 0);
 
-    // Grid
-    ctx.strokeStyle = 'rgba(34,197,94,0.03)';
-    ctx.lineWidth = 0.5;
-    for (let gx = 0; gx < W; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
-    for (let gy = 0; gy < H; gy += 40) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
+    else if (cam.feedType === 'PERIMETER_INTRUSION') {
+      // Night thermal fence line with human intruder scaling fence
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+      bgGrad.addColorStop(0, '#090514');
+      bgGrad.addColorStop(0.5, '#190a2e');
+      bgGrad.addColorStop(1, '#05020a');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
 
-    // Scan line
-    const scanY = (tick * 60) % H;
-    ctx.fillStyle = 'rgba(34,197,94,0.06)';
-    ctx.fillRect(0, scanY, W, 3);
+      // Chainlink Mesh Fence Line
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+      ctx.lineWidth = 1.5;
+      for (let fx = 0; fx < W; fx += 18) {
+        ctx.beginPath(); ctx.moveTo(fx, H * 0.3); ctx.lineTo(fx + 18, H * 0.85); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(fx + 18, H * 0.3); ctx.lineTo(fx, H * 0.85); ctx.stroke();
+      }
+      // Top Barbed Wire Coils
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      for (let bx = 0; bx < W; bx += 24) {
+        ctx.beginPath();
+        ctx.arc(bx + 12, H * 0.3, 12, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
-    // Detections
-    const jitter = Math.sin(tick * 5) * 1.5;
-    const phaseStart = phase.time[0];
-    const detections = phase.detections;
+      // Human Intruder Thermal Silhouette (scaling fence)
+      const pX = W * 0.48 + Math.sin(t * 2) * 8;
+      const pY = H * 0.42 + Math.cos(t * 1.5) * 4;
 
-    detections.forEach((det, idx) => {
-        const tDiff = tick - phaseStart;
-        const xOff = det.dx ? tDiff * det.dx : 0;
-        const yOff = det.dy ? tDiff * det.dy : 0;
+      ctx.fillStyle = '#ff2200';
+      // Head
+      ctx.beginPath(); ctx.arc(pX, pY - 24, 9, 0, Math.PI * 2); ctx.fill();
+      // Torso
+      ctx.fillRect(pX - 9, pY - 14, 18, 28);
+      // Limbs holding fence
+      ctx.strokeStyle = '#ff5500';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(pX - 9, pY - 8); ctx.lineTo(pX - 22, pY - 16); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(pX + 9, pY - 8); ctx.lineTo(pX + 22, pY - 16); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(pX - 6, pY + 14); ctx.lineTo(pX - 18, pY + 36); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(pX + 6, pY + 14); ctx.lineTo(pX + 16, pY + 36); ctx.stroke();
 
-        const x = ((det.x + xOff) / 100) * W + jitter;
-        const y = ((det.y + yOff) / 100) * H + jitter;
-        const w = (det.w / 100) * W;
-        const h = (det.h / 100) * H;
-        
-        if (x < -W || x > W*2) return;
+      drawBBox(ctx, pX - 30, pY - 38, 60, 85, 'INTRUDER (HOSTILE)', 96, '#ef4444');
+    }
 
-        const color = det.risk > 70 ? '#ef4444' : det.risk > 40 ? '#f59e0b' : '#22c55e';
-        const rgbStr = det.risk > 70 ? '239,68,68' : det.risk > 40 ? '245,158,11' : '34,197,94';
-        const conf = Math.min(99, det.conf + Math.floor(Math.random() * 3 - 1));
+    else if (cam.feedType === 'RAILWAY_ELEPHANT') {
+      // Jungle railway line with Asian Elephant crossing
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+      bgGrad.addColorStop(0, '#0c1c14');
+      bgGrad.addColorStop(0.5, '#1e382b');
+      bgGrad.addColorStop(1, '#13221b');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
 
-        // Glow halo
-        const gradient = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, Math.max(w,h) * 0.8);
-        gradient.addColorStop(0, `rgba(${rgbStr}, 0.1)`);
-        gradient.addColorStop(1, 'transparent');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(x - w*0.2, y - h*0.2, w*1.4, h*1.4);
+      // Steel Tracks
+      ctx.fillStyle = '#3e3833';
+      ctx.fillRect(0, H * 0.58, W, 22);
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, H * 0.62); ctx.lineTo(W, H * 0.62); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, H * 0.74); ctx.lineTo(W, H * 0.74); ctx.stroke();
 
-        // Box
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, w, h);
+      // Elephant crossing
+      const eleX = (W * 0.2) + ((t * 22) % (W * 0.65));
+      const eleY = H * 0.56;
 
-        // Corner marks
-        const cl = Math.min(w, h) * 0.3;
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(x, y + cl); ctx.lineTo(x, y); ctx.lineTo(x + cl, y); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x + w - cl, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + cl); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x, y + h - cl); ctx.lineTo(x, y + h); ctx.lineTo(x + cl, y + h); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x + w - cl, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cl); ctx.stroke();
+      ctx.fillStyle = '#4b5563'; // Grey skin
+      ctx.beginPath(); ctx.ellipse(eleX, eleY - 15, 34, 24, 0, 0, Math.PI * 2); ctx.fill(); // Body
+      ctx.beginPath(); ctx.arc(eleX + 28, eleY - 24, 16, 0, Math.PI * 2); ctx.fill(); // Head
+      // Ear
+      ctx.fillStyle = '#64748b';
+      ctx.beginPath(); ctx.ellipse(eleX + 22, eleY - 24, 10, 14, 0.2, 0, Math.PI * 2); ctx.fill();
+      // Trunk
+      ctx.strokeStyle = '#4b5563'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(eleX + 38, eleY - 18); ctx.quadraticCurveTo(eleX + 48, eleY, eleX + 42, eleY + 18); ctx.stroke();
+      // Tusks
+      ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(eleX + 34, eleY - 12); ctx.quadraticCurveTo(eleX + 46, eleY - 8, eleX + 50, eleY - 18); ctx.stroke();
+      // Legs
+      ctx.fillStyle = '#374151';
+      ctx.fillRect(eleX - 22, eleY, 11, 26);
+      ctx.fillRect(eleX - 6, eleY, 11, 26);
+      ctx.fillRect(eleX + 12, eleY, 11, 26);
 
-        // Human silhouette
-        if (det.class === 'person') {
-            ctx.fillStyle = `rgba(${rgbStr}, 0.3)`;
-            const cx = x + w/2, headR = w * 0.12;
-            const shY = y + headR * 4, hipY = y + h * 0.55;
-            ctx.beginPath(); ctx.arc(cx, y + headR * 2, headR, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.moveTo(cx - w*0.18, shY); ctx.lineTo(cx + w*0.18, shY); ctx.lineTo(cx + w*0.13, hipY); ctx.lineTo(cx - w*0.13, hipY); ctx.closePath(); ctx.fill();
-            ctx.strokeStyle = `rgba(${rgbStr}, 0.4)`;
-            ctx.lineWidth = w * 0.05;
-            ctx.lineCap = 'round';
-            const wk = Math.sin(tick * 1.5 + idx) * 0.12;
-            ctx.beginPath(); ctx.moveTo(cx - w*0.18, shY+3); ctx.lineTo(cx - w*0.35, shY + h*0.2 + wk*25); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(cx + w*0.18, shY+3); ctx.lineTo(cx + w*0.35, shY + h*0.2 - wk*25); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(cx - w*0.08, hipY); ctx.lineTo(cx - w*0.18, y+h-4 + wk*15); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(cx + w*0.08, hipY); ctx.lineTo(cx + w*0.18, y+h-4 - wk*15); ctx.stroke();
-            ctx.lineCap = 'butt';
-        }
+      drawBBox(ctx, eleX - 38, eleY - 44, 96, 75, 'ASIAN ELEPHANT (WILDLIFE)', 94, '#22c55e');
+    }
 
-        // Vehicle silhouette
-        if (det.class === 'vehicle') {
-            ctx.fillStyle = `rgba(${rgbStr}, 0.2)`;
-            ctx.fillRect(x + w*0.05, y + h*0.3, w*0.9, h*0.5);
-            ctx.fillRect(x + w*0.15, y + h*0.1, w*0.5, h*0.25);
-        }
+    else if (cam.feedType === 'MINING_QUARRY') {
+      // Terraced Open-Pit Quarry with Excavator and Truck
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+      bgGrad.addColorStop(0, '#1c1917');
+      bgGrad.addColorStop(0.6, '#44403c');
+      bgGrad.addColorStop(1, '#292524');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
 
-        // Drone silhouette
-        if (det.class === 'drone') {
-            ctx.strokeStyle = `rgba(${rgbStr}, 0.5)`; ctx.lineWidth = 1.5;
-            const dcx = x+w/2, dcy = y+h/2;
-            ctx.beginPath(); ctx.moveTo(dcx-w*0.3, dcy-h*0.25); ctx.lineTo(dcx+w*0.3, dcy+h*0.25); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(dcx+w*0.3, dcy-h*0.25); ctx.lineTo(dcx-w*0.3, dcy+h*0.25); ctx.stroke();
-            [[-0.3,-0.25],[0.3,-0.25],[-0.3,0.25],[0.3,0.25]].forEach(([ox,oy]) => {
-                ctx.beginPath(); ctx.arc(dcx+w*ox, dcy+h*oy, w*0.08, 0, Math.PI*2); ctx.stroke();
-            });
-        }
+      // Terraces
+      ctx.strokeStyle = '#78716c';
+      ctx.lineWidth = 3;
+      for (let tier = 1; tier <= 4; tier++) {
+        ctx.beginPath();
+        ctx.moveTo(0, H * 0.2 + tier * 35);
+        ctx.lineTo(W * 0.4, H * 0.2 + tier * 35 + 20);
+        ctx.lineTo(W, H * 0.2 + tier * 35);
+        ctx.stroke();
+      }
 
-        // Label
-        const label = `${det.class.toUpperCase()} ${conf}% [${det.risk > 70 ? 'CRIT' : det.risk > 40 ? 'WARN' : 'LOW'}]`;
-        ctx.font = '10px "Share Tech Mono"';
-        const tw = ctx.measureText(label).width + 6;
-        ctx.fillStyle = color;
-        ctx.fillRect(x, y - 14, tw, 13);
-        ctx.fillStyle = '#000';
-        ctx.font = 'bold 9px "Share Tech Mono"';
-        ctx.fillText(label, x + 3, y - 3);
+      // Excavator Rig
+      const exX = W * 0.48;
+      const exY = H * 0.58;
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(exX - 25, exY - 18, 50, 24);
+      // Tread Tracks
+      ctx.fillStyle = '#1c1917';
+      ctx.fillRect(exX - 30, exY + 6, 60, 10);
+      // Crane Boom
+      ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(exX + 15, exY - 14); ctx.lineTo(exX + 55, exY - 48); ctx.lineTo(exX + 80, exY - 15); ctx.stroke();
 
-        // Risk bar
-        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x, y + h + 2, w, 4);
-        ctx.fillStyle = color; ctx.fillRect(x, y + h + 2, w * (det.risk / 100), 4);
+      drawBBox(ctx, exX - 36, exY - 56, 125, 78, 'ILLEGAL EXCAVATOR RIG', 91, '#ef4444');
+    }
 
-        // Distance
-        ctx.font = '8px "Share Tech Mono"';
-        ctx.fillStyle = `rgba(${rgbStr}, 0.6)`;
-        ctx.fillText(`${Math.floor(60 + det.risk * 1.5)}m | TGT-${String(idx+1).padStart(2,'0')}`, x, y + h + 14);
-    });
+    else if (cam.feedType === 'ARMORY_VAULT') {
+      // Steel Bunker Interior with Gun Racks and Biometric Scanner
+      ctx.fillStyle = '#0b1118';
+      ctx.fillRect(0, 0, W, H);
 
-    // Crosshair
-    ctx.strokeStyle = 'rgba(34,197,94,0.08)';
+      // Vault Steel Door
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(W * 0.25, H * 0.18, W * 0.5, H * 0.7);
+
+      // Vault Lock Wheel
+      const spin = t * 0.8;
+      const vx = W * 0.5, vy = H * 0.52;
+      ctx.beginPath(); ctx.arc(vx, vy, 28, 0, Math.PI * 2); ctx.stroke();
+      for (let s = 0; s < 4; s++) {
+        const ang = spin + s * (Math.PI / 2);
+        ctx.beginPath();
+        ctx.moveTo(vx, vy);
+        ctx.lineTo(vx + Math.cos(ang) * 28, vy + Math.sin(ang) * 28);
+        ctx.stroke();
+      }
+
+      // Biometric Scanner Green LED
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath(); ctx.arc(W * 0.72, H * 0.48, 6, 0, Math.PI * 2); ctx.fill();
+
+      drawBBox(ctx, W * 0.22, H * 0.15, W * 0.56, H * 0.75, 'VAULT PERIMETER -- LOCKED', 99, '#22c55e');
+    }
+
+    // ── 2. GLOBAL SURVEILLANCE HUD ON EVERY TILE ──────────────────
+    // Crosshair Center Reticle
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
     ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.moveTo(W * 0.5 - 20, H * 0.5); ctx.lineTo(W * 0.5 + 20, H * 0.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W * 0.5, H * 0.5 - 20); ctx.lineTo(W * 0.5, H * 0.5 + 20); ctx.stroke();
     ctx.setLineDash([]);
 
-    // Timestamp
-    ctx.font = '8px "Share Tech Mono"';
-    ctx.fillStyle = 'rgba(34,197,94,0.25)';
-    ctx.fillText(new Date().toISOString().slice(11, 19) + ' UTC', W - 80, H - 6);
-}
+    // Scanline bar
+    const scanY = (t * 50) % H;
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.06)';
+    ctx.fillRect(0, scanY, W, 3);
+  };
 
-export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDetectionData, setSmsText, setSmsVisible, playDetectionBeep }) {
-    const [expandedCam, setExpandedCam] = useState(null);
-    const [tick, setTick] = useState(0);
-    const canvasRefs = useRef([]);
-    const videoRefs = useRef([]);
-    const modalCanvasRef = useRef(null);
-    const prevStatusRef = useRef({});
+  // Helper function to draw crisp military bounding boxes
+  const drawBBox = (ctx, x, y, w, h, label, conf, color) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
 
-    const downloadSnapshot = (index, camId) => {
-        const video = videoRefs.current[index];
-        const canvas = canvasRefs.current[index];
-        if (!video || !canvas) return;
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = canvas.width || 320;
-        tempCanvas.height = canvas.height || 200;
-        const ctx = tempCanvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
-        ctx.drawImage(canvas, 0, 0);
-        const link = document.createElement('a');
-        link.download = `${camId}_${Date.now()}.png`;
-        link.href = tempCanvas.toDataURL('image/png');
-        link.click();
-    };
+    // Corner brackets
+    const cl = Math.min(w, h) * 0.22;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x, y + cl); ctx.lineTo(x, y); ctx.lineTo(x + cl, y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + w - cl, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + cl); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y + h - cl); ctx.lineTo(x, y + h); ctx.lineTo(x + cl, y + h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + w - cl, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cl); ctx.stroke();
 
-    // Live webcam state
-    const [liveStream, setLiveStream] = useState(null);
-    const [liveError, setLiveError] = useState('');
-    const liveVideoRef = useRef(null);
-    const liveCanvasRef = useRef(null);
-    const liveAnimRef = useRef(null);
+    // Header tag
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y - 18, ctx.measureText(label).width + 24, 16);
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 10px "Share Tech Mono", monospace';
+    ctx.fillText(`${label} ${conf}%`, x + 4, y - 6);
+  };
 
-    const startLiveFeed = async () => {
-        setLiveError('');
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: 640, height: 360 }
-            });
-            setLiveStream(stream);
-            if (liveVideoRef.current) {
-                liveVideoRef.current.srcObject = stream;
-            }
-        } catch (err) {
-            if (err.name === 'NotAllowedError') {
-                setLiveError('Camera permission denied. Allow access in browser settings.');
-            } else if (err.name === 'NotFoundError') {
-                setLiveError('No camera device found on this system.');
-            } else {
-                setLiveError(`Camera error: ${err.message}`);
-            }
+  // Main Canvas Render Animation Loop
+  useEffect(() => {
+    let frameId;
+    const renderLoop = () => {
+      const t = Date.now() * 0.002;
+
+      CAMERAS.forEach((cam, idx) => {
+        if (cam.id === 'CAM-05' && webcamActive) return; // Skip canvas rendering if user webcam is active
+        const canvas = canvasRefs.current[idx];
+        if (canvas) {
+          const W = canvas.width = canvas.parentElement?.clientWidth || 320;
+          const H = canvas.height = canvas.parentElement?.clientHeight || 200;
+          const ctx = canvas.getContext('2d');
+          drawScene(ctx, W, H, cam, t + idx * 2.5);
         }
-    };
+      });
 
-    const stopLiveFeed = () => {
-        if (liveStream) {
-            liveStream.getTracks().forEach(t => t.stop());
-            setLiveStream(null);
-        }
-        if (liveAnimRef.current) {
-            cancelAnimationFrame(liveAnimRef.current);
-            liveAnimRef.current = null;
-        }
-    };
-
-    // Draw live video frames + AI overlay onto canvas
-    useEffect(() => {
-        if (!liveStream || !liveVideoRef.current || !liveCanvasRef.current) return;
-
-        const video = liveVideoRef.current;
-        const canvas = liveCanvasRef.current;
+      // Render Modal Canvas if open
+      if (expandedCam !== null && modalCanvasRef.current) {
+        const cam = CAMERAS[expandedCam];
+        const canvas = modalCanvasRef.current;
+        const W = canvas.width = canvas.parentElement?.clientWidth || 900;
+        const H = canvas.height = canvas.parentElement?.clientHeight || 500;
         const ctx = canvas.getContext('2d');
+        drawScene(ctx, W, H, cam, t + expandedCam * 2.5);
+      }
 
-        const drawFrame = () => {
-            if (!liveStream) return;
-            canvas.width = canvas.parentElement?.clientWidth || 320;
-            canvas.height = canvas.parentElement?.clientHeight || 200;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // AI scan line overlay on live feed
-            const scanY = (Date.now() * 0.06) % canvas.height;
-            ctx.fillStyle = 'rgba(34,197,94,0.06)';
-            ctx.fillRect(0, scanY, canvas.width, 3);
-
-            // Crosshair overlay
-            ctx.strokeStyle = 'rgba(34,197,94,0.15)';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([4, 4]);
-            ctx.beginPath(); ctx.moveTo(canvas.width / 2, 0); ctx.lineTo(canvas.width / 2, canvas.height); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, canvas.height / 2); ctx.lineTo(canvas.width, canvas.height / 2); ctx.stroke();
-            ctx.setLineDash([]);
-
-            liveAnimRef.current = requestAnimationFrame(drawFrame);
-        };
-
-        video.onloadedmetadata = () => drawFrame();
-
-        return () => {
-            if (liveAnimRef.current) cancelAnimationFrame(liveAnimRef.current);
-        };
-    }, [liveStream]);
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            if (liveStream) liveStream.getTracks().forEach(t => t.stop());
-        };
-    }, []);
-
-    useEffect(() => {
-        // High refresh rate tick (10x faster updates, interpolates 0.1s slices)
-        const timer = setInterval(() => setTick(t => Number((t + 0.1).toFixed(1)) % 180), 100);
-        return () => clearInterval(timer);
-    }, []);
-
-    useEffect(() => {
-        CAMERAS.forEach((cam, i) => {
-            const phase = cam.scenario.find(s => tick >= s.time[0] && tick < s.time[1]);
-            if (phase && canvasRefs.current[i]) {
-                const canvas = canvasRefs.current[i];
-                canvas.width = canvas.parentElement?.clientWidth || 320;
-                canvas.height = canvas.parentElement?.clientHeight || 200;
-                drawCameraDetections(canvas, phase, tick);
-
-                const status = phase.status;
-                if (prevStatusRef.current[cam.id] !== status && status !== 'CLEAR' && status !== 'SCANNING' && status !== 'SECURE -- NO MOVEMENT') {
-                    if (status.includes('!!') && voiceRef?.current && voiceEnabled) {
-                        const txt = `CCTV Alert. ${cam.name}. ${status.replace('!!', '')}. Security detail respond.`;
-                        voiceRef.current.speak(txt, 'critical');
-                        
-                        if (setDetectionData && status.includes('BREACH')) {
-                            setDetectionData(prev => ({ ...prev, threatLevel: 'CRITICAL', riskScore: 95, primaryClass: 'ARMED INTRUDER', personCount: 2, label: cam.id }));
-                            if (playDetectionBeep) playDetectionBeep();
-                            if (setSmsText) {
-                                setSmsText(`ALERT: ${status.replace('⚠', '')} at ${cam.name}. Deploy QRF immediately.`);
-                                setSmsVisible(true);
-                                setTimeout(() => setSmsVisible(false), 6000);
-                            }
-                        }
-
-                    } else if (voiceRef?.current && voiceEnabled && phase.detections.length > 0) {
-                        const txt = `CCTV Update. ${cam.name}. ${status}.`;
-                        voiceRef.current.speak(txt, 'normal');
-                    }
-                } else if (prevStatusRef.current[cam.id] !== status && (status === 'CLEAR' || status === 'THREAT NEUTRALIZED')) {
-                    if (voiceRef?.current && voiceEnabled) {
-                        voiceRef.current.speak(`CCTV All clear. ${cam.name}.`);
-                    }
-                    if (setDetectionData && prevStatusRef.current[cam.id]?.includes('BREACH')) {
-                        setDetectionData(prev => ({ ...prev, threatLevel: 'LOW', riskScore: 0, primaryClass: 'NONE', personCount: 0, label: 'IDLE' }));
-                    }
-                }
-                prevStatusRef.current[cam.id] = status;
-            } else if (!phase) {
-                prevStatusRef.current[cam.id] = cam.scenario[0].status;
-            }
-        });
-
-        // Modal canvas
-        if (expandedCam !== null && modalCanvasRef.current) {
-            const cam = CAMERAS[expandedCam];
-            const phase = cam.scenario.find(s => tick >= s.time[0] && tick < s.time[1]);
-            if (phase) {
-                modalCanvasRef.current.width = modalCanvasRef.current.parentElement?.clientWidth || 900;
-                modalCanvasRef.current.height = modalCanvasRef.current.parentElement?.clientHeight || 506;
-                drawCameraDetections(modalCanvasRef.current, phase, tick);
-            }
-        }
-    }, [tick, expandedCam]);
-
-    const getStatus = (cam) => {
-        const phase = cam.scenario.find(s => tick >= s.time[0] && tick < s.time[1]);
-        return phase || cam.scenario[0];
+      frameId = requestAnimationFrame(renderLoop);
     };
 
-    const camTime = new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' });
+    frameId = requestAnimationFrame(renderLoop);
+    return () => cancelAnimationFrame(frameId);
+  }, [expandedCam, webcamActive]);
 
-    return (
-        <motion.div key="cctv" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 4, gap: 4, background: '#000' }}
-        >
-            <div className="cctv-grid">
-                {CAMERAS.map((cam, index) => {
-                    const phase = getStatus(cam);
-                    const hasDetections = phase.detections.length > 0;
-                    const isCritical = phase.detections.some(d => d.risk > 70);
+  const snapPhoto = (cam) => {
+    const timeStr = new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' });
+    setCapturedSnaps(prev => [
+      { id: Date.now(), cam: cam.name, time: timeStr, target: cam.target.label, conf: cam.target.conf },
+      ...prev.slice(0, 5)
+    ]);
+    playDetectionBeep();
+  };
 
-                    const camFilters = {
-                        'CAM-01': 'brightness(1.1)',
-                        'CAM-02': 'sepia(1) hue-rotate(90deg) saturate(3) brightness(0.8)',
-                        'CAM-03': 'contrast(1.2) grayscale(0.2)',
-                        'CAM-04': 'sepia(1) hue-rotate(300deg) saturate(3) brightness(0.6)'
-                    };
-                    const isOffline = cam.id === 'CAM-04' && Math.floor(tick / 20) % 3 === 2;
+  const camTime = new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' });
 
-                    return (
-                        <div key={cam.id}
-                            className={`cctv-feed ${isCritical ? 'critical' : hasDetections ? 'degraded' : ''}`}
-                            onClick={() => setExpandedCam(index)}
-                            style={{ position: 'relative' }}
-                        >
-                            <video
-                                autoPlay
-                                loop
-                                muted
-                                playsInline
-                                ref={el => videoRefs.current[index] = el}
-                                style={{
-                                    position: 'absolute', inset: 0,
-                                    width: '100%', height: '100%',
-                                    objectFit: 'cover', zIndex: 0, 
-                                    opacity: isOffline ? 0 : 0.6,
-                                    filter: camFilters[cam.id] || 'none'
-                                }}
-                                src={cam.videoUrl}
-                            />
-                            {isOffline && (
-                                <div style={{ position: 'absolute', inset: 0, background: '#111', zIndex: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontFamily: "'Share Tech Mono'", fontSize: '1.2rem' }}>
-                                    <CameraOff size={24} style={{marginRight: 8}}/> OFFLINE
-                                </div>
-                            )}
-                            <canvas ref={el => canvasRefs.current[index] = el} className="cctv-noise" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1 }} />
-                            
-                            {/* Real-world analogy: Face Capture Snapshot */}
-                            {isCritical && hasDetections && (
-                                <div style={{
-                                    position: 'absolute', right: 8, top: 40, width: 60, height: 75,
-                                    background: 'rgba(0,0,0,0.8)', border: '1px solid #ef4444',
-                                    zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
-                                }}>
-                                    <img src="https://images.unsplash.com/photo-1542909168-82c3e7fdca5c?w=100&h=100&fit=crop" style={{ width: 45, height: 45, filter: 'grayscale(100%) contrast(150%)', border: '1px solid #555' }} alt="suspect" />
-                                    <div style={{ fontSize: '7px', color: '#ef4444', marginTop: 4, fontFamily: "'Share Tech Mono'" }}>WANTED</div>
-                                </div>
-                            )}
-
-                            <div className="cctv-overlay">
-                                <div className="cctv-top-bar">
-                                    <div className="cctv-id">
-                                        <span className={`cctv-rec-dot ${isCritical ? 'degraded' : 'recording'}`} style={isCritical ? { background: '#ef4444', animation: 'blink 0.5s step-end infinite' } : {}} />
-                                        {cam.id}
-                                    </div>
-                                    <div className="cctv-status" style={isCritical ? { color: '#ef4444', background: 'rgba(239,68,68,0.15)' } : hasDetections ? { color: '#f59e0b' } : {}}>
-                                        {phase.status}
-                                    </div>
-                                </div>
-
-                                {hasDetections && (
-                                    <div className="cctv-alert-badge" style={isCritical ? { borderColor: '#ef4444', color: '#ef4444', background: 'rgba(239,68,68,0.15)' } : {}}>
-                                        {isCritical ? <AlertTriangle size={10} /> : <Shield size={10} />}
-                                        {phase.detections.length} TARGET{phase.detections.length > 1 ? 'S' : ''}
-                                    </div>
-                                )}
-
-                                <div className="cctv-crosshair"><div className="ch-h" /><div className="ch-v" /></div>
-
-                                <div className="cctv-bottom-bar">
-                                    <div>
-                                        <div className="cctv-name">{cam.name}</div>
-                                        <div className="cctv-coords">{cam.coords}</div>
-                                    </div>
-                                    <div className="cctv-time">{camTime}</div>
-                                </div>
-                            </div>
-
-                            <button className="cctv-expand-btn" onClick={(e) => { e.stopPropagation(); setExpandedCam(index); }}>
-                                <Maximize2 size={12} />
-                            </button>
-                            <button className="cctv-expand-btn" style={{ right: 30 }} onClick={(e) => { e.stopPropagation(); downloadSnapshot(index, cam.id); }}>
-                                <Download size={12} />
-                            </button>
-                            <div className="cctv-scanlines" />
-                        </div>
-                    );
-                })}
-
-                {/* CAM-05: LIVE WEBCAM FEED */}
-                <div
-                    className={`cctv-feed ${liveStream ? 'degraded' : ''}`}
-                    style={{ position: 'relative' }}
-                >
-                    {/* Hidden video element for getUserMedia */}
-                    <video
-                        ref={liveVideoRef}
-                        autoPlay muted playsInline
-                        style={{ display: 'none' }}
-                    />
-
-                    {liveStream ? (
-                        <canvas
-                            ref={liveCanvasRef}
-                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1 }}
-                        />
-                    ) : (
-                        <div style={{
-                            position: 'absolute', inset: 0,
-                            display: 'flex', flexDirection: 'column',
-                            alignItems: 'center', justifyContent: 'center',
-                            background: 'rgba(0,0,0,0.9)', zIndex: 1, gap: 8
-                        }}>
-                            <Camera size={24} style={{ color: 'var(--accent)', opacity: 0.5 }} />
-                            <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)', textAlign: 'center', padding: '0 8px' }}>
-                                {liveError || 'Press START to activate live camera feed'}
-                            </div>
-                            {liveError && (
-                                <div style={{ fontSize: '0.5rem', color: 'var(--danger)', textAlign: 'center', padding: '0 8px' }}>
-                                    {liveError}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="cctv-overlay">
-                        <div className="cctv-top-bar">
-                            <div className="cctv-id">
-                                <span className={`cctv-rec-dot ${liveStream ? 'recording' : ''}`} style={liveStream ? { background: '#ef4444' } : {}} />
-                                CAM-05
-                            </div>
-                            <div className="cctv-status" style={liveStream ? { color: '#22c55e' } : {}}>
-                                {liveStream ? 'LIVE FEED ACTIVE' : 'STANDBY'}
-                            </div>
-                        </div>
-
-                        <div className="cctv-crosshair"><div className="ch-h" /><div className="ch-v" /></div>
-
-                        <div className="cctv-bottom-bar">
-                            <div>
-                                <div className="cctv-name">LIVE CAM -- LOCAL DEVICE</div>
-                                <div className="cctv-coords">getUserMedia WebRTC</div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 4 }}>
-                                {!liveStream ? (
-                                    <button
-                                        onClick={startLiveFeed}
-                                        style={{
-                                            background: 'rgba(34,197,94,0.2)', border: '1px solid var(--accent)',
-                                            color: 'var(--accent)', padding: '2px 8px', borderRadius: 4,
-                                            cursor: 'pointer', fontFamily: "'Share Tech Mono'", fontSize: '0.5rem'
-                                        }}
-                                    >
-                                        START
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={stopLiveFeed}
-                                        style={{
-                                            background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444',
-                                            color: '#ef4444', padding: '2px 8px', borderRadius: 4,
-                                            cursor: 'pointer', fontFamily: "'Share Tech Mono'", fontSize: '0.5rem'
-                                        }}
-                                    >
-                                        STOP
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="cctv-scanlines" />
-                </div>
-
-                {/* CAM-06: OFFLINE / EMPTY */}
-                <div
-                    className="cctv-feed degraded"
-                    style={{ position: 'relative', background: '#0a0a0a' }}
-                >
-                    <div style={{
-                        position: 'absolute', inset: 0,
-                        display: 'flex', flexDirection: 'column',
-                        alignItems: 'center', justifyContent: 'center',
-                        zIndex: 1, gap: 8
-                    }}>
-                        <CameraOff size={24} style={{ color: '#555', opacity: 0.5 }} />
-                        <div style={{ fontSize: '0.6rem', color: '#555', textAlign: 'center', letterSpacing: 2, fontFamily: "'Share Tech Mono'" }}>
-                            NO SIGNAL
-                        </div>
-                    </div>
-
-                    <div className="cctv-overlay">
-                        <div className="cctv-top-bar">
-                            <div className="cctv-id" style={{ color: '#555' }}>
-                                <span className="cctv-rec-dot" style={{ background: '#555' }} />
-                                CAM-06
-                            </div>
-                            <div className="cctv-status" style={{ color: '#ef4444', opacity: 0.7 }}>
-                                OFFLINE
-                            </div>
-                        </div>
-
-                        <div className="cctv-bottom-bar">
-                            <div>
-                                <div className="cctv-name" style={{ color: '#555' }}>ARMORY -- SEC-2</div>
-                                <div className="cctv-coords" style={{ color: '#444' }}>MAINTENANCE SCHEDULED</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="cctv-scanlines" />
-                </div>
+  return (
+    <motion.div
+      key="cctv-overhaul"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, padding: 10, background: '#020617' }}
+    >
+      {/* ── TOP CONTROL BAR ────────────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(15,23,42,0.8)', border: '1px solid var(--glass-border)', borderRadius: 10, padding: '10px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ padding: 6, background: 'rgba(34,197,94,0.15)', border: '1px solid var(--accent)', borderRadius: 6, color: 'var(--accent)' }}>
+            <Video size={18} />
+          </div>
+          <div>
+            <div style={{ fontFamily: "'Share Tech Mono'", fontSize: '0.9rem', color: 'var(--accent)', fontWeight: 'bold', letterSpacing: 2 }}>
+              INTEGRATED CCTV SURVEILLANCE GRID // 6 ACTIVE CHANNELS
             </div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-dim)' }}>
+              Optical Sentry • Thermal FLIR • Indian Railways Corridor • Mining Recon • Live WebRTC
+            </div>
+          </div>
+        </div>
 
-            {/* Expanded Modal */}
-            <AnimatePresence>
-                {expandedCam !== null && (
-                    <motion.div className="cctv-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        onClick={() => setExpandedCam(null)}>
-                        <motion.div className="cctv-modal-content" initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
-                            onClick={(e) => e.stopPropagation()}>
-                            <div className="cctv-modal-header">
-                                <span>{CAMERAS[expandedCam].id} — {CAMERAS[expandedCam].name}</span>
-                                <span style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>{CAMERAS[expandedCam].coords}</span>
-                                <button className="cctv-close-btn" onClick={() => setExpandedCam(null)}><X size={14} /></button>
-                            </div>
-                            <div className="cctv-modal-feed" style={{ position: 'relative' }}>
-                                <video
-                                    autoPlay
-                                    loop
-                                    muted
-                                    playsInline
-                                    style={{
-                                        position: 'absolute', inset: 0,
-                                        width: '100%', height: '100%',
-                                        objectFit: 'cover', zIndex: 0, opacity: 0.6
-                                    }}
-                                    src="https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4"
-                                />
-                                <canvas ref={modalCanvasRef} style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, zIndex: 1 }} />
-                                
-                                {getStatus(CAMERAS[expandedCam]).detections.some(d => d.risk > 70) && (
-                                    <div style={{
-                                        position: 'absolute', right: 16, top: 40, width: 90, height: 110,
-                                        background: 'rgba(0,0,0,0.8)', border: '2px solid #ef4444',
-                                        zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
-                                    }}>
-                                        <img src="https://images.unsplash.com/photo-1542909168-82c3e7fdca5c?w=100&h=100&fit=crop" style={{ width: 70, height: 70, filter: 'grayscale(100%) contrast(150%)', border: '1px solid #555' }} alt="suspect" />
-                                        <div style={{ fontSize: '10px', color: '#ef4444', marginTop: 6, fontFamily: "'Share Tech Mono'" }}>WANTED // HIGH RISK</div>
-                                    </div>
-                                )}
-                                
-                                <div className="cctv-modal-rec" style={{ zIndex: 2 }}><div className="rec-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', animation: 'breathe 1.5s infinite' }} /> REC</div>
-                                <div className="video-scanlines" />
-                                <div style={{ position: 'absolute', bottom: 10, left: 10, display: 'flex', gap: 6 }}>
-                                    <div className="hud-badge info" style={{ fontSize: '0.65rem' }}>{getStatus(CAMERAS[expandedCam]).status}</div>
-                                    {getStatus(CAMERAS[expandedCam]).detections.length > 0 && (
-                                        <div className="hud-badge warning" style={{ fontSize: '0.65rem' }}>
-                                            {getStatus(CAMERAS[expandedCam]).detections.length} DETECTION(S)
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </motion.div>
-    );
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => setNightVision(!nightVision)}
+            style={{
+              background: nightVision ? 'rgba(34,197,94,0.25)' : 'transparent',
+              border: `1px solid ${nightVision ? 'var(--accent)' : '#334155'}`,
+              color: nightVision ? 'var(--accent)' : '#94a3b8',
+              padding: '6px 12px', borderRadius: 6, fontSize: '0.65rem', fontFamily: "'Share Tech Mono'", cursor: 'pointer'
+            }}
+          >
+            {nightVision ? '● NIGHT VISION: ON' : 'NIGHT VISION'}
+          </button>
+          <button
+            onClick={() => setThermalFilter(!thermalFilter)}
+            style={{
+              background: thermalFilter ? 'rgba(168,85,247,0.25)' : 'transparent',
+              border: `1px solid ${thermalFilter ? '#a855f7' : '#334155'}`,
+              color: thermalFilter ? '#a855f7' : '#94a3b8',
+              padding: '6px 12px', borderRadius: 6, fontSize: '0.65rem', fontFamily: "'Share Tech Mono'", cursor: 'pointer'
+            }}
+          >
+            {thermalFilter ? '● FLIR THERMAL: ON' : 'FLIR THERMAL'}
+          </button>
+        </div>
+      </div>
+
+      {/* ── 6-CAMERA GRID ──────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, flex: 1 }}>
+        {CAMERAS.map((cam, idx) => {
+          const isAlert = cam.id === alertCamId;
+          return (
+            <div
+              key={cam.id}
+              onClick={() => setExpandedCam(idx)}
+              style={{
+                position: 'relative', height: '220px', borderRadius: 10, overflow: 'hidden',
+                border: `2px solid ${isAlert ? '#ef4444' : 'rgba(56,189,248,0.25)'}`,
+                boxShadow: isAlert ? '0 0 25px rgba(239,68,68,0.3)' : '0 4px 20px rgba(0,0,0,0.6)',
+                cursor: 'pointer', background: '#090d16'
+              }}
+            >
+              {/* Webcam View on CAM-05 or Canvas Feed */}
+              {cam.id === 'CAM-05' && webcamActive ? (
+                <video
+                  ref={webcamVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <canvas
+                  ref={el => canvasRefs.current[idx] = el}
+                  style={{
+                    width: '100%', height: '100%', display: 'block',
+                    filter: nightVision ? 'brightness(1.2) contrast(1.4) hue-rotate(90deg)' : thermalFilter ? 'invert(1) hue-rotate(180deg)' : 'none'
+                  }}
+                />
+              )}
+
+              {/* Webcam Start Button Overlay on CAM-05 when inactive */}
+              {cam.id === 'CAM-05' && !webcamActive && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.7)', zIndex: 10 }}>
+                  <Camera size={28} color="#38bdf8" style={{ marginBottom: 8 }} />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); startWebcam(); }}
+                    style={{ background: 'rgba(56,189,248,0.2)', border: '1px solid #38bdf8', color: '#38bdf8', padding: '6px 14px', borderRadius: 6, fontSize: '0.7rem', fontFamily: "'Share Tech Mono'", cursor: 'pointer' }}
+                  >
+                    START LIVE WEBCAM
+                  </button>
+                </div>
+              )}
+
+              {/* Top Camera Header Tag */}
+              <div style={{ position: 'absolute', top: 8, left: 10, right: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.85)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--glass-border)', fontSize: '0.65rem', fontFamily: "'Share Tech Mono'", color: '#fff' }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: isAlert ? '#ef4444' : '#22c55e', animation: 'softPulse 1s infinite' }} />
+                  {cam.id}
+                </div>
+                <div style={{ background: isAlert ? '#ef4444' : 'rgba(0,0,0,0.85)', color: isAlert ? '#fff' : '#38bdf8', fontSize: '0.6rem', fontFamily: "'Share Tech Mono'", padding: '3px 8px', borderRadius: 4 }}>
+                  {cam.target.label}
+                </div>
+              </div>
+
+              {/* Bottom Camera Info Bar */}
+              <div style={{ position: 'absolute', bottom: 8, left: 10, right: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                <div>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#fff', fontFamily: "'Share Tech Mono'" }}>{cam.name}</div>
+                  <div style={{ fontSize: '0.55rem', color: 'var(--text-dim)' }}>{cam.coords} • {cam.type}</div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); snapPhoto(cam); }}
+                    style={{ background: 'rgba(0,0,0,0.8)', border: '1px solid #64748b', color: '#fff', padding: '4px', borderRadius: 4, cursor: 'pointer' }}
+                    title="Take Snapshot"
+                  >
+                    <Camera size={12} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setExpandedCam(idx); }}
+                    style={{ background: 'rgba(0,0,0,0.8)', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '4px', borderRadius: 4, cursor: 'pointer' }}
+                    title="Full Screen Inspection"
+                  >
+                    <Maximize2 size={12} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── EXPANDED TACTICAL MODAL INSPECTION VIEW ─────────────── */}
+      <AnimatePresence>
+        {expandedCam !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 100,
+              background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(10px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24
+            }}
+          >
+            <div style={{ width: '90%', maxWidth: '1100px', background: '#0a0f1d', border: '2px solid var(--accent)', borderRadius: 14, overflow: 'hidden', boxShadow: '0 0 50px rgba(34,197,94,0.3)' }}>
+              {/* Modal Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', background: 'rgba(15,23,42,0.9)', borderBottom: '1px solid var(--glass-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ color: 'var(--accent)', fontSize: '1rem', fontWeight: 'bold', fontFamily: "'Share Tech Mono'" }}>
+                    TACTICAL SURVEILLANCE INSPECTOR // {CAMERAS[expandedCam].name}
+                  </div>
+                  <div style={{ fontSize: '0.65rem', background: 'rgba(34,197,94,0.2)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 4 }}>
+                    LIVE FEED 1080P • 60 FPS
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    onClick={() => snapPhoto(CAMERAS[expandedCam])}
+                    style={{ background: 'rgba(56,189,248,0.2)', border: '1px solid #38bdf8', color: '#38bdf8', padding: '6px 14px', borderRadius: 6, fontSize: '0.7rem', fontFamily: "'Share Tech Mono'", cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <Camera size={14} /> CAPTURE EVIDENCE
+                  </button>
+                  <button
+                    onClick={() => setExpandedCam(null)}
+                    style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444', color: '#ef4444', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal High-Res Canvas */}
+              <div style={{ height: '480px', position: 'relative', background: '#000' }}>
+                <canvas ref={modalCanvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+              </div>
+
+              {/* Modal Telemetry Footer */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', padding: 14, background: '#0b1120', borderTop: '1px solid var(--glass-border)', gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>GPS POSITION</div>
+                  <div style={{ fontSize: '0.8rem', color: '#fff', fontFamily: "'Share Tech Mono'" }}>{CAMERAS[expandedCam].coords}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>SENSOR OPTICS</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--accent)', fontFamily: "'Share Tech Mono'" }}>{CAMERAS[expandedCam].type}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>PRIMARY TARGET</div>
+                  <div style={{ fontSize: '0.8rem', color: '#ef4444', fontFamily: "'Share Tech Mono'", fontWeight: 'bold' }}>{CAMERAS[expandedCam].target.label}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)' }}>AI CONFIDENCE</div>
+                  <div style={{ fontSize: '0.8rem', color: '#22c55e', fontFamily: "'Share Tech Mono'", fontWeight: 'bold' }}>{CAMERAS[expandedCam].target.conf}% CONFIRMED</div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
 }
