@@ -5,19 +5,20 @@
    ═══════════════════════════════════════════════════ */
 
 :root {
-  --bg-color: #030704;
-  --glass-bg: rgba(5, 12, 5, 0.75);
-  --glass-border: rgba(34, 197, 94, 0.2);
-  --accent: #22c55e;
-  --accent-glow: rgba(34, 197, 94, 0.01);
-  --accent-soft: rgba(34, 197, 94, 0.08);
-  --text-main: #e8f5e9;
-  --text-dim: rgba(255, 255, 255, 0.35);
-  --danger: #ef4444;
-  --danger-glow: rgba(239, 68, 68, 0.4);
+  --bg-color: #020605;
+  --bg-deep: #000f12;
+  --glass-bg: rgba(5, 18, 18, 0.82);
+  --glass-border: rgba(45, 212, 191, 0.24);
+  --accent: #2dd4bf;
+  --accent-glow: rgba(45, 212, 191, 0.22);
+  --accent-soft: rgba(45, 212, 191, 0.1);
+  --text-main: #ecfeff;
+  --text-dim: rgba(224, 242, 254, 0.55);
+  --danger: #fb4b4b;
+  --danger-glow: rgba(251, 75, 75, 0.35);
   --warning: #f59e0b;
   --safe: #22c55e;
-  --panel-radius: 12px;
+  --panel-radius: 8px;
 }
 
 .night-mode {
@@ -61,6 +62,13 @@ body {
   transition: background 0.6s ease;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
 /* ── Subtle grid overlay ── */
 body::before {
   content: '';
@@ -72,6 +80,150 @@ body::before {
     linear-gradient(rgba(34, 197, 94, 0.015) 1px, transparent 1px),
     linear-gradient(90deg, rgba(34, 197, 94, 0.015) 1px, transparent 1px);
   background-size: 80px 80px;
+}
+
+.command-center {
+  width: 100vw;
+  height: 100dvh;
+  min-height: 620px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(45, 212, 191, 0.13), transparent 34%),
+    radial-gradient(circle at 78% 12%, rgba(245, 158, 11, 0.08), transparent 32%),
+    linear-gradient(135deg, rgba(1, 15, 18, 0.98), rgba(0, 6, 8, 0.98) 58%, rgba(2, 9, 6, 0.98));
+  border: 1px solid rgba(45, 212, 191, 0.28);
+}
+
+.command-center::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(45, 212, 191, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 212, 191, 0.028) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, black, rgba(0, 0, 0, 0.35));
+}
+
+.command-center.night-vision {
+  --accent: #8bff6a;
+  --accent-glow: rgba(139, 255, 106, 0.24);
+  --accent-soft: rgba(139, 255, 106, 0.1);
+  --glass-border: rgba(139, 255, 106, 0.24);
+  filter: saturate(1.12) contrast(1.05);
+}
+
+.command-header {
+  min-height: 74px;
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) auto minmax(280px, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 12px 18px;
+  background: linear-gradient(90deg, rgba(2, 8, 12, 0.94), rgba(7, 22, 21, 0.86));
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+  z-index: 20;
+}
+
+.badge-logo {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(45, 212, 191, 0.42);
+  border-radius: 8px;
+  color: var(--accent);
+  background: linear-gradient(145deg, rgba(45, 212, 191, 0.12), rgba(255, 255, 255, 0.02));
+  box-shadow: inset 0 0 18px rgba(45, 212, 191, 0.08), 0 0 22px rgba(45, 212, 191, 0.08);
+  flex: 0 0 auto;
+}
+
+.app-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: #f8fafc;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(1rem, 1.5vw, 1.35rem);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  line-height: 1.1;
+}
+
+.app-subtitle {
+  margin-top: 5px;
+  color: var(--text-dim);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(0.58rem, 0.75vw, 0.72rem);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.text-dim {
+  color: var(--text-dim);
+}
+
+.header-center {
+  justify-self: center;
+}
+
+.session-pill,
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 8px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text-main);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.status-indicator {
+  border-color: rgba(34, 197, 94, 0.32);
+  color: var(--safe);
+}
+
+.status-indicator.critical {
+  border-color: rgba(251, 75, 75, 0.42);
+  color: var(--danger);
+  background: rgba(127, 29, 29, 0.16);
+}
+
+.header-right {
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.tab-bar {
+  min-height: 54px;
+  z-index: 15;
+}
+
+.tab-btn {
+  min-width: 116px;
+  min-height: 42px;
+}
+
+.main-grid {
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 27vw, 420px);
+  border-top: 1px solid rgba(45, 212, 191, 0.06);
+}
+
+.viewport-panel {
+  min-width: 0;
+  min-height: 0;
+  background: rgba(1, 8, 10, 0.42);
 }
 
 /* ── Animations ── */
@@ -2472,6 +2624,293 @@ body.alert-mode .hud-container {
   0% { transform: scaleY(0); opacity: 0; }
   50% { opacity: 0.5; }
   100% { transform: scaleY(1); opacity: 0; }
+}
+
+/* TRINETRA RAKSHAK 2.0 final layout and polish overrides */
+#root {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.command-center .main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 27vw, 420px);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.command-center .viewport-panel,
+.command-center .control-panel {
+  max-height: none !important;
+}
+
+.command-center .viewport-panel {
+  position: relative;
+  isolation: isolate;
+}
+
+.command-center .viewport-panel > * {
+  min-width: 0;
+}
+
+.command-center .control-panel {
+  padding: 14px;
+  gap: 12px;
+  background: linear-gradient(180deg, rgba(2, 8, 12, 0.9), rgba(0, 0, 0, 0.78));
+  border-left: 1px solid var(--glass-border);
+  box-shadow: inset 16px 0 34px rgba(0, 0, 0, 0.22);
+}
+
+.command-center .glass-panel,
+.command-center .analytics-chart-box,
+.command-center .kpi-card,
+.command-center .cctv-feed {
+  border-radius: 8px;
+}
+
+.command-center .nav-btn,
+.command-center .qa-btn,
+.command-center .tab-btn {
+  min-height: 38px;
+}
+
+.command-center .nav-btn:focus-visible,
+.command-center .qa-btn:focus-visible,
+.command-center .tab-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.command-center .tab-bar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.42);
+  border-bottom: 1px solid var(--glass-border);
+  overflow-x: auto;
+}
+
+.command-center .tab-btn {
+  flex: initial;
+  min-width: 0;
+  color: rgba(224, 242, 254, 0.62);
+  border: 1px solid transparent;
+}
+
+.command-center .tab-btn.active {
+  border-color: rgba(45, 212, 191, 0.28);
+  background: linear-gradient(180deg, rgba(45, 212, 191, 0.14), rgba(45, 212, 191, 0.05));
+  box-shadow: inset 0 -2px 0 var(--accent), 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.command-center .section-label,
+.command-center .qa-header,
+.command-center .vitals-label {
+  color: rgba(224, 242, 254, 0.52);
+}
+
+.command-center .clock-time {
+  color: var(--accent);
+  font-size: clamp(1rem, 1.4vw, 1.45rem);
+}
+
+.command-center .clock-date {
+  letter-spacing: 1.6px;
+}
+
+.command-center .cctv-grid {
+  gap: 10px;
+}
+
+.command-center .cctv-feed {
+  border-color: rgba(56, 189, 248, 0.28);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(0, 0, 0, 0.96));
+}
+
+.command-center .cctv-feed:hover {
+  border-color: #38bdf8;
+}
+
+.ops-deck {
+  background:
+    linear-gradient(180deg, rgba(14, 30, 34, 0.96), rgba(9, 16, 24, 0.96)),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 48px);
+}
+
+.real-viewport {
+  height: clamp(440px, 58vh, 680px);
+}
+
+.real-feed-video {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(8, 47, 73, 0.45)),
+    #07111a;
+}
+
+.real-feed-video video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.real-feed-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  justify-items: center;
+  color: #fbbf24;
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.88)),
+    repeating-linear-gradient(45deg, rgba(251, 191, 36, 0.08) 0 12px, transparent 12px 24px);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 18px;
+}
+
+.real-feed-fallback button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #fbbf24;
+  border-radius: 6px;
+  background: rgba(251, 191, 36, 0.12);
+  color: #fef3c7;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.media-credit {
+  padding: 8px 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  color: rgba(224, 242, 254, 0.58);
+  background: rgba(15, 23, 42, 0.82);
+  font-size: 0.68rem;
+}
+
+.leaflet-container {
+  background: #13251f;
+}
+
+.leaflet-tile {
+  filter: saturate(1.08) contrast(1.04);
+}
+
+.command-center .viewport-panel {
+  scrollbar-gutter: stable;
+}
+
+.command-center .viewport-panel,
+.command-center .control-panel {
+  min-height: 0;
+}
+
+.command-center .viewport-panel > div {
+  padding-bottom: 24px;
+}
+
+@media (max-width: 1180px) {
+  .command-header {
+    grid-template-columns: 1fr auto;
+  }
+
+  .header-center {
+    display: none;
+  }
+
+  .command-center .main-grid {
+    grid-template-columns: minmax(0, 1fr) 310px;
+  }
+
+  .app-subtitle {
+    max-width: 520px;
+  }
+}
+
+@media (max-width: 900px) {
+  body {
+    overflow: auto;
+  }
+
+  .command-center {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .command-header {
+    grid-template-columns: 1fr;
+    align-items: start;
+    padding: 14px;
+  }
+
+  .header-left,
+  .header-right {
+    width: 100%;
+  }
+
+  .header-right {
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .command-center .tab-bar {
+    grid-template-columns: repeat(7, minmax(118px, 1fr));
+    padding-bottom: 10px;
+  }
+
+  .command-center .main-grid {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .command-center .viewport-panel,
+  .command-center .control-panel {
+    overflow: visible !important;
+  }
+
+  .command-center .control-panel {
+    border-left: 0;
+    border-top: 1px solid var(--glass-border);
+  }
+
+  .real-viewport {
+    height: clamp(360px, 54vh, 560px);
+  }
+}
+
+@media (max-width: 640px) {
+  .app-title {
+    flex-wrap: wrap;
+  }
+
+  .badge-logo {
+    width: 36px;
+    height: 36px;
+  }
+
+  .header-right {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .command-center .clock-time {
+    font-size: 1rem;
+  }
 }
 
 /* Mobile Responsiveness */
