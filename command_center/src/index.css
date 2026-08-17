@@ -9,7 +9,7 @@
   --glass-bg: rgba(5, 12, 5, 0.75);
   --glass-border: rgba(34, 197, 94, 0.2);
   --accent: #22c55e;
-  --accent-glow: rgba(34, 197, 94, 0.4);
+  --accent-glow: rgba(34, 197, 94, 0.01);
   --accent-soft: rgba(34, 197, 94, 0.08);
   --text-main: #e8f5e9;
   --text-dim: rgba(255, 255, 255, 0.35);
