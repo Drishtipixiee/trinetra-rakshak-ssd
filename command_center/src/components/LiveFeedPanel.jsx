@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Video, Eye, Target, Shield, AlertTriangle, Camera, CameraOff,
-  Cpu, ZoomIn, ZoomOut, Maximize2, RefreshCw, Radio, Layers, Zap, Brain, Loader2 as Loader2Icon, Sparkles
+  Cpu, ZoomIn, ZoomOut, Maximize2, RefreshCw, Radio, Layers, Zap, Brain, Loader2 as Loader2Icon, Sparkles, Play, Square
 } from 'lucide-react';
 import { loadModel, detectFrame, drawDetections } from '../lib/cvEngine';
 import { playDetectionBeep, playSiren, playSuccessChime } from './AIVoiceSystem';
 import { REAL_MEDIA } from '../lib/realMediaFeeds';
+import RealFeedVideo from './RealFeedVideo';
 
 const CHANNELS = [
   {
@@ -15,6 +16,8 @@ const CHANNELS = [
     coords: 'N28°38\'12" E77°13\'04"',
     type: 'OPTICAL HIGH-RES 1080P',
     videoUrl: REAL_MEDIA.borderCctv,
+    backupKey: 'borderCctv',
+    scenario: 'border',
     target: { class: 'PERSON', label: 'INTRUDER DETECTED (HOSTILE)', conf: 96, risk: 88 }
   },
   {
@@ -23,6 +26,8 @@ const CHANNELS = [
     coords: 'N23°37\'12" E85°16\'47"',
     type: 'LONG-RANGE OVERWATCH',
     videoUrl: REAL_MEDIA.railwayIndia,
+    backupKey: 'railwayIndia',
+    scenario: 'railway',
     target: { class: 'WILDLIFE', label: 'ASIAN ELEPHANT', conf: 94, risk: 78 }
   },
   {
@@ -31,6 +36,8 @@ const CHANNELS = [
     coords: 'N23°47\'50" E86°25\'10"',
     type: '4K UAV GIMBAL',
     videoUrl: REAL_MEDIA.miningAerial,
+    backupKey: 'miningAerial',
+    scenario: 'mining',
     target: { class: 'EXCAVATOR', label: 'ILLEGAL QUARRY RIG', conf: 91, risk: 72 }
   },
   {
@@ -39,6 +46,8 @@ const CHANNELS = [
     coords: 'N28°38\'10" E77°13\'00"',
     type: 'ACCESS CONTROL 1080P',
     videoUrl: REAL_MEDIA.checkpointCctv,
+    backupKey: 'checkpointCctv',
+    scenario: 'checkpoint',
     target: { class: 'VEHICLE', label: 'ARMORED SUV', conf: 92, risk: 25 }
   },
   {
@@ -47,6 +56,8 @@ const CHANNELS = [
     coords: 'N28°36\'40" E77°12\'22"',
     type: 'WEBRTC REAL OPTICAL',
     videoUrl: null,
+    backupKey: null,
+    scenario: 'checkpoint',
     target: { class: 'OPERATOR', label: 'COMMAND OFFICER', conf: 98, risk: 10 }
   }
 ];
@@ -230,23 +241,34 @@ export default function LiveFeedPanel({
               START LIVE WEBCAM
             </button>
           </div>
-        ) : (
+        ) : selectedChannel.id === 'CH-05' && webcamActive ? (
           <video
             ref={videoRef}
-            key={selectedChannel.videoUrl || 'webcam'}
+            key="webcam"
             autoPlay
-            loop
             muted
             playsInline
             style={{
-              width: '100%', height: '100%', objectFit: 'cover',
+              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
               transform: `scale(${zoomLevel})`,
               filter: `brightness(${brightness}%) contrast(${contrast}%) ${flirMode ? 'invert(1) hue-rotate(180deg)' : ''}`
             }}
-            src={selectedChannel.videoUrl || undefined}
-            crossOrigin="anonymous"
+          />
+        ) : (
+          <RealFeedVideo
+            src={selectedChannel.videoUrl}
+            backupKey={selectedChannel.backupKey}
+            scenario={selectedChannel.scenario}
+            label={selectedChannel.name}
+            videoRef={videoRef}
+            style={{
+              position: 'absolute', inset: 0,
+              transform: `scale(${zoomLevel})`,
+              filter: `brightness(${brightness}%) contrast(${contrast}%) ${flirMode ? 'invert(1) hue-rotate(180deg)' : ''}`
+            }}
           />
         )}
+
 
         {/* Real-time AI Bounding Box Canvas Overlay */}
         <canvas

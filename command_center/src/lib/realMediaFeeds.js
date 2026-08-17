@@ -1,23 +1,57 @@
+// ═══════════════════════════════════════════════════
+//  REAL MEDIA FEEDS — Direct CDN URLs (CORS-safe)
+//  Trinetra Rakshak 2.0
+// ═══════════════════════════════════════════════════
+
+// Direct Wikimedia Commons CDN endpoints (no redirect, CORS-safe)
+// All videos are Creative Commons / Public Domain
 export const REAL_MEDIA = {
+  // Indian Railways freight locomotive footage
   borderCctv:
-    'https://commons.wikimedia.org/wiki/Special:Redirect/file/FBI%20St.%20Louis;%20Hate%20Crime%20Surveillance%20Footage.webm',
+    'https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f9/FBI_St._Louis%3B_Hate_Crime_Surveillance_Footage.webm/FBI_St._Louis%3B_Hate_Crime_Surveillance_Footage.webm.480p.webm',
+
+  // Security / perimeter checkpoint footage
   checkpointCctv:
-    'https://commons.wikimedia.org/wiki/Special:Redirect/file/Chelyabinsk%20meteor%20security%20camera%20footage,%20Yekaterinburg.webm',
+    'https://upload.wikimedia.org/wikipedia/commons/transcoded/3/3b/Chelyabinsk_meteor_security_camera_footage%2C_Yekaterinburg.webm/Chelyabinsk_meteor_security_camera_footage%2C_Yekaterinburg.webm.480p.webm',
+
+  // Indian Railways - WAG9 electric locomotive (direct CDN)
   railwayIndia:
-    'https://commons.wikimedia.org/wiki/Special:Redirect/file/WAG9%20and%20WAG5%20electric%20locomotives%20with%20freight%20trains%20and%20WDM2A%20diesel%20bankers%20-%20Indian%20Railways.webm',
+    'https://upload.wikimedia.org/wikipedia/commons/transcoded/9/9a/WAG9_and_WAG5_electric_locomotives_with_freight_trains_and_WDM2A_diesel_bankers_-_Indian_Railways.webm/WAG9_and_WAG5_electric_locomotives_with_freight_trains_and_WDM2A_diesel_bankers_-_Indian_Railways.webm.480p.webm',
+
+  // Train arriving at Aurangabad station
   railwayPlatform:
-    'https://commons.wikimedia.org/wiki/Special:Redirect/file/Train%20is%20arriving%20to%20Aurangabad%20Railway%20Station,%20Aurangabad,%20India.webm',
+    'https://upload.wikimedia.org/wikipedia/commons/transcoded/e/e7/Train_is_arriving_to_Aurangabad_Railway_Station%2C_Aurangabad%2C_India.webm/Train_is_arriving_to_Aurangabad_Railway_Station%2C_Aurangabad%2C_India.webm.480p.webm',
+
+  // Narrow gauge railway — Gwalior to Sheopur
   railwayCorridor:
-    'https://commons.wikimedia.org/wiki/Special:Redirect/file/Narrow%20gauge%20railway%20line%20Gwalior%20to%20Sheopur.webm',
+    'https://upload.wikimedia.org/wikipedia/commons/transcoded/2/26/Narrow_gauge_railway_line_Gwalior_to_Sheopur.webm/Narrow_gauge_railway_line_Gwalior_to_Sheopur.webm.480p.webm',
+
+  // Wildlife corridor footage (bear surveillance camera)
   wildlifeCorridor:
-    'https://commons.wikimedia.org/wiki/Special:Redirect/file/Surveillance%20camera%20captures%20bear%20in%20Franklin%20County%20for%20first%20time%20in%20nearly%2020%20years.webm',
+    'https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f4/Surveillance_camera_captures_bear_in_Franklin_County_for_first_time_in_nearly_20_years.webm/Surveillance_camera_captures_bear_in_Franklin_County_for_first_time_in_nearly_20_years.webm.480p.webm',
+
+  // Aerial footage — India (mining/aerial recon simulation)
   miningAerial:
-    'https://commons.wikimedia.org/wiki/Special:Redirect/file/A%20Spiritual%20Journey%20-%20The%20India%20100.webm',
+    'https://upload.wikimedia.org/wikipedia/commons/transcoded/b/b8/A_Spiritual_Journey_-_The_India_100.webm/A_Spiritual_Journey_-_The_India_100.webm.480p.webm',
+
+  // Night cityscape (mining night surveillance)
   miningNight:
-    'https://commons.wikimedia.org/wiki/Special:Redirect/file/Night%20landscape%20of%20Bhopal%20city.webm',
+    'https://upload.wikimedia.org/wikipedia/commons/transcoded/4/45/Night_landscape_of_Bhopal_city.webm/Night_landscape_of_Bhopal_city.webm.480p.webm',
+};
+
+// Backup URLs (fallbacks when primary fails)
+export const REAL_MEDIA_BACKUP = {
+  borderCctv: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/3/3b/Chelyabinsk_meteor_security_camera_footage%2C_Yekaterinburg.webm/Chelyabinsk_meteor_security_camera_footage%2C_Yekaterinburg.webm.360p.webm',
+  checkpointCctv: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/3/3b/Chelyabinsk_meteor_security_camera_footage%2C_Yekaterinburg.webm/Chelyabinsk_meteor_security_camera_footage%2C_Yekaterinburg.webm.360p.webm',
+  railwayIndia: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/2/26/Narrow_gauge_railway_line_Gwalior_to_Sheopur.webm/Narrow_gauge_railway_line_Gwalior_to_Sheopur.webm.360p.webm',
+  railwayPlatform: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/2/26/Narrow_gauge_railway_line_Gwalior_to_Sheopur.webm/Narrow_gauge_railway_line_Gwalior_to_Sheopur.webm.360p.webm',
+  railwayCorridor: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/2/26/Narrow_gauge_railway_line_Gwalior_to_Sheopur.webm/Narrow_gauge_railway_line_Gwalior_to_Sheopur.webm.360p.webm',
+  wildlifeCorridor: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f4/Surveillance_camera_captures_bear_in_Franklin_County_for_first_time_in_nearly_20_years.webm/Surveillance_camera_captures_bear_in_Franklin_County_for_first_time_in_nearly_20_years.webm.360p.webm',
+  miningAerial: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/4/45/Night_landscape_of_Bhopal_city.webm/Night_landscape_of_Bhopal_city.webm.360p.webm',
+  miningNight: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/4/45/Night_landscape_of_Bhopal_city.webm/Night_landscape_of_Bhopal_city.webm.360p.webm',
 };
 
 export const MEDIA_CREDITS = {
-  commons: 'Real public-domain / Creative Commons footage via Wikimedia Commons',
+  commons: 'Real public-domain / Creative Commons footage via Wikimedia Commons CDN',
   maps: 'Esri World Imagery and OpenStreetMap tiles for live GIS context',
 };

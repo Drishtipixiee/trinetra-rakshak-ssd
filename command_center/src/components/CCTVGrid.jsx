@@ -15,6 +15,8 @@ const CAMERAS = [
     coords: 'N28°38\'12" E77°13\'04"',
     type: 'OPTICAL HIGH-RES 1080P',
     videoUrl: REAL_MEDIA.checkpointCctv,
+    backupKey: 'checkpointCctv',
+    scenario: 'checkpoint',
     target: { label: 'ARMORED SUV (AUTHORIZED)', conf: 94, risk: 25 }
   },
   {
@@ -23,6 +25,8 @@ const CAMERAS = [
     coords: 'N28°38\'18" E77°13\'09"',
     type: 'FLIR THERMAL 640',
     videoUrl: REAL_MEDIA.borderCctv,
+    backupKey: 'borderCctv',
+    scenario: 'border',
     target: { label: 'INTRUDER DETECTED (HOSTILE)', conf: 96, risk: 92 }
   },
   {
@@ -31,6 +35,8 @@ const CAMERAS = [
     coords: 'N23°37\'12" E85°16\'47"',
     type: 'OVERWATCH LONG-RANGE',
     videoUrl: REAL_MEDIA.railwayIndia,
+    backupKey: 'railwayIndia',
+    scenario: 'railway',
     target: { label: 'ASIAN ELEPHANT (WILDLIFE)', conf: 95, risk: 78 }
   },
   {
@@ -39,6 +45,8 @@ const CAMERAS = [
     coords: 'N23°47\'50" E86°25\'10"',
     type: '4K UAV GIMBAL',
     videoUrl: REAL_MEDIA.miningAerial,
+    backupKey: 'miningAerial',
+    scenario: 'mining',
     target: { label: 'ILLEGAL QUARRY RIG', conf: 91, risk: 74 }
   },
   {
@@ -47,6 +55,8 @@ const CAMERAS = [
     coords: 'N28°36\'40" E77°12\'22"',
     type: 'WEBRTC OPTICAL',
     videoUrl: null,
+    backupKey: null,
+    scenario: 'checkpoint',
     target: { label: 'COMMAND OPERATOR', conf: 98, risk: 10 }
   },
   {
@@ -54,7 +64,9 @@ const CAMERAS = [
     name: 'ARMORY VAULT // SEC-2',
     coords: 'N28°38\'10" E77°13\'00"',
     type: 'LOW-LIGHT STARCHECK',
-    videoUrl: REAL_MEDIA.checkpointCctv,
+    videoUrl: REAL_MEDIA.wildlifeCorridor,
+    backupKey: 'wildlifeCorridor',
+    scenario: 'wildlife',
     target: { label: 'ARMORY -- ALL CLEAR', conf: 99, risk: 5 }
   }
 ];
@@ -189,6 +201,8 @@ export default function CCTVGrid({
               ) : (
                 <RealFeedVideo
                   src={cam.videoUrl}
+                  backupKey={cam.backupKey}
+                  scenario={cam.scenario}
                   label={`${cam.id} ${cam.name}`}
                   style={{
                     width: '100%', height: '100%',

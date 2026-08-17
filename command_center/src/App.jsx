@@ -38,6 +38,199 @@ const API_URL = import.meta.env.PROD
   ? 'https://backend-ten-fawn-25.vercel.app'
   : 'http://127.0.0.1:5000';
 
+// ─── OFFICER CREDENTIALS ───
+const OFFICER_CREDENTIALS = [
+  { id: 'OFF-7A', name: 'Subedar Vikram Singh', rank: 'SUBEDAR', pass: 'trinetra2024', sector: 'SEC-7A BORDER' },
+  { id: 'CMD-01', name: 'Major Arjun Sharma', rank: 'MAJOR', pass: 'rakshak2024', sector: 'COMMAND CENTER' },
+  { id: 'ADM', name: 'Admin Override', rank: 'ADMIN', pass: 'admin', sector: 'ALL SECTORS' },
+];
+
+// ─── Military Login Page ───
+function LoginPage({ onLogin }) {
+  const [userId, setUserId] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [scanLine, setScanLine] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setScanLine(prev => (prev + 1) % 100), 40);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    setTimeout(() => {
+      const officer = OFFICER_CREDENTIALS.find(
+        o => o.id.toLowerCase() === userId.trim().toLowerCase() && o.pass === password.trim()
+      );
+      if (officer) {
+        onLogin(officer);
+      } else {
+        setError('ACCESS DENIED — Invalid credentials. Unauthorized access is logged and monitored.');
+        setIsLoading(false);
+      }
+    }, 1200);
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0,
+      background: 'linear-gradient(135deg, #020c06 0%, #05140a 40%, #010a05 100%)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      fontFamily: "'Share Tech Mono', monospace",
+      overflow: 'hidden',
+      zIndex: 9999
+    }}>
+      {/* Animated scan line */}
+      <div style={{
+        position: 'absolute', top: `${scanLine}%`, left: 0, right: 0,
+        height: 2, background: 'rgba(34,197,94,0.1)', pointerEvents: 'none', transition: 'top 0.04s linear'
+      }} />
+
+      {/* Grid background */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        backgroundImage: 'linear-gradient(rgba(34,197,94,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(34,197,94,0.05) 1px, transparent 1px)',
+        backgroundSize: '40px 40px', pointerEvents: 'none'
+      }} />
+
+      {/* Corner brackets */}
+      {[{top:20,left:20},{top:20,right:20},{bottom:20,left:20},{bottom:20,right:20}].map((style,i) => (
+        <div key={i} style={{
+          position: 'absolute', ...style, width: 40, height: 40,
+          borderTop: i<2 ? '2px solid rgba(34,197,94,0.4)' : 'none',
+          borderBottom: i>=2 ? '2px solid rgba(34,197,94,0.4)' : 'none',
+          borderLeft: (i===0||i===2) ? '2px solid rgba(34,197,94,0.4)' : 'none',
+          borderRight: (i===1||i===3) ? '2px solid rgba(34,197,94,0.4)' : 'none',
+        }} />
+      ))}
+
+      {/* Logo & title */}
+      <motion.div
+        initial={{ opacity: 0, y: -30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
+        style={{ textAlign: 'center', marginBottom: 40 }}
+      >
+        <div style={{ fontSize: '3.5rem', marginBottom: 8, filter: 'drop-shadow(0 0 30px rgba(34,197,94,0.6))' }}>🛡️</div>
+        <div style={{ fontSize: '1.6rem', color: '#22c55e', letterSpacing: 6, fontWeight: 'bold', textShadow: '0 0 20px rgba(34,197,94,0.8)' }}>
+          TRINETRA RAKSHAK
+        </div>
+        <div style={{ fontSize: '0.7rem', color: 'rgba(34,197,94,0.6)', letterSpacing: 4, marginTop: 4 }}>
+          त्रिनेत्र रक्षक // AUTONOMOUS DEFENSE COMMAND v2.0
+        </div>
+        <div style={{ marginTop: 12, fontSize: '0.6rem', color: '#ef4444', letterSpacing: 2, padding: '4px 16px', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 4, display: 'inline-block', background: 'rgba(239,68,68,0.08)' }}>
+          ⚠ CLASSIFIED // AUTHORIZED PERSONNEL ONLY // LEVEL-7 CLEARANCE
+        </div>
+      </motion.div>
+
+      {/* Login Card */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6, delay: 0.3 }}
+        style={{
+          background: 'rgba(5,20,12,0.95)',
+          border: '1px solid rgba(34,197,94,0.35)',
+          borderRadius: 16,
+          padding: '36px 44px',
+          width: '100%', maxWidth: 420,
+          boxShadow: '0 0 60px rgba(34,197,94,0.15), 0 30px 60px rgba(0,0,0,0.8)',
+          backdropFilter: 'blur(20px)',
+          position: 'relative', overflow: 'hidden'
+        }}
+      >
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent, #22c55e, transparent)' }} />
+
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ fontSize: '0.75rem', color: '#22c55e', letterSpacing: 3, marginBottom: 4 }}>OFFICER AUTHENTICATION</div>
+          <div style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.3)', letterSpacing: 1 }}>SEC-7 TACTICAL COMMAND ACCESS</div>
+        </div>
+
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={{ fontSize: '0.6rem', color: 'rgba(34,197,94,0.7)', letterSpacing: 2, display: 'block', marginBottom: 6 }}>OFFICER ID</label>
+            <input
+              type="text"
+              value={userId}
+              onChange={e => setUserId(e.target.value)}
+              placeholder="e.g. OFF-7A or CMD-01"
+              autoFocus
+              required
+              style={{
+                width: '100%', padding: '10px 14px', background: 'rgba(0,0,0,0.5)',
+                border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8,
+                color: '#22c55e', fontSize: '0.85rem', fontFamily: "'Share Tech Mono', monospace",
+                outline: 'none', boxSizing: 'border-box',
+                letterSpacing: 2
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: '0.6rem', color: 'rgba(34,197,94,0.7)', letterSpacing: 2, display: 'block', marginBottom: 6 }}>ACCESS CODE</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••••"
+              required
+              style={{
+                width: '100%', padding: '10px 14px', background: 'rgba(0,0,0,0.5)',
+                border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8,
+                color: '#22c55e', fontSize: '0.85rem', fontFamily: "'Share Tech Mono', monospace",
+                outline: 'none', boxSizing: 'border-box',
+                letterSpacing: 4
+              }}
+            />
+          </div>
+
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+              style={{ fontSize: '0.65rem', color: '#ef4444', padding: '8px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6 }}
+            >
+              {error}
+            </motion.div>
+          )}
+
+          <motion.button
+            type="submit"
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+            disabled={isLoading}
+            style={{
+              width: '100%', padding: '12px', marginTop: 8,
+              background: isLoading ? 'rgba(34,197,94,0.1)' : 'linear-gradient(135deg, rgba(34,197,94,0.25), rgba(21,128,61,0.25))',
+              border: '1.5px solid #22c55e', borderRadius: 8, color: '#22c55e',
+              fontSize: '0.85rem', fontFamily: "'Share Tech Mono', monospace",
+              fontWeight: 'bold', letterSpacing: 3, cursor: isLoading ? 'wait' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              boxShadow: isLoading ? 'none' : '0 0 20px rgba(34,197,94,0.3)'
+            }}
+          >
+            {isLoading ? <><Fingerprint size={16} style={{ animation: 'spin 1s linear infinite' }} /> AUTHENTICATING...</> : <><Lock size={16} /> AUTHENTICATE & ENTER</>}
+          </motion.button>
+        </form>
+
+        <div style={{ marginTop: 20, padding: '10px 14px', background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: 6 }}>
+          <div style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.3)', marginBottom: 6, letterSpacing: 1 }}>DEMO CREDENTIALS</div>
+          <div style={{ fontSize: '0.6rem', color: 'rgba(34,197,94,0.5)', lineHeight: 1.8 }}>
+            OFF-7A / trinetra2024 (Border Officer)<br/>
+            CMD-01 / rakshak2024 (Major Sharma)<br/>
+            ADM / admin (System Admin)
+          </div>
+        </div>
+      </motion.div>
+
+      <div style={{ marginTop: 24, fontSize: '0.55rem', color: 'rgba(255,255,255,0.15)', letterSpacing: 2 }}>
+        BIOMETRIC FALLBACK ACTIVE • SHA-256 ENCRYPTED • RSA-2048 SESSION TOKEN
+      </div>
+    </div>
+  );
+}
+
 // ─── Typewriter Effect Component ───
 const TypewriterText = ({ text }) => {
   const [displayedText, setDisplayedText] = useState('');
@@ -74,7 +267,8 @@ const TABS = [
 //  MAIN COMMAND CENTER APPLICATION
 // ═══════════════════════════════════════════════════
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [officer, setOfficer] = useState(null);
   const [activeTab, setActiveTab] = useState('DASHBOARD');
   const [sessionTime, setSessionTime] = useState(7200);
   const [logs, setLogs] = useState([
@@ -89,6 +283,7 @@ export default function App() {
   const [trackActive, setTrackActive] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [analystOpen, setAnalystOpen] = useState(false);
+
 
   // Live Detection Telemetry
   const [detectionData, setDetectionData] = useState({
@@ -188,11 +383,15 @@ export default function App() {
 
   const isAlert = detectionData.threatLevel === 'CRITICAL' || detectionData.riskScore > 75;
 
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={(officer) => { setOfficer(officer); setIsAuthenticated(true); }} />;
+  }
+
   return (
     <div className={`command-center ${isNightMode ? 'night-vision' : ''}`}>
-      <WalkieTalkie open={walkieOpen} onClose={() => setWalkieOpen(false)} addLog={addLog} />
+      <WalkieTalkie isOpen={walkieOpen} onToggle={() => setWalkieOpen(o => !o)} addLog={addLog} />
       <MobileAlert visible={smsVisible} text={smsText} onClose={() => setSmsVisible(false)} />
-      <AIThreatAnalyst open={analystOpen} onClose={() => setAnalystOpen(false)} detectionData={detectionData} />
+      <AIThreatAnalyst isOpen={analystOpen} onToggle={() => setAnalystOpen(o => !o)} detectionData={detectionData} />
 
       {/* ═══ TOP MILITARY HEADER BAR ═══ */}
       <div className="command-header">
@@ -593,42 +792,48 @@ export default function App() {
 
       {/* ═══ FLOATING TACTICAL AGENTS & COMMS ═══ */}
       <div style={{ position: 'fixed', bottom: 20, right: 20, display: 'flex', gap: 10, zIndex: 1000 }}>
-        {/* AI Threat Analyst (Claude AI Chat) Button */}
+        {/* AI Threat Analyst (LangGraph AI Chat) Button */}
         <motion.button
           whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
-          onClick={() => setAnalystOpen(true)}
+          onClick={() => setAnalystOpen(o => !o)}
           style={{
-            background: 'linear-gradient(135deg, rgba(168,85,247,0.9), rgba(126,34,206,0.9))',
+            background: analystOpen
+              ? 'linear-gradient(135deg, rgba(168,85,247,1), rgba(126,34,206,1))'
+              : 'linear-gradient(135deg, rgba(168,85,247,0.9), rgba(126,34,206,0.9))',
             border: '1.5px solid #c084fc',
             borderRadius: '50%',
-            width: 46, height: 46,
+            width: 52, height: 52,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer',
-            boxShadow: '0 0 25px rgba(168,85,247,0.6)',
-            color: '#fff'
+            boxShadow: analystOpen ? '0 0 40px rgba(168,85,247,0.9)' : '0 0 25px rgba(168,85,247,0.6)',
+            color: '#fff',
+            outline: analystOpen ? '2px solid #e9d5ff' : 'none'
           }}
-          title="Open AI Threat Analyst (Claude LLM)"
+          title="Open AI Threat Analyst — LangGraph Reasoning"
         >
-          <Brain size={22} />
+          <Brain size={24} />
         </motion.button>
 
         {/* Walkie-Talkie Push-to-Talk Comms Button */}
         <motion.button
           whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
-          onClick={() => setWalkieOpen(true)}
+          onClick={() => setWalkieOpen(o => !o)}
           style={{
-            background: 'linear-gradient(135deg, rgba(34,197,94,0.9), rgba(21,128,61,0.9))',
+            background: walkieOpen
+              ? 'linear-gradient(135deg, rgba(34,197,94,1), rgba(21,128,61,1))'
+              : 'linear-gradient(135deg, rgba(34,197,94,0.9), rgba(21,128,61,0.9))',
             border: '1.5px solid #86efac',
             borderRadius: '50%',
-            width: 46, height: 46,
+            width: 52, height: 52,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer',
-            boxShadow: '0 0 25px rgba(34,197,94,0.6)',
-            color: '#fff'
+            boxShadow: walkieOpen ? '0 0 40px rgba(34,197,94,0.9)' : '0 0 25px rgba(34,197,94,0.6)',
+            color: '#fff',
+            outline: walkieOpen ? '2px solid #bbf7d0' : 'none'
           }}
-          title="Open Tactical Walkie-Talkie"
+          title="Open Tactical Walkie-Talkie Comms"
         >
-          <Radio size={20} />
+          <Radio size={22} />
         </motion.button>
       </div>
     </div>

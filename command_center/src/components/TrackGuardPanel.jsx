@@ -13,6 +13,8 @@ const TRACK_FEEDS = [
     id: 'CAB-01',
     name: 'FRONT LOCOMOTIVE CAB // RAJDHANI 12042',
     videoUrl: REAL_MEDIA.railwayIndia,
+    backupKey: 'railwayIndia',
+    scenario: 'railway',
     speed: 110,
     gradient: '+0.2%'
   },
@@ -20,6 +22,8 @@ const TRACK_FEEDS = [
     id: 'MAST-142',
     name: 'OPTICAL SENSOR MAST // KM-142 CORRIDOR',
     videoUrl: REAL_MEDIA.wildlifeCorridor,
+    backupKey: 'wildlifeCorridor',
+    scenario: 'wildlife',
     speed: 110,
     gradient: 'FLAT'
   },
@@ -27,10 +31,13 @@ const TRACK_FEEDS = [
     id: 'THERMAL-7',
     name: 'FLIR THERMAL WILDLIFE SENTRY',
     videoUrl: REAL_MEDIA.railwayPlatform,
+    backupKey: 'railwayPlatform',
+    scenario: 'railway',
     speed: 110,
     gradient: '+0.1%'
   }
 ];
+
 
 export default function TrackGuardPanel({
   trackActive,
@@ -199,6 +206,8 @@ export default function TrackGuardPanel({
         {/* Real Railway Video Footage */}
         <RealFeedVideo
           src={selectedFeed.videoUrl}
+          backupKey={selectedFeed.backupKey}
+          scenario={selectedFeed.scenario}
           label={selectedFeed.name}
           style={{ width: '100%', height: '100%', filter: flirShader ? 'invert(1) hue-rotate(180deg) contrast(140%)' : 'none' }}
         />
