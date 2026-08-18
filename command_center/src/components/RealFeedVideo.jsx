@@ -12,6 +12,7 @@ import { REAL_MEDIA_BACKUP } from '../lib/realMediaFeeds';
 const CHANNEL_SCENARIOS = {
   border: {
     bg: '#0a0f0a',
+    imgUrl: 'https://images.unsplash.com/photo-1582236528766-419b4fcb5113?w=1080&q=80', // Barbed wire fence
     label: 'PERSON // INTRUDER',
     color: '#ef4444',
     objects: [
@@ -22,6 +23,7 @@ const CHANNEL_SCENARIOS = {
   },
   railway: {
     bg: '#080e08',
+    imgUrl: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=1080&q=80', // Railway tracks
     label: 'WILDLIFE // ELEPHANT',
     color: '#f59e0b',
     objects: [
@@ -31,6 +33,7 @@ const CHANNEL_SCENARIOS = {
   },
   mining: {
     bg: '#0a0a0a',
+    imgUrl: 'https://images.unsplash.com/photo-1519782558509-0d29d8a395b1?w=1080&q=80', // Excavator/Mining
     label: 'VEHICLE // EXCAVATOR',
     color: '#38bdf8',
     objects: [
@@ -41,6 +44,7 @@ const CHANNEL_SCENARIOS = {
   },
   checkpoint: {
     bg: '#080a0a',
+    imgUrl: 'https://images.unsplash.com/photo-1612260655452-f19589d8916d?w=1080&q=80', // Night street / checkpoint
     label: 'VEHICLE // ARMORED',
     color: '#22c55e',
     objects: [
@@ -50,10 +54,11 @@ const CHANNEL_SCENARIOS = {
   },
   wildlife: {
     bg: '#090c09',
-    label: 'WILDLIFE // TRACKING',
+    imgUrl: 'https://images.unsplash.com/photo-1557050543-4d5f4e07ef46?w=1080&q=80', // Elephant in dark
+    label: 'WILDLIFE // ELEPHANT',
     color: '#a855f7',
     objects: [
-      { x: 0.28, y: 0.38, w: 0.15, h: 0.28, label: 'BEAR', conf: 87.6, cls: 'WILDLIFE' },
+      { x: 0.45, y: 0.38, w: 0.25, h: 0.35, label: 'ELEPHANT', conf: 97.6, cls: 'WILDLIFE' },
     ],
     gridColor: 'rgba(168,85,247,0.06)',
   },
@@ -63,7 +68,18 @@ function YoloSimCanvas({ scenario = 'border', label = 'LIVE FEED', style }) {
   const canvasRef = useRef(null);
   const frameRef = useRef(0);
   const animRef = useRef(null);
+  const bgImgRef = useRef(null);
   const scene = CHANNEL_SCENARIOS[scenario] || CHANNEL_SCENARIOS.border;
+
+  // Load the background image
+  useEffect(() => {
+    if (scene.imgUrl) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = scene.imgUrl;
+      img.onload = () => { bgImgRef.current = img; };
+    }
+  }, [scene.imgUrl]);
 
   const drawFrame = useCallback(() => {
     const canvas = canvasRef.current;
@@ -75,9 +91,16 @@ function YoloSimCanvas({ scenario = 'border', label = 'LIVE FEED', style }) {
     const t = frameRef.current;
     const now = new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' });
 
-    // Background
-    ctx.fillStyle = scene.bg;
-    ctx.fillRect(0, 0, W, H);
+    // Background Image or Solid Color
+    if (bgImgRef.current) {
+      ctx.drawImage(bgImgRef.current, 0, 0, W, H);
+      // Darken overlay for CCTV effect
+      ctx.fillStyle = 'rgba(0,5,5,0.4)';
+      ctx.fillRect(0, 0, W, H);
+    } else {
+      ctx.fillStyle = scene.bg;
+      ctx.fillRect(0, 0, W, H);
+    }
 
     // Grid overlay
     ctx.strokeStyle = scene.gridColor;
@@ -204,8 +227,6 @@ function YoloSimCanvas({ scenario = 'border', label = 'LIVE FEED', style }) {
       ctx.fillStyle = '#ef4444';
       ctx.fillText('REC', W - 42, H - 7);
     }
-
-    animRef.current = requestAnimationFrame(drawFrame);
   }, [scene, label]);
 
   useEffect(() => {
@@ -217,8 +238,17 @@ function YoloSimCanvas({ scenario = 'border', label = 'LIVE FEED', style }) {
     };
     resize();
     window.addEventListener('resize', resize);
-    animRef.current = requestAnimationFrame(drawFrame);
+    
+    let isActive = true;
+    const loop = () => {
+      if (!isActive) return;
+      drawFrame();
+      animRef.current = requestAnimationFrame(loop);
+    };
+    loop();
+    
     return () => {
+      isActive = false;
       window.removeEventListener('resize', resize);
       if (animRef.current) cancelAnimationFrame(animRef.current);
     };

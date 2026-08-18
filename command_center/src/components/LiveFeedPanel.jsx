@@ -134,8 +134,10 @@ export default function LiveFeedPanel({
   useEffect(() => {
     let animId;
     let lastInfer = 0;
+    let isActive = true;
 
     const runInference = async () => {
+      if (!isActive) return;
       tickRef.current += 1;
       const now = Date.now();
       const video = videoRef.current;
@@ -149,6 +151,7 @@ export default function LiveFeedPanel({
 
           try {
             const results = await detectFrame(video, 0.3);
+            if (!isActive) return; // double check after await
             drawDetections(canvas, results, 0, tickRef.current);
 
             if (results.length > 0) {
@@ -169,11 +172,16 @@ export default function LiveFeedPanel({
         }
       }
 
-      animId = requestAnimationFrame(runInference);
+      if (isActive) {
+        animId = requestAnimationFrame(runInference);
+      }
     };
 
     animId = requestAnimationFrame(runInference);
-    return () => cancelAnimationFrame(animId);
+    return () => {
+      isActive = false;
+      cancelAnimationFrame(animId);
+    };
   }, [selectedChannel, modelStatus, simActive]);
 
   const snapEvidence = () => {
