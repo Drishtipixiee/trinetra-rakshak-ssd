@@ -32,6 +32,13 @@ threat_engine = ThreatPredictor()
 with app.app_context():
     db.create_all()
     print(">> Trinetra Rakshak 2.0 DB initialized.")
+    # Seed default user if none exists
+    if not User.query.first():
+        pw_hash = generate_password_hash('rakshak2024')
+        default_user = User(username='CMD-01', password_hash=pw_hash, role='COMMANDER')
+        db.session.add(default_user)
+        db.session.commit()
+        print(">> Default officer credentials seeded: CMD-01")
 
 # ═══════════════════════════════════════════
 #  AUTHENTICATION & ROOT

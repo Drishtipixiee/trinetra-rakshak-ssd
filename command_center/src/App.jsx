@@ -58,21 +58,45 @@ function LoginPage({ onLogin }) {
     return () => clearInterval(timer);
   }, []);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    setTimeout(() => {
-      const officer = OFFICER_CREDENTIALS.find(
-        o => o.id.toLowerCase() === userId.trim().toLowerCase() && o.pass === password.trim()
-      );
-      if (officer) {
+
+    try {
+      const res = await fetch(`${API_URL}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: userId.trim(), password: password.trim() })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.status === 'success') {
+        const officer = {
+          id: userId.trim(),
+          name: data.user?.username || userId.trim(),
+          rank: data.user?.role || 'OFFICER',
+          accessLevel: 5,
+          sector: 'COMMAND CENTER'
+        };
+        
+        // Log the successful login silently
+        fetch(`${API_URL}/api/log_login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ officer_id: userId.trim() })
+        }).catch(() => {});
+        
         onLogin(officer);
       } else {
-        setError('ACCESS DENIED — Invalid credentials. Unauthorized access is logged and monitored.');
+        setError(data.message || 'ACCESS DENIED — Invalid credentials. Unauthorized access is logged and monitored.');
         setIsLoading(false);
       }
-    }, 1200);
+    } catch (err) {
+      setError('SYSTEM OFFLINE — Cannot reach Central Authentication Server.');
+      setIsLoading(false);
+    }
   };
 
   return (

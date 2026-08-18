@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Scan, Satellite, AlertTriangle, CheckCircle, Loader2, Info, MapPin, Layers, RefreshCw } from 'lucide-react';
-import { MapContainer, TileLayer, Circle, Polygon, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle, Polygon, Polyline, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // Fix Leaflet marker icons in React
@@ -111,6 +111,39 @@ export default function GeoEyePanel({ onThreatDetected, addLog, logToSupabase })
   const [mapCenter, setMapCenter] = useState([23.7973, 86.4416]);
   const [mapZoom, setMapZoom] = useState(8);
   const [scanProgress, setScanProgress] = useState(100);
+  const [overpassData, setOverpassData] = useState([]);
+
+  // Fetch real OSM vectors via Overpass API for true GIS realism
+  const fetchOverpassData = async (zone) => {
+    if (!zone) return;
+    try {
+      const lats = zone.coords.map(c => c[0]);
+      const lons = zone.coords.map(c => c[1]);
+      const s = Math.min(...lats) - 0.05;
+      const n = Math.max(...lats) + 0.05;
+      const w = Math.min(...lons) - 0.05;
+      const e = Math.max(...lons) + 0.05;
+      
+      const query = `
+        [out:json][timeout:25];
+        (
+          way["highway"](${s},${w},${n},${e});
+          way["railway"](${s},${w},${n},${e});
+          way["waterway"](${s},${w},${n},${e});
+        );
+        out geom;
+      `;
+      const res = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: query
+      });
+      const data = await res.json();
+      setOverpassData(data.elements || []);
+      if (addLog) addLog(`[GEO-EYE] Fetched ${data.elements?.length || 0} real OpenStreetMap vectors for ${zone.id}.`, 'info');
+    } catch (err) {
+      console.warn("Overpass API fetch failed:", err);
+    }
+  };
 
   const triggerRealScan = useCallback(async () => {
     if (scanning) return;
@@ -129,6 +162,7 @@ export default function GeoEyePanel({ onThreatDetected, addLog, logToSupabase })
     setScanning(false);
     setScanComplete(true);
     setVisibleZones(REAL_MINING_ZONES);
+    fetchOverpassData(REAL_MINING_ZONES[0]); // Automatically fetch real GIS data for the primary zone
 
     if (addLog) addLog('[GEO-EYE] 5 Documented Mining Polygons identified across Jharkhand corridor.', 'warning');
     if (logToSupabase) logToSupabase('GEO-EYE', 88, 'Satellite Scan: 5 Illegal Mining Zones Detected in Jharkhand');
@@ -244,6 +278,7 @@ export default function GeoEyePanel({ onThreatDetected, addLog, logToSupabase })
                     setSelectedZone(zone);
                     setMapCenter(zone.center);
                     setMapZoom(13);
+                    fetchOverpassData(zone);
                   }
                 }}
               >
@@ -261,6 +296,22 @@ export default function GeoEyePanel({ onThreatDetected, addLog, logToSupabase })
                 </Popup>
               </Polygon>
             ))}
+
+            {/* Real GIS Infrastructure Vectors (Overpass API) */}
+            {overpassData.map((el) => {
+              if (el.type === 'way' && el.geometry) {
+                const color = el.tags?.waterway ? '#38bdf8' : el.tags?.railway ? '#fca5a5' : '#94a3b8';
+                const opacity = el.tags?.highway ? 0.3 : 0.8;
+                return (
+                  <Polyline
+                    key={el.id}
+                    positions={el.geometry.map(pt => [pt.lat, pt.lon])}
+                    pathOptions={{ color, weight: 2, opacity }}
+                  />
+                );
+              }
+              return null;
+            })}
 
             {/* Scanning Radar Range Circle */}
             <Circle
