@@ -986,53 +986,110 @@ export default function App() {
   }, [simActive, voiceEnabled]);
 
   // ═══ TRACK-GUARD ELEPHANT/ANIMAL SCENARIO SIMULATION ═══
-  // Simulates animal crossings even when TF.js doesn't detect them on the video
+  // Simulates animal crossings and realistic train deceleration to a complete stop
   useEffect(() => {
     if (!trackActive) {
       setTrackScenarioActive(false);
-      if (trackScenarioRef.current) clearTimeout(trackScenarioRef.current);
+      setTrackData({ detected: false, object: 'None', trainSpeed: 80, distance: 2000, timeToImpact: 99 });
+      if (trackScenarioRef.current) clearInterval(trackScenarioRef.current);
       return;
     }
-    // After 8 seconds of track active, simulate elephant crossing
+
+    let intervalId = null;
+    
+    // Trigger elephant crossing after 1.5 seconds of scan activation
     trackScenarioRef.current = setTimeout(() => {
       setTrackScenarioActive(true);
-      setTrackData({
+      setTrackData(prev => ({
+        ...prev,
         detected: true,
         object: 'Elephant',
-        trainSpeed: 45,
-        distance: 850,
-        timeToImpact: 68,
-      });
-      addLog('[TRK-GUARD] ⚠ ELEPHANT CROSSING DETECTED on track at KM-142 | Rajdhani Express approaching | Speed: 45 km/h | ETI: 68s', 'critical');
-      addLog('[TRK-GUARD] Auto-brake signal transmitted to loco-pilot | Speed reduction protocol ACTIVE', 'warning');
-      addLog('[TRK-GUARD] Wildlife Dept. alert issued to DFO Dhanbad | CCTV footage archived', 'normal');
+        trainSpeed: 80,
+        distance: 1200,
+        timeToImpact: 54
+      }));
+
+      addLog('[TRK-GUARD] ⚠ ELEPHANT DETECTED ON TRACK AT KM-142 | Rajdhani Express approaching | Speed: 80 km/h | ETI: 54s', 'critical');
+      addLog('[TRK-GUARD] Auto-brake instruction transmitted to locomotive computer. Initiating full stop sequence...', 'warning');
+      addLog('[TRK-GUARD] Wildlife Department alerted (DFO Dhanbad). Monitoring crossing progression.', 'normal');
       playKlaxon();
       if (voiceRef.current && voiceEnabled) {
-        voiceRef.current.speak('Track Guard alert. Elephant detected on railway corridor at kilometer 142. Rajdhani Express approaching at 45 kilometers per hour. Estimated impact 68 seconds. Auto-brake signal transmitted. Wildlife department notified.', 'critical');
+        voiceRef.current.speak('Track Guard alert. Elephant detected on railway corridor at kilometer 142. Rajdhani Express approaching. Auto-brake instruction transmitted. Initiating full stop.', 'critical');
       }
 
-      // After 30s, simulate elephant cleared
-      trackScenarioRef.current = setTimeout(() => {
-        setTrackScenarioActive(false);
-        setTrackData({ detected: false, object: 'None', trainSpeed: 80, distance: 2000, timeToImpact: 99 });
-        addLog('[TRK-GUARD] ✓ Elephant cleared the track. Rajdhani Express resumed normal speed. All clear.', 'safe');
-        if (voiceRef.current && voiceEnabled) {
-          voiceRef.current.speak('Track Guard all clear. Elephant has moved off the railway corridor. Train resuming normal operations.', 'normal');
-        }
-        // Repeat scenario cycle every 90s
-        trackScenarioRef.current = setTimeout(() => {
-          if (trackActive) {
-            const animals = ['Elephant', 'Tiger', 'Gaur (Indian Bison)', 'Deer'];
-            const animal = animals[Math.floor(Math.random() * animals.length)];
-            setTrackData({ detected: true, object: animal, trainSpeed: 60, distance: 1200, timeToImpact: 72 });
-            setTrackScenarioActive(true);
-            addLog(`[TRK-GUARD] ${animal} on track detected at KM-156. Brake signal sent.`, 'critical');
-            playKlaxon();
+      // Deceleration loop
+      let speed = 80;
+      let distance = 1200;
+      intervalId = setInterval(() => {
+        speed = Math.max(0, speed - 8); // decelerate by 8 km/h per step
+        distance = Math.max(150, distance - 110); // get closer but stop 150m away safely
+        const impactTime = speed > 0 ? Math.round((distance / (speed / 3.6))) : 0;
+        
+        setTrackData(prev => ({
+          ...prev,
+          trainSpeed: speed,
+          distance: distance,
+          timeToImpact: impactTime
+        }));
+
+        if (speed === 0) {
+          clearInterval(intervalId);
+          addLog('[TRK-GUARD] ✓ TRAIN SAFELY STOPPED at KM-142. Maintained 150m safety distance from target.', 'safe');
+          if (voiceRef.current && voiceEnabled) {
+            voiceRef.current.speak('Track Guard telemetry. Train safely stopped. Collision avoided.', 'safe');
           }
-        }, 60000);
-      }, 30000);
-    }, 8000);
-    return () => { if (trackScenarioRef.current) clearTimeout(trackScenarioRef.current); };
+
+          // Let the elephant cross and clear after 6 seconds of train stopping
+          trackScenarioRef.current = setTimeout(() => {
+            setTrackScenarioActive(false);
+            setTrackData({ detected: false, object: 'None', trainSpeed: 80, distance: 2000, timeToImpact: 99 });
+            addLog('[TRK-GUARD] ✓ Elephant has cleared the railway track. Restarting train corridor scan. All clear.', 'safe');
+            if (voiceRef.current && voiceEnabled) {
+              voiceRef.current.speak('Track Guard. Elephant has cleared the corridor. Normal track speed restored.', 'normal');
+            }
+
+            // Schedule a second tiger crossing in 15 seconds
+            trackScenarioRef.current = setTimeout(() => {
+              if (trackActive) {
+                setTrackScenarioActive(true);
+                setTrackData({ detected: true, object: 'Tiger', trainSpeed: 80, distance: 1000, timeToImpact: 45 });
+                addLog('[TRK-GUARD] ⚠ TIGER SPOTTED near track corridor KM-156. Triggering emergency brake sequence.', 'critical');
+                playKlaxon();
+                if (voiceRef.current && voiceEnabled) {
+                  voiceRef.current.speak('Track Guard alert. Tiger spotted near track corridor KM 156. Enforcing emergency brake.', 'critical');
+                }
+
+                // Tiger deceleration loop
+                let tigerSpeed = 80;
+                let tigerDist = 1000;
+                intervalId = setInterval(() => {
+                  tigerSpeed = Math.max(0, tigerSpeed - 10);
+                  tigerDist = Math.max(120, tigerDist - 120);
+                  const tigerImpact = tigerSpeed > 0 ? Math.round((tigerDist / (tigerSpeed / 3.6))) : 0;
+                  setTrackData(prev => ({
+                    ...prev,
+                    trainSpeed: tigerSpeed,
+                    distance: tigerDist,
+                    timeToImpact: tigerImpact
+                  }));
+                  if (tigerSpeed === 0) {
+                    clearInterval(intervalId);
+                    addLog('[TRK-GUARD] ✓ Train stopped safely before animal crossing. Awaiting clearance.', 'safe');
+                  }
+                }, 80000 / 80); // Decelerate tiger
+              }
+            }, 15000);
+
+          }, 6000);
+        }
+      }, 800); // Deceleration check interval
+
+    }, 1500);
+
+    return () => {
+      if (trackScenarioRef.current) clearTimeout(trackScenarioRef.current);
+      if (intervalId) clearInterval(intervalId);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackActive]);
 
@@ -1401,6 +1458,7 @@ export default function App() {
                       }} />
                       {/* Main camera video feed */}
                       <video
+                        key={selectedCam}
                         ref={videoRef}
                         autoPlay loop muted playsInline crossOrigin="anonymous"
                         style={{
@@ -1412,6 +1470,37 @@ export default function App() {
                         }}
                         src={activeSrc}
                       />
+                      {/* AI Suspect Face Capture / Wanted Profiles Overlay */}
+                      {simActive && (
+                        <div style={{
+                          position: 'absolute', right: 12, top: 45, width: 140,
+                          background: 'rgba(10,12,14,0.9)', border: '1px solid var(--danger)',
+                          borderRadius: 6, zIndex: 12, padding: 8, fontFamily: "'Share Tech Mono'",
+                          boxShadow: '0 0 15px rgba(239,68,68,0.25)'
+                        }}>
+                          <div style={{ fontSize: '0.45rem', color: 'var(--danger)', borderBottom: '1px solid rgba(239,68,68,0.3)', paddingBottom: 4, marginBottom: 6, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <div className="rec-dot" style={{ width: 4, height: 4, background: 'var(--danger)', borderRadius: '50%', animation: 'pulse 1s infinite' }} />
+                            AI FACE MATCHING
+                          </div>
+                          
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {[
+                              { name: 'SUSPECT #091', match: '96%', file: 'WANTED-CRIM', src: 'https://images.unsplash.com/photo-1542909168-82c3e7fdca5c?w=80&h=80&fit=crop' },
+                              { name: 'SUSPECT #073', match: '91%', file: 'TERR-WATCH', src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop' },
+                              { name: 'SUSPECT #104', match: '87%', file: 'POI-ALPHA', src: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop' },
+                            ].map((sus, idx) => (
+                              <div key={idx} style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,0.03)', padding: 4, borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
+                                <img src={sus.src} style={{ width: 32, height: 32, objectFit: 'cover', filter: 'grayscale(100%) contrast(140%)', border: '1px solid rgba(255,255,255,0.1)' }} alt="face" />
+                                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                  <div style={{ fontSize: '0.42rem', color: '#fff', fontWeight: 'bold' }}>{sus.name}</div>
+                                  <div style={{ fontSize: '0.38rem', color: 'var(--danger)' }}>MATCH: {sus.match}</div>
+                                  <div style={{ fontSize: '0.35rem', color: 'var(--text-dim)' }}>{sus.file}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {/* Horizontal CCTV scan line */}
                       <div style={{ position: 'absolute', inset: 0, zIndex: 4, background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.07) 0px, rgba(0,0,0,0.07) 1px, transparent 1px, transparent 3px)', pointerEvents: 'none' }} />
                       {/* Corner vignette */}
@@ -1790,23 +1879,33 @@ export default function App() {
                     {/* Wildlife detection bounding box + label */}
                     {trackData.detected && (
                       <>
-                        {/* YOLO-style bbox around animal */}
-                        <motion.div
-                          initial={{ opacity: 0, scale: 1.5 }} animate={{ opacity: 1, scale: 1 }}
-                          style={{ position: 'absolute', left: '33%', top: '12%', width: '34%', height: '45%', border: '2px solid var(--danger)', boxShadow: '0 0 20px rgba(239,68,68,0.6)', zIndex: 10, borderRadius: 4 }}>
-                          <div style={{ position: 'absolute', top: -20, left: 0, background: '#ef4444', color: '#fff', fontSize: '0.6rem', fontFamily: "'Share Tech Mono'", padding: '2px 8px', borderRadius: '4px 4px 0 0', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
-                            🐘 {trackData.object.toUpperCase()} | 94% | COCO-SSD
-                          </div>
-                          {/* Corner brackets */}
-                          <div style={{ position: 'absolute', top: 0, left: 0, width: 14, height: 14, borderTop: '3px solid #ef4444', borderLeft: '3px solid #ef4444' }} />
-                          <div style={{ position: 'absolute', top: 0, right: 0, width: 14, height: 14, borderTop: '3px solid #ef4444', borderRight: '3px solid #ef4444' }} />
-                          <div style={{ position: 'absolute', bottom: 0, left: 0, width: 14, height: 14, borderBottom: '3px solid #ef4444', borderLeft: '3px solid #ef4444' }} />
-                          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, borderBottom: '3px solid #ef4444', borderRight: '3px solid #ef4444' }} />
-                          {/* Risk confidence bar */}
-                          <div style={{ position: 'absolute', bottom: -10, left: 0, right: 0, height: 5, background: 'rgba(239,68,68,0.3)', borderRadius: 2 }}>
-                            <div style={{ width: '94%', height: '100%', background: '#ef4444', borderRadius: 2 }} />
-                          </div>
-                        </motion.div>
+                         {/* YOLO-style bbox around animal */}
+                         <motion.div
+                           initial={{ opacity: 0, scale: 1.5 }} animate={{ opacity: 1, scale: 1 }}
+                           style={{ position: 'absolute', left: '33%', top: '12%', width: '34%', height: '45%', border: '2px solid var(--danger)', boxShadow: '0 0 20px rgba(239,68,68,0.6)', zIndex: 10, borderRadius: 4 }}>
+                           
+                           {/* Animal Image */}
+                           <img 
+                             src={trackData.object === 'Elephant' 
+                               ? 'https://images.unsplash.com/photo-1549488344-1f9b8d2bd1f3?w=400&h=300&fit=crop' 
+                               : 'https://images.unsplash.com/photo-1561731216-c3a4d99437d5?w=400&h=300&fit=crop'} 
+                             style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9, borderRadius: 3 }} 
+                             alt={trackData.object}
+                           />
+
+                           <div style={{ position: 'absolute', top: -20, left: 0, background: '#ef4444', color: '#fff', fontSize: '0.6rem', fontFamily: "'Share Tech Mono'", padding: '2px 8px', borderRadius: '4px 4px 0 0', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+                             {trackData.object === 'Elephant' ? '🐘' : '🐅'} {trackData.object.toUpperCase()} | 94% | COCO-SSD
+                           </div>
+                           {/* Corner brackets */}
+                           <div style={{ position: 'absolute', top: 0, left: 0, width: 14, height: 14, borderTop: '3px solid #ef4444', borderLeft: '3px solid #ef4444' }} />
+                           <div style={{ position: 'absolute', top: 0, right: 0, width: 14, height: 14, borderTop: '3px solid #ef4444', borderRight: '3px solid #ef4444' }} />
+                           <div style={{ position: 'absolute', bottom: 0, left: 0, width: 14, height: 14, borderBottom: '3px solid #ef4444', borderLeft: '3px solid #ef4444' }} />
+                           <div style={{ position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, borderBottom: '3px solid #ef4444', borderRight: '3px solid #ef4444' }} />
+                           {/* Risk confidence bar */}
+                           <div style={{ position: 'absolute', bottom: -10, left: 0, right: 0, height: 5, background: 'rgba(239,68,68,0.3)', borderRadius: 2 }}>
+                             <div style={{ width: '94%', height: '100%', background: '#ef4444', borderRadius: 2 }} />
+                           </div>
+                         </motion.div>
 
                         {/* TIME TO IMPACT & AUTO-BRAKE OVERLAY */}
                         <div style={{ position: 'absolute', top: '60%', left: 0, right: 0, zIndex: 50, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
