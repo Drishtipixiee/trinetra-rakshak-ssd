@@ -585,6 +585,10 @@ export default function App() {
   // Track animal scenario
   const [trackScenarioActive, setTrackScenarioActive] = useState(false);
   const trackScenarioRef = useRef(null);
+  // Live feed selected camera
+  const [selectedCam, setSelectedCam] = useState('CAM-01');
+  // DB seeded guard — prevent addLog from firing on every 3s poll
+  const dbLogsSeededRef = useRef(false);
 
   // Session Expiry logic
   useEffect(() => {
@@ -665,25 +669,25 @@ export default function App() {
           setDbLogs(data.incidents);
           isInitialLoad.current = false;
         } else {
-          // Backend empty or offline — use realistic simulated events
-          if (dbLogs.length === 0) {
+          // Backend empty or offline — seed ONCE using ref guard (no repeated toasts)
+          if (!dbLogsSeededRef.current) {
+            dbLogsSeededRef.current = true;
             setDbLogs(SIMULATED_DB_EVENTS);
-            if (addLog) {
-              setTimeout(() => addLog('[DB] Loaded 8 historical threat events from Trinetra database cache.', 'normal'), 500);
-              setTimeout(() => addLog('[DB] CRITICAL: Elephant crossing event at TRACK-KM-142 logged. Auto-brake confirmed.', 'warning'), 1200);
-              setTimeout(() => addLog('[DB] MINING: Dhanbad Coal Belt unauthorized extraction — report forwarded to DMO.', 'critical'), 2000);
-            }
+            setTimeout(() => addLog('[DB] Loaded 8 historical threat events from Trinetra database cache.', 'normal'), 500);
+            setTimeout(() => addLog('[DB] CRITICAL: Elephant crossing — TRACK-KM-142 logged. Auto-brake confirmed.', 'warning'), 1200);
+            setTimeout(() => addLog('[DB] MINING: Dhanbad Coal Belt unauthorized extraction — report forwarded to DMO.', 'critical'), 2000);
           }
         }
       } catch (err) {
-        // Backend offline — use simulated events  
-        if (dbLogs.length === 0) {
+        // Backend offline — seed ONCE
+        if (!dbLogsSeededRef.current) {
+          dbLogsSeededRef.current = true;
           setDbLogs(SIMULATED_DB_EVENTS);
           setApiOffline(true);
         }
       }
     };
-    const initPoller = setInterval(fetchDBLogs, 3000);
+    const initPoller = setInterval(fetchDBLogs, 8000); // poll every 8s not 3s
     fetchDBLogs(); // immediate first call
     return () => clearInterval(initPoller);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -960,6 +964,8 @@ export default function App() {
       { id: 4, cam: 'CAM-04', type: 'BACKPACK', conf: 73, risk: 'MEDIUM', msg: 'Unattended bag detected at gate checkpoint — threat assessment 73%', color: '#f59e0b', bbox: [65, 50, 85, 80] },
       { id: 5, cam: 'CAM-01', type: 'PERSON', conf: 96, risk: 'CRITICAL', msg: 'High-confidence intruder at fence breach point — QRF alerted', color: '#ef4444', bbox: [30, 20, 55, 70] },
       { id: 6, cam: 'CAM-05', type: 'BICYCLE', conf: 82, risk: 'LOW', msg: 'Civilian bicycle approaching outer perimeter — monitoring', color: '#22c55e', bbox: [40, 35, 65, 65] },
+      { id: 7, cam: 'CAM-02', type: 'ANIMAL', conf: 87, risk: 'LOW', msg: 'Stray animal near south gate — auto-classified as non-threat', color: '#22c55e', bbox: [10, 30, 35, 65] },
+      { id: 8, cam: 'CAM-03', type: 'PERSON', conf: 94, risk: 'CRITICAL', msg: 'Armed individual detected near east watchtower — critical threat', color: '#ef4444', bbox: [45, 10, 70, 70] },
     ];
     let alertIdx = 0;
     const addLiveAlert = () => {
@@ -967,11 +973,17 @@ export default function App() {
       const timestamped = { ...alert, id: Date.now(), time: new Date().toLocaleTimeString('en-IN', { hour12: false }) };
       setLiveAiAlerts(prev => [timestamped, ...prev].slice(0, 8));
       alertIdx++;
+      // ── AI VOICE for live feed detections ──
+      if (voiceRef.current && voiceEnabled && alert.risk === 'CRITICAL') {
+        voiceRef.current.speak(`Live feed AI alert. ${alert.cam}: ${alert.msg}`, 'critical');
+      } else if (voiceRef.current && voiceEnabled && alert.risk === 'HIGH') {
+        voiceRef.current.speak(`${alert.cam} detection: ${alert.type} identified. Confidence ${alert.conf} percent.`);
+      }
     };
     addLiveAlert(); // immediate
-    liveAlertTimerRef.current = setInterval(addLiveAlert, 5500);
+    liveAlertTimerRef.current = setInterval(addLiveAlert, 6000);
     return () => clearInterval(liveAlertTimerRef.current);
-  }, [simActive]);
+  }, [simActive, voiceEnabled]);
 
   // ═══ TRACK-GUARD ELEPHANT/ANIMAL SCENARIO SIMULATION ═══
   // Simulates animal crossings even when TF.js doesn't detect them on the video
@@ -1363,35 +1375,72 @@ export default function App() {
               <motion.div key="live" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="live-feed-container"
               >
-                {/* Real video feed (video element for TF.js inference) */}
-                <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-                  {simActive ? (
-                    <>
-                      {/* VIDEO ELEMENT — TF.js reads frames from this */}
+                {/* ── ALWAYS-ON CCTV-STYLE VIDEO (grey, never empty) ── */}
+                {(() => {
+                  const CAM_FEEDS = {
+                    'CAM-01': 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4',
+                    'CAM-02': 'https://assets.mixkit.co/videos/preview/mixkit-security-camera-recording-a-robbery-41484-large.mp4',
+                    'CAM-03': 'https://assets.mixkit.co/videos/preview/mixkit-car-approaching-a-security-gate-at-night-42171-large.mp4',
+                    'CAM-04': 'https://assets.mixkit.co/videos/preview/mixkit-guard-walking-in-the-snow-during-winter-39845-large.mp4',
+                  };
+                  const activeSrc = useWebcam ? undefined : (CAM_FEEDS[selectedCam] || CAM_FEEDS['CAM-01']);
+                  return (
+                    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#1a1c1e' }}>
+                      {/* Grey grid CCTV background — always visible */}
+                      <div style={{
+                        position: 'absolute', inset: 0, zIndex: 0,
+                        backgroundImage: 'linear-gradient(rgba(180,180,180,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(180,180,180,0.04) 1px, transparent 1px)',
+                        backgroundSize: '32px 32px',
+                        background: 'linear-gradient(135deg, #161819 0%, #1e2123 50%, #161819 100%)',
+                      }} />
+                      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(200,200,200,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(200,200,200,0.03) 1px, transparent 1px)', backgroundSize: '32px 32px', zIndex: 1 }} />
+                      {/* Camera static noise overlay */}
+                      <div style={{ position: 'absolute', inset: 0, zIndex: 2, opacity: 0.035,
+                        backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'1\'/%3E%3C/svg%3E")',
+                        backgroundSize: '200px 200px',
+                      }} />
+                      {/* Main camera video feed */}
                       <video
                         ref={videoRef}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        crossOrigin="anonymous"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isNightMode ? 0.4 : 0.75, filter: isNightMode ? 'grayscale(100%) contrast(150%) brightness(0.7) hue-rotate(90deg)' : 'saturate(0.85) contrast(1.1)', position: 'relative', zIndex: 1 }}
-                        src={useWebcam ? undefined : 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4'}
+                        autoPlay loop muted playsInline crossOrigin="anonymous"
+                        style={{
+                          width: '100%', height: '100%', objectFit: 'cover', position: 'relative', zIndex: 3,
+                          opacity: isNightMode ? 0.5 : 0.82,
+                          filter: isNightMode
+                            ? 'grayscale(100%) contrast(140%) brightness(0.6) hue-rotate(90deg)'
+                            : 'grayscale(60%) contrast(1.15) brightness(0.88) saturate(0.5)',
+                        }}
+                        src={activeSrc}
                       />
-                    </>
-                  ) : (
-                    <div style={{
-                      position: 'absolute', inset: 0,
-                      background: 'radial-gradient(ellipse at center, rgba(10,15,10,0.7), rgba(3,5,3,1))',
-                    }}>
-                      <div style={{
-                        position: 'absolute', inset: 0,
-                        backgroundImage: 'linear-gradient(rgba(34,197,94,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(34,197,94,0.03) 1px, transparent 1px)',
-                        backgroundSize: '40px 40px'
-                      }} />
+                      {/* Horizontal CCTV scan line */}
+                      <div style={{ position: 'absolute', inset: 0, zIndex: 4, background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.07) 0px, rgba(0,0,0,0.07) 1px, transparent 1px, transparent 3px)', pointerEvents: 'none' }} />
+                      {/* Corner vignette */}
+                      <div style={{ position: 'absolute', inset: 0, zIndex: 4, background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.6) 100%)', pointerEvents: 'none' }} />
+                      {/* Camera selector row */}
+                      <div style={{ position: 'absolute', bottom: 140, left: 12, zIndex: 10, display: 'flex', gap: 6 }}>
+                        {Object.keys(CAM_FEEDS).map(camId => (
+                          <button key={camId} onClick={() => setSelectedCam(camId)}
+                            style={{
+                              fontSize: '0.48rem', fontFamily: "'Share Tech Mono'", padding: '3px 8px',
+                              background: selectedCam === camId ? 'rgba(34,197,94,0.25)' : 'rgba(0,0,0,0.6)',
+                              border: `1px solid ${selectedCam === camId ? 'var(--accent)' : 'rgba(255,255,255,0.12)'}`,
+                              color: selectedCam === camId ? 'var(--accent)' : 'rgba(255,255,255,0.4)',
+                              cursor: 'pointer', borderRadius: 3,
+                            }}
+                          >{camId}</button>
+                        ))}
+                      </div>
+                      {/* STANDBY overlay when not detecting */}
+                      {!simActive && (
+                        <div style={{ position: 'absolute', inset: 0, zIndex: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.35)' }}>
+                          <div style={{ fontSize: '0.55rem', color: 'rgba(200,200,200,0.4)', fontFamily: "'Share Tech Mono'", letterSpacing: 3, border: '1px solid rgba(200,200,200,0.15)', padding: '6px 18px', borderRadius: 4 }}>
+                            CAMERA PASSIVE — DETECTION OFFLINE
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
 
                 {/* Detection canvas — TF.js draws real bboxes here */}
                 <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 2 }} />
@@ -1521,19 +1570,26 @@ export default function App() {
                     borderTop: '1px solid rgba(34,197,94,0.3)',
                     display: 'flex', gap: 0, height: 130
                   }}>
-                    {/* Mini cam feeds */}
+                    {/* Mini cam feeds — clickable to switch main view */}
                     {[
-                      { id: 'CAM-01', src: 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4', label: 'NORTH FENCE', detection: liveAiAlerts[0] },
-                      { id: 'CAM-02', src: 'https://assets.mixkit.co/videos/preview/mixkit-surveillance-camera-outdoors-at-night-4560-large.mp4', label: 'CHECKPOINT', detection: liveAiAlerts[1] },
-                      { id: 'CAM-03', src: 'https://assets.mixkit.co/videos/preview/mixkit-security-camera-filming-a-road-at-night-4557-large.mp4', label: 'ROAD-EAST', detection: liveAiAlerts[2] },
-                      { id: 'CAM-04', src: 'https://assets.mixkit.co/videos/preview/mixkit-woman-walking-on-the-street-943-large.mp4', label: 'GATE-B', detection: liveAiAlerts[3] },
+                      { id: 'CAM-01', src: 'https://assets.mixkit.co/videos/preview/mixkit-security-camera-recording-a-robbery-41484-large.mp4', label: 'PERIMETER-N', detection: liveAiAlerts[0] },
+                      { id: 'CAM-02', src: 'https://assets.mixkit.co/videos/preview/mixkit-car-approaching-a-security-gate-at-night-42171-large.mp4', label: 'GATE-MAIN', detection: liveAiAlerts[1] },
+                      { id: 'CAM-03', src: 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4', label: 'EAST-WATCH', detection: liveAiAlerts[2] },
+                      { id: 'CAM-04', src: 'https://assets.mixkit.co/videos/preview/mixkit-guard-walking-in-the-snow-during-winter-39845-large.mp4', label: 'CMD-BUNKER', detection: liveAiAlerts[3] },
                     ].map((cam) => (
-                      <div key={cam.id} style={{ flex: 1, position: 'relative', borderRight: '1px solid rgba(34,197,94,0.15)', overflow: 'hidden' }}>
+                      <div key={cam.id}
+                        onClick={() => setSelectedCam(cam.id)}
+                        style={{ flex: 1, position: 'relative', borderRight: '1px solid rgba(34,197,94,0.15)', overflow: 'hidden', cursor: 'pointer',
+                          outline: selectedCam === cam.id ? '2px solid var(--accent)' : 'none',
+                          background: '#16181a'
+                        }}>
                         <video
                           autoPlay loop muted playsInline
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7, filter: 'saturate(0.3) contrast(1.2)' }}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.75, filter: 'grayscale(55%) contrast(1.15) brightness(0.9)' }}
                           src={cam.src}
                         />
+                        {/* Horizontal scanlines */}
+                        <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 1px, transparent 1px, transparent 3px)', pointerEvents: 'none' }} />
                         {/* YOLOv-style bounding box overlay */}
                         {cam.detection && (
                           <div style={{
@@ -1543,20 +1599,27 @@ export default function App() {
                             width: `${cam.detection.bbox[2] - cam.detection.bbox[0]}%`,
                             height: `${cam.detection.bbox[3] - cam.detection.bbox[1]}%`,
                             border: `2px solid ${cam.detection.color}`,
-                            boxShadow: `0 0 8px ${cam.detection.color}80`
+                            boxShadow: `0 0 10px ${cam.detection.color}80`
                           }}>
-                            <div style={{ position: 'absolute', top: -16, left: 0, background: cam.detection.color, color: '#000', fontSize: '0.45rem', fontFamily: "'Share Tech Mono'", padding: '1px 4px', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+                            {/* Corner brackets */}
+                            <div style={{ position: 'absolute', top: 0, left: 0, width: 8, height: 8, borderTop: `2px solid ${cam.detection.color}`, borderLeft: `2px solid ${cam.detection.color}` }} />
+                            <div style={{ position: 'absolute', top: 0, right: 0, width: 8, height: 8, borderTop: `2px solid ${cam.detection.color}`, borderRight: `2px solid ${cam.detection.color}` }} />
+                            <div style={{ position: 'absolute', bottom: 0, left: 0, width: 8, height: 8, borderBottom: `2px solid ${cam.detection.color}`, borderLeft: `2px solid ${cam.detection.color}` }} />
+                            <div style={{ position: 'absolute', bottom: 0, right: 0, width: 8, height: 8, borderBottom: `2px solid ${cam.detection.color}`, borderRight: `2px solid ${cam.detection.color}` }} />
+                            <div style={{ position: 'absolute', top: -15, left: 0, background: cam.detection.color, color: '#000', fontSize: '0.45rem', fontFamily: "'Share Tech Mono'", padding: '1px 4px', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
                               {cam.detection.type} {cam.detection.conf}%
                             </div>
                           </div>
                         )}
                         {/* Cam label */}
-                        <div style={{ position: 'absolute', top: 4, left: 6, fontSize: '0.5rem', color: 'var(--accent)', fontFamily: "'Share Tech Mono'" }}>
-                          <div className="rec-dot" style={{ display: 'inline-block', marginRight: 4, width: 5, height: 5, borderRadius: '50%', background: '#ef4444', animation: 'pulse 1s infinite' }} />
-                          {cam.id} — {cam.label}
+                        <div style={{ position: 'absolute', top: 4, left: 5, fontSize: '0.45rem', color: 'rgba(180,210,180,0.9)', fontFamily: "'Share Tech Mono'", display: 'flex', alignItems: 'center', gap: 3 }}>
+                          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444', animation: 'pulse 1.2s infinite' }} />
+                          {cam.id} · {cam.label}
                         </div>
-                        {/* Scan line */}
-                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(rgba(34,197,94,0.05) 1px, transparent 1px)', backgroundSize: '100% 4px', pointerEvents: 'none' }} />
+                        {/* Selected indicator */}
+                        {selectedCam === cam.id && (
+                          <div style={{ position: 'absolute', bottom: 3, right: 4, fontSize: '0.4rem', color: 'var(--accent)', fontFamily: "'Share Tech Mono'" }}>● MAIN</div>
+                        )}
                       </div>
                     ))}
 

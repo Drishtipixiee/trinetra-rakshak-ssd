@@ -118,8 +118,8 @@ export default function GeoEyePanel({ onThreatDetected, addLog, logToSupabase })
   const [visibleZones, setVisibleZones] = useState([]);
   const [showNDVI, setShowNDVI] = useState(false);
   const [showSentinel, setShowSentinel] = useState(true);
-  const [mapCenter] = useState([23.6102, 85.2799]);
-  const [mapZoom] = useState(7);
+  const [mapCenter, setMapCenter] = useState([23.6102, 85.2799]);
+  const [mapZoom, setMapZoom] = useState(7);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanStatus, setScanStatus] = useState('');
   const [aiAlerts, setAiAlerts] = useState([]);
@@ -170,6 +170,12 @@ export default function GeoEyePanel({ onThreatDetected, addLog, logToSupabase })
       { id: Date.now() + 5, time: new Date().toLocaleTimeString('en-IN', { hour12: false }), severity: 'LOW', msg: `JH-05 Hazaribagh Limestone: Boundary encroachment confirmed — overburden +3.8m`, zone: 'JH-05', color: '#22c55e' },
     ];
     setAiAlerts(newAlerts);
+
+    // AUTO-ZOOM to the critical mining area (Dhanbad Coal Belt center)
+    const primaryZone = REAL_MINING_ZONES[0];
+    setMapCenter(primaryZone.center);
+    setMapZoom(13); // Zoom in close to show the real mining region detection
+    setSelectedZone(primaryZone);
 
     if (addLog) {
       addLog(`[GEO-EYE] ${REAL_MINING_ZONES.length} zones identified | ${highRisk} HIGH RISK | Source: Sentinel-2 + ISRO NRSC`, 'warning');
@@ -324,7 +330,7 @@ export default function GeoEyePanel({ onThreatDetected, addLog, logToSupabase })
                 weight: 2,
                 dashArray: zone.risk > 75 ? null : '8 4',
               }}
-              eventHandlers={{ click: () => setSelectedZone(zone) }}
+              eventHandlers={{ click: () => { setSelectedZone(zone); setMapCenter(zone.center); setMapZoom(13); } }}
             >
               <Popup>
                 <div style={{ fontFamily: 'monospace', fontSize: '12px', minWidth: 220 }}>
