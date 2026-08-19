@@ -1,278 +1,417 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Video, Train, Map as MapIcon, Terminal, Play, CheckCircle2, ChevronRight, Activity, Shield, Zap } from 'lucide-react';
+import { Video, Train, Map as MapIcon, Terminal, Play, CheckCircle2, ChevronRight, Activity } from 'lucide-react';
 
 const FLOWS = [
-  {
-    id: 'perimeter',
-    title: 'PERIMETER DEFENSE RESPONSE',
-    icon: Shield,
-    color: 'var(--accent)',
-    description: 'Autonomous border sentry AI target isolation & QRF mobilization.',
-    steps: [
-      { text: 'Switch to BORDER SENTRY Live Feed.', action: (p) => p.setActiveTab('LIVE'), duration: 1500 },
-      { text: 'Initialize TF.js COCO-SSD neural detection engine.', action: (p) => p.setSimActive(true), duration: 2000 },
-      { text: 'Real-time AI locks target bounding boxes & velocity.', action: null, duration: 3500 },
-      { text: 'Push intrusion telemetry to SQLite DB & Supabase.', action: null, duration: 2500 },
-      { text: 'Dispatch alert to National Defense Command Overview.', action: (p) => p.setActiveTab('DASHBOARD'), duration: 2000 }
-    ]
-  },
-  {
-    id: 'track',
-    title: 'KAVACH RAILWAY OVERWATCH',
-    icon: Train,
-    color: 'var(--safe)',
-    description: 'Autonomous Asian elephant detection & locomotive emergency braking.',
-    steps: [
-      { text: 'Engage TRACK-GUARD locomotive telemetry deck.', action: (p) => p.setActiveTab('TRACK-GUARD'), duration: 1500 },
-      { text: 'Initialize LiDAR & Optical Mast surveillance on KM-142.', action: (p) => p.setTrackActive(true), duration: 2000 },
-      { text: 'AI Vision isolates Elephant crossing on active track.', action: null, duration: 4000 },
-      { text: 'Compute Laser LiDAR Distance & Deceleration Profile.', action: null, duration: 3000 },
-      { text: 'Transmit Kavach ATP Emergency Brake signal (5.0 -> 3.8 bar).', action: null, duration: 3000 }
-    ]
-  },
-  {
-    id: 'geoeye',
-    title: 'SENTINEL-2 MINING SURVEILLANCE',
-    icon: MapIcon,
-    color: '#f59e0b',
-    description: 'Multispectral satellite terrain subtraction & illegal mining detection.',
-    steps: [
-      { text: 'Switch to GEO-EYE Satellite GIS portal.', action: (p) => p.setActiveTab('GEO-EYE'), duration: 1500 },
-      { text: 'Query Sentinel-2 WMS cloudless multispectral passes.', action: (p) => p.triggerGeoScan && p.triggerGeoScan(), duration: 2500 },
-      { text: 'Apply NDVI Vegetation Subtraction Index across Jharkhand.', action: null, duration: 3000 },
-      { text: 'Plot documented illegal mining excavation polygons.', action: null, duration: 3000 },
-      { text: 'Generate environmental degradation compliance report.', action: null, duration: 2500 }
-    ]
-  },
-  {
-    id: 'backend',
-    title: 'LIVE INCIDENT DISPATCH',
-    icon: Terminal,
-    color: '#a855f7',
-    description: 'Backend Python Flask & SQLite incident injection pipeline.',
-    steps: [
-      { text: 'Open LIVE OPS & INCIDENT DISPATCH center.', action: (p) => p.setActiveTab('SIMULATION'), duration: 1500 },
-      { text: 'Prepare UAV DRONE Airspace Incursion payload.', action: null, duration: 2000 },
-      { text: 'Transmit payload to Python Flask /api/log_incident API.', action: (p) => p.triggerBackendSim('DRONE'), duration: 2500 },
-      { text: 'Insert incident records into local SQLite database.', action: null, duration: 3000 },
-      { text: 'Synchronize React Frontend with live event stream.', action: null, duration: 3000 }
-    ]
-  }
+    {
+        id: 'perimeter',
+        title: 'PERIMETER SURVEILLANCE',
+        icon: Video,
+        color: 'var(--accent)',
+        description: 'AI-driven border intrusion detection and live tracking.',
+        steps: [
+            { text: 'Switch to LIVE FEED mode.', action: (p) => p.setActiveTab('LIVE'), duration: 1500 },
+            { text: 'Start Software Simulation Engine.', action: (p) => p.setSimActive(true), duration: 2000 },
+            { text: 'AI isolates targets with Bounding Boxes.', action: null, duration: 4000 },
+            { text: 'Intrusion data pushed to SQLite DB.', action: null, duration: 2500 },
+            { text: 'Threat alert sent to Dashboard ticker.', action: (p) => p.setActiveTab('DASHBOARD'), duration: 2000 }
+        ]
+    },
+    {
+        id: 'track',
+        title: 'TRACK-GUARD AUTO-BRAKE',
+        icon: Train,
+        color: 'var(--safe)',
+        description: 'Autonomous wildlife detection and train braking.',
+        steps: [
+            { text: 'Switch to TRACK-GUARD mode.', action: (p) => p.setActiveTab('TRACK-GUARD'), duration: 1500 },
+            { text: 'Start Railway Simulation.', action: (p) => p.setTrackActive(true), duration: 2000 },
+            { text: 'Obstruction (Wildlife) detected on tracks.', action: null, duration: 4000 },
+            { text: 'Calculate Time to Impact dynamically.', action: null, duration: 3000 },
+            { text: 'Auto-brake signal sent to targeted train.', action: null, duration: 3000 }
+        ]
+    },
+    {
+        id: 'geoeye',
+        title: 'SATELLITE GIS (GEO-EYE)',
+        icon: MapIcon,
+        color: '#f59e0b',
+        description: 'Illegal mining detection via terrain subtraction.',
+        steps: [
+            { text: 'Switch to GEO-EYE mode.', action: (p) => p.setActiveTab('GEO-EYE'), duration: 1500 },
+            { text: 'Initiate GIS Terrain Scan.', action: (p) => p.triggerGeoScan(), duration: 2500 },
+            { text: 'Radar overlay fetches satellite data.', action: null, duration: 3000 },
+            { text: 'Mining hotspots plotted on tactical map.', action: null, duration: 3000 },
+            { text: 'Threat radius identified by AI.', action: null, duration: 2500 }
+        ]
+    },
+    {
+        id: 'backend',
+        title: 'SYSTEM-WIDE SCENARIOS',
+        icon: Terminal,
+        color: '#a855f7',
+        description: 'Python Flask backend direct event injection.',
+        steps: [
+            { text: 'Switch to SIMULATIONS mode.', action: (p) => p.setActiveTab('SIMULATION'), duration: 1500 },
+            { text: 'Target UAV DRONE scenario payload.', action: null, duration: 2000 },
+            { text: 'Inject payload to Python Flask API.', action: (p) => p.triggerBackendSim('DRONE'), duration: 2500 },
+            { text: 'Backend inserts events into SQLite DB.', action: null, duration: 3000 },
+            { text: 'React synchronizes Live Database Stream.', action: null, duration: 3000 }
+        ]
+    }
 ];
 
 export default function FlowSimulationDashboard({
-  setActiveTab,
-  setSimActive,
-  setTrackActive,
-  triggerGeoScan,
-  triggerBackendSim,
-  addLog
+    setActiveTab,
+    setSimActive,
+    setTrackActive,
+    triggerGeoScan,
+    triggerBackendSim,
+    addLog
 }) {
-  const [activeFlowId, setActiveFlowId] = useState(FLOWS[0].id);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentStepIndex, setCurrentStepIndex] = useState(-1);
-  const playRef = useRef(null);
+    const [activeFlowId, setActiveFlowId] = useState(FLOWS[0].id);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentStepIndex, setCurrentStepIndex] = useState(-1);
+    const playRef = useRef(null);
 
-  const activeFlow = FLOWS.find(f => f.id === activeFlowId);
+    const activeFlow = FLOWS.find(f => f.id === activeFlowId);
 
-  // Auto-play logic
-  useEffect(() => {
-    if (!isPlaying) {
-      if (playRef.current) clearTimeout(playRef.current);
-      return;
-    }
-
-    const steps = activeFlow.steps;
-
-    if (currentStepIndex < steps.length) {
-      const step = steps[currentStepIndex === -1 ? 0 : currentStepIndex];
-
-      if (step.action && currentStepIndex !== -1) {
-        step.action({ setActiveTab, setSimActive, setTrackActive, triggerGeoScan, triggerBackendSim });
-      }
-
-      playRef.current = setTimeout(() => {
-        if (currentStepIndex + 1 < steps.length) {
-          setCurrentStepIndex(prev => prev + 1);
-        } else {
-          setIsPlaying(false);
-          addLog(`[SYSTEM] Defense runner "${activeFlow.title}" successfully completed.`, 'safe');
-          setTimeout(() => setCurrentStepIndex(-1), 3000);
+    // Auto-play logic
+    useEffect(() => {
+        if (!isPlaying) {
+            if (playRef.current) clearTimeout(playRef.current);
+            return;
         }
-      }, currentStepIndex === -1 ? 500 : step.duration);
-    }
 
-    return () => {
-      if (playRef.current) clearTimeout(playRef.current);
-    };
-  }, [isPlaying, currentStepIndex, activeFlow, setActiveTab, setSimActive, setTrackActive, triggerGeoScan, triggerBackendSim, addLog]);
+        const steps = activeFlow.steps;
 
-  const handleStartFlow = () => {
-    if (isPlaying) return;
-    addLog(`[SYSTEM] Executing operational sequence: ${activeFlow.title}`, 'normal');
-    setIsPlaying(true);
-    setCurrentStepIndex(0);
-  };
+        // Start or advance step
+        if (currentStepIndex < steps.length) {
+            const step = steps[currentStepIndex === -1 ? 0 : currentStepIndex];
 
-  const handleStopFlow = () => {
-    setIsPlaying(false);
-    setCurrentStepIndex(-1);
-    if (playRef.current) clearTimeout(playRef.current);
-  };
+            // Execute side effect if this is the start of the step
+            if (step.action && currentStepIndex !== -1) {
+                step.action({ setActiveTab, setSimActive, setTrackActive, triggerGeoScan, triggerBackendSim });
+            }
 
-  const getRGB = (colorStr) => {
-    if (colorStr.includes('#')) {
-      const hex = colorStr.replace('#', '');
-      const r = parseInt(hex.substring(0, 2), 16);
-      const g = parseInt(hex.substring(2, 4), 16);
-      const b = parseInt(hex.substring(4, 6), 16);
-      return `${r}, ${g}, ${b}`;
-    }
-    return '34, 197, 94';
-  };
-
-  return (
-    <div style={{
-      background: 'rgba(0,0,0,0.4)',
-      border: '1px solid var(--glass-border)',
-      borderRadius: 12,
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-      marginTop: 8
-    }}>
-      {/* Header Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)' }}>
-        {FLOWS.map((flow) => {
-          const Icon = flow.icon;
-          const isActive = activeFlowId === flow.id;
-          return (
-            <div
-              key={flow.id}
-              onClick={() => {
-                if (!isPlaying) {
-                  setActiveFlowId(flow.id);
-                  setCurrentStepIndex(-1);
+            playRef.current = setTimeout(() => {
+                if (currentStepIndex + 1 < steps.length) {
+                    setCurrentStepIndex(prev => prev + 1);
+                } else {
+                    // Finished
+                    setIsPlaying(false);
+                    addLog(`[SYSTEM] Flow "${activeFlow.title}" demonstration completed.`, 'safe');
+                    setTimeout(() => setCurrentStepIndex(-1), 3000);
                 }
-              }}
-              style={{
-                flex: 1,
-                padding: '12px 0',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-                cursor: isPlaying ? 'not-allowed' : 'pointer',
-                background: isActive ? `rgba(${getRGB(flow.color)}, 0.1)` : 'transparent',
-                borderBottom: isActive ? `2px solid ${flow.color}` : '2px solid transparent',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              <Icon size={16} color={isActive ? flow.color : 'var(--text-dim)'} />
-              <span style={{
-                fontSize: '0.65rem',
-                fontFamily: "'Share Tech Mono'",
-                color: isActive ? '#fff' : 'var(--text-dim)',
-                letterSpacing: 1,
-                fontWeight: isActive ? 'bold' : 'normal'
-              }}>
-                {flow.title}
-              </span>
+            }, currentStepIndex === -1 ? 500 : step.duration);
+        }
+
+        return () => {
+            if (playRef.current) clearTimeout(playRef.current);
+        };
+    }, [isPlaying, currentStepIndex, activeFlow]);
+
+    const handleStartFlow = () => {
+        if (isPlaying) return;
+        addLog(`[SYSTEM] Starting interactive flow demo: ${activeFlow.title}`, 'normal');
+        setIsPlaying(true);
+        setCurrentStepIndex(0);
+    };
+
+    const handleStopFlow = () => {
+        setIsPlaying(false);
+        setCurrentStepIndex(-1);
+        if (playRef.current) clearTimeout(playRef.current);
+    };
+
+    return (
+        <div style={{
+            background: 'rgba(0,0,0,0.3)',
+            border: '1px solid var(--glass-border)',
+            borderRadius: 12,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            marginTop: 8
+        }}>
+            {/* Header Tabs */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)' }}>
+                {FLOWS.map((flow) => {
+                    const Icon = flow.icon;
+                    const isActive = activeFlowId === flow.id;
+                    return (
+                        <div
+                            key={flow.id}
+                            onClick={() => {
+                                if (!isPlaying) {
+                                    setActiveFlowId(flow.id);
+                                    setCurrentStepIndex(-1);
+                                }
+                            }}
+                            style={{
+                                flex: 1,
+                                padding: '12px 0',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: 6,
+                                cursor: isPlaying ? 'not-allowed' : 'pointer',
+                                background: isActive ? `rgba(${getRGB(flow.color)}, 0.1)` : 'transparent',
+                                borderBottom: isActive ? `2px solid ${flow.color}` : '2px solid transparent',
+                                opacity: isPlaying && !isActive ? 0.3 : 1,
+                                transition: 'all 0.3s ease'
+                            }}
+                        >
+                            <Icon size={16} color={isActive ? flow.color : 'var(--text-dim)'} />
+                            <span style={{
+                                fontSize: '0.65rem',
+                                fontFamily: "'Share Tech Mono'",
+                                color: isActive ? flow.color : 'var(--text-dim)',
+                                letterSpacing: 1,
+                                textAlign: 'center'
+                            }}>
+                                {flow.title}
+                            </span>
+                        </div>
+                    );
+                })}
             </div>
-          );
-        })}
-      </div>
 
-      {/* Main Flow Content */}
-      <div style={{ padding: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 'bold', marginBottom: 4, fontFamily: "'Share Tech Mono'" }}>
-            {activeFlow.title}
-          </div>
-          <div style={{ fontSize: '0.65rem', color: 'var(--text-dim)', marginBottom: 12 }}>
-            {activeFlow.description}
-          </div>
+            {/* Flow Content Area */}
+            <div style={{ display: 'flex', minHeight: 260 }}>
 
-          {/* Stepper Display */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            {activeFlow.steps.map((step, idx) => {
-              const isCurrent = currentStepIndex === idx;
-              const isDone = currentStepIndex > idx;
-              return (
-                <div
-                  key={idx}
-                  style={{
-                    flex: 1,
-                    padding: '8px 10px',
-                    borderRadius: 6,
-                    background: isCurrent ? 'rgba(34,197,94,0.15)' : isDone ? 'rgba(34,197,94,0.08)' : 'rgba(255,255,255,0.02)',
-                    border: `1px solid ${isCurrent ? 'var(--accent)' : isDone ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.05)'}`,
+                {/* Left Info Panel */}
+                <div style={{
+                    width: '35%',
+                    padding: 20,
+                    background: 'rgba(0,0,0,0.4)',
+                    borderRight: '1px solid var(--glass-border)',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 4
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.55rem', color: isCurrent ? 'var(--accent)' : 'var(--text-dim)' }}>
-                    <span>STEP {idx + 1}</span>
-                    {isDone && <CheckCircle2 size={10} color="var(--accent)" />}
-                  </div>
-                  <div style={{ fontSize: '0.6rem', color: isCurrent ? '#fff' : isDone ? 'var(--text-dim)' : 'rgba(255,255,255,0.4)', lineHeight: 1.3 }}>
-                    {step.text}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+                    justifyContent: 'center'
+                }}>
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={activeFlow.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <activeFlow.icon size={32} color={activeFlow.color} style={{ marginBottom: 16 }} />
+                            <h3 style={{
+                                fontSize: '1rem',
+                                fontFamily: "'Share Tech Mono'",
+                                color: activeFlow.color,
+                                margin: '0 0 8px 0',
+                                letterSpacing: 2
+                            }}>
+                                {activeFlow.title}
+                            </h3>
+                            <p style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--text-dim)',
+                                lineHeight: 1.6,
+                                marginBottom: 24
+                            }}>
+                                {activeFlow.description}
+                            </p>
 
-        {/* Execution Trigger Button */}
-        <div>
-          {isPlaying ? (
-            <button
-              onClick={handleStopFlow}
-              style={{
-                background: 'rgba(239,68,68,0.15)',
-                border: '1px solid #ef4444',
-                color: '#ef4444',
-                padding: '12px 20px',
-                borderRadius: 8,
-                fontSize: '0.75rem',
-                fontFamily: "'Share Tech Mono'",
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <Square size={14} /> ABORT SEQUENCE
-            </button>
-          ) : (
-            <button
-              onClick={handleStartFlow}
-              style={{
-                background: 'rgba(34,197,94,0.15)',
-                border: '1px solid var(--accent)',
-                color: 'var(--accent)',
-                padding: '12px 20px',
-                borderRadius: 8,
-                fontSize: '0.75rem',
-                fontFamily: "'Share Tech Mono'",
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <Play size={14} /> EXECUTE RUNNER
-            </button>
-          )}
+                            {!isPlaying ? (
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={handleStartFlow}
+                                    style={{
+                                        background: `rgba(${getRGB(activeFlow.color)}, 0.15)`,
+                                        border: `1px solid ${activeFlow.color}`,
+                                        color: activeFlow.color,
+                                        padding: '10px 16px',
+                                        borderRadius: 6,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        fontFamily: "'Share Tech Mono'",
+                                        fontSize: '0.8rem',
+                                        letterSpacing: 1
+                                    }}
+                                >
+                                    <Play size={14} /> RUN INTERACTIVE DEMO
+                                </motion.button>
+                            ) : (
+                                <motion.button
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={handleStopFlow}
+                                    style={{
+                                        background: 'rgba(239, 68, 68, 0.15)',
+                                        border: '1px solid var(--danger)',
+                                        color: 'var(--danger)',
+                                        padding: '10px 16px',
+                                        borderRadius: 6,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        fontFamily: "'Share Tech Mono'",
+                                        fontSize: '0.8rem',
+                                        letterSpacing: 1
+                                    }}
+                                >
+                                    <Activity size={14} /> ABORT SEQUENCE
+                                </motion.button>
+                            )}
+                        </motion.div>
+                    </AnimatePresence>
+                </div>
+
+                {/* Right Steps Panel */}
+                <div style={{ flex: 1, padding: 24, position: 'relative' }}>
+
+                    <div style={{
+                        fontSize: '0.65rem',
+                        color: 'var(--text-dim)',
+                        letterSpacing: 1,
+                        marginBottom: 16,
+                        display: 'flex',
+                        justifyContent: 'space-between'
+                    }}>
+                        <span>EXECUTION SEQUENCE</span>
+                        {isPlaying && (
+                            <span className="pulse-text" style={{ color: activeFlow.color }}>
+                                ► SEQUENCE ACTIVE
+                            </span>
+                        )}
+                    </div>
+
+                    <div style={{ position: 'relative' }}>
+                        {/* Vertical connector line */}
+                        <div style={{
+                            position: 'absolute',
+                            left: 11,
+                            top: 10,
+                            bottom: 10,
+                            width: 2,
+                            background: 'rgba(255,255,255,0.05)',
+                            zIndex: 0
+                        }} />
+
+                        {/* Animated progress line */}
+                        {isPlaying && currentStepIndex >= 0 && (
+                            <motion.div
+                                initial={{ height: 0 }}
+                                animate={{ height: `${(currentStepIndex / (activeFlow.steps.length - 1)) * 100}%` }}
+                                transition={{ duration: 0.5 }}
+                                style={{
+                                    position: 'absolute',
+                                    left: 11,
+                                    top: 10,
+                                    width: 2,
+                                    background: activeFlow.color,
+                                    zIndex: 1,
+                                    boxShadow: `0 0 10px ${activeFlow.color}`
+                                }}
+                            />
+                        )}
+
+                        {/* Steps list */}
+                        {activeFlow.steps.map((step, idx) => {
+                            const isActiveNode = isPlaying && currentStepIndex === idx;
+                            const isPastNode = isPlaying && currentStepIndex > idx;
+                            const isFutureNode = isPlaying && currentStepIndex < idx;
+
+                            return (
+                                <div key={idx} style={{
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    gap: 16,
+                                    marginBottom: idx === activeFlow.steps.length - 1 ? 0 : 20,
+                                    position: 'relative',
+                                    zIndex: 2,
+                                    opacity: isFutureNode ? 0.4 : 1,
+                                    transition: 'opacity 0.3s'
+                                }}>
+                                    {/* Node icon */}
+                                    <div style={{
+                                        width: 24,
+                                        height: 24,
+                                        borderRadius: '50%',
+                                        background: isActiveNode ? activeFlow.color : isPastNode ? `rgba(${getRGB(activeFlow.color)}, 0.2)` : 'rgba(0,0,0,0.8)',
+                                        border: `2px solid ${isActiveNode || isPastNode ? activeFlow.color : 'rgba(255,255,255,0.2)'}`,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        boxShadow: isActiveNode ? `0 0 15px ${activeFlow.color}` : 'none',
+                                        transition: 'all 0.3s'
+                                    }}>
+                                        {isPastNode ? (
+                                            <CheckCircle2 size={12} color={activeFlow.color} />
+                                        ) : isActiveNode ? (
+                                            <motion.div
+                                                animate={{ scale: [1, 1.5, 1] }}
+                                                transition={{ repeat: Infinity, duration: 1 }}
+                                                style={{ width: 6, height: 6, borderRadius: '50%', background: '#000' }}
+                                            />
+                                        ) : (
+                                            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontFamily: "'Share Tech Mono'" }}>{idx + 1}</span>
+                                        )}
+                                    </div>
+
+                                    {/* Step content */}
+                                    <div style={{
+                                        flex: 1,
+                                        background: isActiveNode ? `rgba(${getRGB(activeFlow.color)}, 0.05)` : 'transparent',
+                                        border: `1px solid ${isActiveNode ? `rgba(${getRGB(activeFlow.color)}, 0.3)` : 'transparent'}`,
+                                        padding: '4px 12px',
+                                        borderRadius: 6,
+                                        transform: isActiveNode ? 'scale(1.02) translateX(4px)' : 'scale(1) translateX(0)',
+                                        transition: 'all 0.3s',
+                                        position: 'relative',
+                                        top: -2
+                                    }}>
+                                        <div style={{
+                                            color: isActiveNode || isPastNode ? 'var(--text-main)' : 'var(--text-dim)',
+                                            fontSize: '0.8rem',
+                                            fontWeight: isActiveNode ? 600 : 400
+                                        }}>
+                                            {step.text}
+                                        </div>
+
+                                        {/* Progress bar for active step */}
+                                        {isActiveNode && (
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: '100%' }}
+                                                transition={{ duration: step.duration / 1000, ease: 'linear' }}
+                                                style={{
+                                                    height: 2,
+                                                    background: activeFlow.color,
+                                                    marginTop: 8,
+                                                    borderRadius: 2
+                                                }}
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
+}
+
+// Simple helper to extract RGB values from CSS vars roughly to use in rgba()
+function getRGB(colorVar) {
+    if (colorVar === 'var(--accent)') return '34, 197, 94'; // green
+    if (colorVar === 'var(--safe)') return '34, 197, 94'; // green
+    if (colorVar === 'var(--warning)') return '245, 158, 11'; // amber
+    if (colorVar === 'var(--danger)') return '239, 68, 68'; // red
+    if (colorVar === '#f59e0b') return '245, 158, 11';
+    if (colorVar === '#a855f7') return '168, 85, 247'; // purple
+    return '255, 255, 255';
 }

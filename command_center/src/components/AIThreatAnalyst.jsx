@@ -204,40 +204,17 @@ export default function AIThreatAnalyst({ isOpen, onToggle, detectionData }) {
 
         // Fallback: local keyword-matching response
         const delay = 600 + Math.random() * 1200;
-        
-        // ── LangGraph Simulated Reasoning steps ──
-        const reasoningSteps = [
-            "Initializing LangGraph execution context...",
-            "Querying real-time telemetry from all active sensor nodes...",
-            "Correlating threat signature against historical incident database...",
-            "Synthesizing final tactical recommendation..."
-        ];
-
-        let stepDelay = 0;
-        reasoningSteps.forEach((step, idx) => {
-            setTimeout(() => {
-                setMessages(prev => [...prev, {
-                    id: Date.now() + idx,
-                    role: 'system',
-                    text: `<span style="color:#a855f7; font-size:0.65rem;">[LangGraph Node: ${idx+1}] ${step}</span>`,
-                    time: new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' }),
-                    source: 'system'
-                }]);
-            }, stepDelay + 800 * (idx + 1));
-            stepDelay += 800;
-        });
-
         setTimeout(() => {
             const response = getAIResponse(currentInput, detectionData);
             setMessages(prev => [...prev, {
-                id: Date.now() + 10,
+                id: Date.now(),
                 role: 'ai',
                 text: response,
                 time: new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' }),
                 source: 'local',
             }]);
             setIsTyping(false);
-        }, stepDelay + 800 * (reasoningSteps.length + 1) + delay);
+        }, delay);
     };
 
     return (

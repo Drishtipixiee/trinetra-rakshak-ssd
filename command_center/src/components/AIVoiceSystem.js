@@ -92,14 +92,7 @@ class AIVoiceSystem {
             this._processQueue();
         };
 
-        // Push to macrotask queue to prevent UI freezing on some browsers
-        setTimeout(() => {
-            try {
-                this.synth.speak(utterance);
-            } catch (err) {
-                console.error('Speech synthesis failed', err);
-            }
-        }, 10);
+        this.synth.speak(utterance);
     }
 
     toggle() {
