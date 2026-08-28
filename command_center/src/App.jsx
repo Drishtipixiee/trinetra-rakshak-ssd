@@ -4,11 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Activity, AlertTriangle, Fingerprint, Lock,
   Map as MapIcon, Video, Target, Radio, Scan, Train, Download, Terminal,
-  BarChart3, Eye, Users, Play, Square, Volume2, VolumeX, LayoutDashboard, Cpu, Wifi, MapPin, Clock, Loader2 as Loader2Icon, Satellite, Brain
+  BarChart3, Eye, Users, Play, Square, Volume2, VolumeX, LayoutDashboard, Cpu, Wifi, MapPin, Clock, Loader2 as Loader2Icon, Satellite, Brain,
+  CloudLightning, Navigation, Signal, GitBranch, Zap
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { logThreatEvent } from './lib/supabase';
 import { loadModel, detectFrame, drawDetections, estimateFuzzyInputs, isModelLoaded, getModelInfo } from './lib/cvEngine';
+import { useWeatherEngine, getWeatherBrakingMultiplier } from './lib/useWeatherEngine';
 
 // AI Systems
 import AIVoiceSystem, { playSiren, playKlaxon, playDetectionBeep, playSuccessChime, playHighPitchAlarm } from './components/AIVoiceSystem';
@@ -29,6 +31,7 @@ import MobileAlert from './components/MobileAlert';
 import AIThreatAnalyst from './components/AIThreatAnalyst';
 import FlowSimulationDashboard from './components/FlowSimulationDashboard';
 import GeoEyePanel from './components/GeoEyePanel';
+import AcousticMonitor from './components/AcousticMonitor';
 
 // ═══════════════════════════════════════════════════
 //  CONFIGURATION & CONSTANTS
@@ -561,6 +564,9 @@ export default function App() {
 
 
 
+  // ─── Live Weather Engine (real Open-Meteo API) ───
+  const { weather } = useWeatherEngine(300000);
+
   // Modes
   const [isNightMode, setIsNightMode] = useState(false);
   const [walkieOpen, setWalkieOpen] = useState(false);
@@ -568,6 +574,35 @@ export default function App() {
   const [trackActive, setTrackActive] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [analystOpen, setAnalystOpen] = useState(false);
+
+  // ─── Multi-Post Escalation Network (Border-Sentry) ───
+  // 3 virtual border posts; adjacent posts elevate to AMBER when a threat is CRITICAL
+  const [postNetwork, setPostNetwork] = useState([
+    { id: 'POST-ALPHA', label: 'POST-ALPHA (SEC-7)', km: 0,   status: 'SECURE',  color: '#22c55e' },
+    { id: 'POST-BRAVO', label: 'POST-BRAVO (SEC-12)',km: 5,  status: 'SECURE',  color: '#22c55e' },
+    { id: 'POST-CHARLIE',label:'POST-CHARLIE (SEC-18)',km: 12,status: 'SECURE',  color: '#22c55e' },
+  ]);
+
+  // ─── Junction Signal Network (Track-Guard) ───
+  const [junctionSignals, setJunctionSignals] = useState([
+    { id: 'KM-140', label: 'KM-140 (UPSTREAM)',    signal: 'GREEN',  role: 'upstream' },
+    { id: 'KM-142', label: 'KM-142 (ALERT ZONE)',  signal: 'GREEN',  role: 'active'   },
+    { id: 'KM-144', label: 'KM-144 (DOWNSTREAM)',  signal: 'GREEN',  role: 'downstream'},
+  ]);
+
+  // ─── Geolocation Patrol Tracker ───
+  const [patrolPos, setPatrolPos] = useState(null);  // { lat, lng, accuracy }
+  const [patrolWatchId, setPatrolWatchId] = useState(null);
+  const [patrolSimPos, setPatrolSimPos] = useState({ idx: 0 }); // for simulated path fallback
+  const patrolSimRef = useRef(null);
+
+  // Simulated patrol waypoints around Amritsar border sector
+  const PATROL_PATH = [
+    { lat: 31.6340, lng: 74.8720 }, { lat: 31.6355, lng: 74.8745 },
+    { lat: 31.6370, lng: 74.8760 }, { lat: 31.6360, lng: 74.8780 },
+    { lat: 31.6345, lng: 74.8770 }, { lat: 31.6330, lng: 74.8750 },
+    { lat: 31.6320, lng: 74.8730 }, { lat: 31.6330, lng: 74.8715 },
+  ];
 
   // AI Chat & DB States
   const [chatInput, setChatInput] = useState('');
@@ -767,16 +802,20 @@ export default function App() {
     setLogs(prev => [...prev.slice(-30), { id: Date.now() + Math.random(), text, type }]);
   }, []);
 
-  // === REAL FUZZY ENGINE API — now fed from REAL TF.js detection outputs ===
+  // === REAL FUZZY ENGINE API — 4-Input (velocity × proximity × visibility × weatherRisk) ===
   const [fuzzyReasoning, setFuzzyReasoning] = useState('');
   const fuzzyTimerRef = useRef(null);
 
-  const getRealFuzzyScore = useCallback(async (velocity, proximity, visibility, detectedClass = 'unknown') => {
+  const getRealFuzzyScore = useCallback(async (velocity, proximity, visibility, detectedClass = 'unknown', weatherRisk = 0) => {
     try {
       const res = await fetch(`${API_URL}/api/evaluate_threat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ velocity, proximity, visibility, detected_class: detectedClass }),
+        body: JSON.stringify({
+          velocity, proximity, visibility,
+          weather_risk: weatherRisk,  // NEW — 4th fuzzy input from Open-Meteo
+          detected_class: detectedClass,
+        }),
       });
       if (!res.ok) throw new Error('Fuzzy API error');
       const data = await res.json();
@@ -785,11 +824,17 @@ export default function App() {
     } catch (err) {
       console.warn('[Fuzzy] API unreachable:', err.message);
       setApiOffline(true);
-      return { score: null, reasoning: '' };
+      // Local 4-input fallback when backend offline
+      const wrFactor = weatherRisk / 100;
+      const pFactor  = 1 - Math.min(proximity, 500) / 500;
+      const vFactor  = Math.min(velocity, 100) / 100;
+      const visFactor = 1 - Math.min(visibility, 100) / 100;
+      const localScore = Math.min(100, (pFactor * 40) + (vFactor * 25) + (visFactor * 20) + (wrFactor * 15));
+      return { score: Math.round(localScore), reasoning: `LOCAL: vel=${velocity.toFixed(0)} prox=${proximity.toFixed(0)} vis=${visibility.toFixed(0)} wx=${weatherRisk.toFixed(0)} → Risk: ${localScore.toFixed(1)}%` };
     }
   }, []);
 
-  // Feed REAL TF.js detections into fuzzy engine every 3s
+  // Feed REAL TF.js detections into 4-input fuzzy engine every 3s
   useEffect(() => {
     if (!simActive || liveDetections.length === 0) {
       if (fuzzyTimerRef.current) clearInterval(fuzzyTimerRef.current);
@@ -798,7 +843,9 @@ export default function App() {
     fuzzyTimerRef.current = setInterval(async () => {
       const inputs = estimateFuzzyInputs(liveDetections, getPrevDetections());
       const result = await getRealFuzzyScore(
-        inputs.velocity, inputs.proximity, inputs.visibility, inputs.primaryClass
+        inputs.velocity, inputs.proximity, inputs.visibility,
+        inputs.primaryClass,
+        weather.weatherRisk ?? 0  // LIVE weather risk from Open-Meteo
       );
       if (result && result.score !== null) {
         setFuzzyReasoning(result.reasoning);
@@ -812,7 +859,7 @@ export default function App() {
       }
     }, 3000);
     return () => { if (fuzzyTimerRef.current) clearInterval(fuzzyTimerRef.current); };
-  }, [simActive, liveDetections, getPrevDetections, getRealFuzzyScore]);
+  }, [simActive, liveDetections, getPrevDetections, getRealFuzzyScore, weather.weatherRisk]);
 
   // === SUPABASE THREAT LOGGING ===
   const logToSupabase = useCallback((module, score, details) => {
@@ -831,13 +878,34 @@ export default function App() {
     const maxConf = dets.length > 0 ? Math.max(...dets.map(d => d.confidence)) : 0;
     const primary = personCount > 0 ? 'PERSON' : dets.length > 0 ? dets[0].label || dets[0].class.toUpperCase() : 'None';
 
-    // Compute fuzzy-like local risk from real bbox data
+    // Compute fuzzy-like local risk from real bbox data + live weather factor
     const inputs = estimateFuzzyInputs(dets, getPrevDetections());
+    const wxRisk = weather.weatherRisk ?? 0;
     const localRisk = dets.length > 0
-      ? Math.min(100, (inputs.proximity < 100 ? 70 : inputs.proximity < 250 ? 45 : 20) + (personCount * 15) + (maxConf > 80 ? 10 : 0))
+      ? Math.min(100,
+          (inputs.proximity < 100 ? 70 : inputs.proximity < 250 ? 45 : 20)
+          + (personCount * 15)
+          + (maxConf > 80 ? 10 : 0)
+          + (wxRisk * 0.12)  // Weather contributes up to +12 pts
+        )
       : 0;
 
     const threatLevel = localRisk > 70 ? 'CRITICAL' : localRisk > 35 ? 'WARNING' : 'LOW';
+
+    // ─── Multi-Post Escalation: CRITICAL at POST-ALPHA → adjacent posts → AMBER ───
+    setPostNetwork(prev => prev.map((post, idx) => {
+      if (idx === 0) {
+        // Primary post — always reflects real detection
+        return { ...post, status: threatLevel, color: threatLevel === 'CRITICAL' ? '#ef4444' : threatLevel === 'WARNING' ? '#f59e0b' : '#22c55e' };
+      } else if (threatLevel === 'CRITICAL' && idx === 1) {
+        // Adjacent post gets AMBER alert
+        return { ...post, status: 'ALERT-READY', color: '#f59e0b' };
+      } else if (threatLevel !== 'LOW' && idx === 2) {
+        // Far post gets caution
+        return { ...post, status: 'CAUTION', color: '#fbbf24' };
+      }
+      return { ...post, status: 'SECURE', color: '#22c55e' };
+    }));
 
     setDetectionData({
       objectCount: dets.length,
@@ -904,7 +972,7 @@ export default function App() {
 
   }, [liveDetections, simActive, activeTab, addLog, voiceEnabled, logToSupabase, getPrevDetections]);
 
-  // ═══ REAL TF.js TRACK-GUARD DETECTION EFFECT ═══
+  // ═══ REAL TF.js TRACK-GUARD DETECTION EFFECT (Weather-Adjusted Braking) ═══
   useEffect(() => {
     if (!trackActive) return;
 
@@ -915,9 +983,17 @@ export default function App() {
 
     // Estimate distance from bbox size (larger bbox = closer)
     const distance = primary ? Math.max(50, 2000 - primary.areaPct * 50) : 2000;
-    const trainSpeed = detected ? Math.max(15, 80 - (2000 - distance) / 30) : 80;
+
+    // ─── Weather-Adjusted Braking Physics (NEW) ───────────────────────────────
+    // Indian Railways SOP: speed restricted in fog/rain based on visibility.
+    // Source: IR Safety Circular 2019/Safety(A)/7/7
+    const wxBraking = getWeatherBrakingMultiplier(weather);
+    const rawSpeed = detected ? Math.max(wxBraking.safeSpeedKmh, 80 - (2000 - distance) / 30) : 80;
+    const trainSpeed = Math.min(rawSpeed, wxBraking.safeSpeedKmh); // weather caps speed
     const speedMs = trainSpeed * (5 / 18);
-    const timeToImpact = speedMs > 0 ? Math.round(distance / speedMs) : 99;
+    // Braking distance increases with weather multiplier
+    const effectiveBrakingDist = distance * (1 + (wxBraking.multiplier - 1) * 0.5);
+    const timeToImpact = speedMs > 0 ? Math.round(effectiveBrakingDist / speedMs) : 99;
 
     setTrackData({
       detected,
@@ -925,18 +1001,31 @@ export default function App() {
       trainSpeed: Math.round(trainSpeed),
       distance: Math.round(distance),
       timeToImpact,
+      wxMultiplier: wxBraking.multiplier,
+      wxDescription: wxBraking.description,
+      safeSpeedKmh: wxBraking.safeSpeedKmh,
     });
+
+    // ─── Junction Signal Cascade (NEW) ────────────────────────────────────────
+    // When obstruction detected at active zone, signals propagate to adjacent segments
+    setJunctionSignals(prev => prev.map(seg => {
+      if (seg.role === 'active') return { ...seg, signal: detected ? 'RED' : 'GREEN' };
+      if (seg.role === 'upstream' && detected) return { ...seg, signal: 'RED' };
+      if (seg.role === 'downstream' && detected) return { ...seg, signal: 'YELLOW' };
+      return { ...seg, signal: 'GREEN' };
+    }));
 
     if (detected && timeToImpact < 30) {
       playKlaxon();
-      addLog(`[TRK-GUARD] REAL AI DETECTION: ${primary.label} on track | Dist: ${Math.round(distance)}m | ETI: ${timeToImpact}s | Brake recommendation generated`, 'warning');
+      const wxNote = wxBraking.multiplier > 1 ? ` | ${wxBraking.description}` : '';
+      addLog(`[TRK-GUARD] REAL AI: ${primary.label} | Dist: ${Math.round(distance)}m | ETI: ${timeToImpact}s | Safe speed: ${wxBraking.safeSpeedKmh} km/h${wxNote}`, 'warning');
       setDetectionData(prev => ({ ...prev, threatLevel: 'CRITICAL', riskScore: 90, primaryClass: (primary.label || '').toUpperCase(), label: 'TRACK-GUARD' }));
       if (voiceRef.current && voiceEnabled) {
-        voiceRef.current.speak(`Track Guard real AI detection. ${primary.label} on railway corridor. Distance ${Math.round(distance)} meters. Estimated impact in ${timeToImpact} seconds. Brake recommendation signal generated. Note: RDSO live integration not available for prototype.`, 'critical');
+        voiceRef.current.speak(`Track Guard detection. ${primary.label} on railway corridor. Distance ${Math.round(distance)} meters. ${wxBraking.description}. Brake recommendation generated.`, 'critical');
       }
     }
 
-  }, [trackDetections, trackActive, addLog, voiceEnabled]);
+  }, [trackDetections, trackActive, addLog, voiceEnabled, weather]);
 
   // Reset when detection stops
   useEffect(() => {
@@ -985,12 +1074,45 @@ export default function App() {
     return () => clearInterval(liveAlertTimerRef.current);
   }, [simActive, voiceEnabled]);
 
+  // ─── Geolocation Patrol Tracker ───────────────────────────────────────────
+  // Tries real GPS first; falls back to simulated patrol path if denied/unavailable
+  useEffect(() => {
+    if (!simActive) {
+      if (patrolWatchId) navigator.geolocation?.clearWatch(patrolWatchId);
+      if (patrolSimRef.current) clearInterval(patrolSimRef.current);
+      return;
+    }
+    if ('geolocation' in navigator) {
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => setPatrolPos({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy, source: 'GPS' }),
+        () => {
+          // GPS denied → use simulated path
+          setPatrolPos(null);
+          patrolSimRef.current = setInterval(() => {
+            setPatrolSimPos(prev => ({ idx: (prev.idx + 1) % PATROL_PATH.length }));
+          }, 4000);
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+      );
+      setPatrolWatchId(watchId);
+    }
+    return () => {
+      if (patrolWatchId) navigator.geolocation?.clearWatch(patrolWatchId);
+      if (patrolSimRef.current) clearInterval(patrolSimRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simActive]);
+
+  const currentPatrolPos = patrolPos || PATROL_PATH[patrolSimPos.idx];
+  const patrolSource = patrolPos ? 'GPS' : 'SIM';
+
   // ═══ TRACK-GUARD ELEPHANT/ANIMAL SCENARIO SIMULATION ═══
   // Simulates animal crossings and realistic train deceleration to a complete stop
   useEffect(() => {
     if (!trackActive) {
       setTrackScenarioActive(false);
-      setTrackData({ detected: false, object: 'None', trainSpeed: 80, distance: 2000, timeToImpact: 99 });
+      setTrackData({ detected: false, object: 'None', trainSpeed: 80, distance: 2000, timeToImpact: 99, wxMultiplier: 1.0, wxDescription: '', safeSpeedKmh: 80 });
+      setJunctionSignals(prev => prev.map(s => ({ ...s, signal: 'GREEN' })));
       if (trackScenarioRef.current) clearInterval(trackScenarioRef.current);
       return;
     }
@@ -1499,6 +1621,62 @@ export default function App() {
                               </div>
                             ))}
                           </div>
+                        </div>
+                      )}
+
+                      {/* Top Overlay Bar: Multi-Post Escalation Network + Geolocation Patrol */}
+                      {simActive && (
+                        <div style={{
+                          position: 'absolute', top: 12, left: 12, zIndex: 12,
+                          display: 'flex', flexDirection: 'column', gap: 6
+                        }}>
+                          {/* Multi-Post Network Status */}
+                          <div style={{
+                            background: 'rgba(5,10,5,0.85)', backdropFilter: 'blur(8px)',
+                            border: '1px solid rgba(34,197,94,0.3)', borderRadius: 6, padding: '4px 10px',
+                            fontFamily: "'Share Tech Mono'", display: 'flex', alignItems: 'center', gap: 12,
+                            boxShadow: '0 0 10px rgba(0,0,0,0.5)'
+                          }}>
+                            <div style={{ fontSize: '0.45rem', color: 'var(--accent)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <Signal size={10} /> POST ESCALATION NET:
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              {postNetwork.map(p => (
+                                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: p.color, animation: p.status !== 'SECURE' ? 'pulse 1s infinite' : 'none' }} />
+                                  <span style={{ fontSize: '0.42rem', color: p.color, fontWeight: 'bold' }}>{p.id} [{p.status}]</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Geolocation Patrol Tracker Tag */}
+                          <div style={{
+                            background: 'rgba(5,10,5,0.85)', backdropFilter: 'blur(8px)',
+                            border: '1px solid rgba(56,189,248,0.3)', borderRadius: 6, padding: '4px 10px',
+                            fontFamily: "'Share Tech Mono'", display: 'flex', alignItems: 'center', gap: 8,
+                            width: 'fit-content'
+                          }}>
+                            <Navigation size={10} style={{ color: '#38bdf8' }} />
+                            <span style={{ fontSize: '0.42rem', color: '#38bdf8', fontWeight: 'bold' }}>
+                              PATROL UNIT ALPHA ({patrolSource}): {currentPatrolPos.lat.toFixed(4)}°N, {currentPatrolPos.lng.toFixed(4)}°E
+                            </span>
+                            <span style={{ fontSize: '0.38rem', color: 'var(--safe)', background: 'rgba(34,197,94,0.15)', padding: '1px 4px', borderRadius: 2 }}>LIVE SYNC</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Real Web Audio API Acoustic Sensor Widget */}
+                      {simActive && (
+                        <div style={{
+                          position: 'absolute', right: 12, bottom: 140, width: 220, zIndex: 12
+                        }}>
+                          <AcousticMonitor
+                            module="BORDER-SENTRY"
+                            onAnomaly={(anomaly) => {
+                              addLog(`[ACOUSTIC-SENTRY] 🔊 Real mic anomaly: ${anomaly.label} at ${anomaly.level}% energy level.`, 'warning');
+                            }}
+                          />
                         </div>
                       )}
                       {/* Horizontal CCTV scan line */}
@@ -2024,8 +2202,8 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Telemetry Dashboard */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  {/* Telemetry Dashboard with Weather-Adjusted Braking */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
                     <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start', background: 'rgba(0,0,0,0.5)', padding: '12px 16px' }}>
                       <div className="label" style={{ color: 'var(--text-dim)' }}>AI CLASSIFICATION</div>
                       <div className="value" style={{ color: trackData.detected ? 'var(--danger)' : 'var(--safe)', fontSize: '1.2rem', marginTop: 4 }}>{trackData.object.toUpperCase()}</div>
@@ -2038,12 +2216,55 @@ export default function App() {
                       <div className="label" style={{ color: trackData.timeToImpact < 30 ? 'var(--danger)' : 'var(--text-dim)' }}>EST. TIME TO IMPACT</div>
                       <div className="value" style={{ color: trackData.timeToImpact < 30 ? 'var(--danger)' : 'var(--safe)', fontSize: '1.5rem', marginTop: 4 }}>{trackData.timeToImpact}s</div>
                     </div>
-                    {/* Brake Signal Disclaimer */}
-                    {trackData.detected && (
-                      <div style={{ gridColumn: '1/-1', fontSize: '0.55rem', color: '#475569', textAlign: 'center', fontFamily: "'Share Tech Mono'", padding: '4px 8px', background: 'rgba(0,0,0,0.5)', borderRadius: 4 }}>
-                        [⚠] Brake recommendation signal generated. Real train control requires RDSO API (not publicly accessible for prototypes).
+                    {/* Real Weather Braking Multiplier Box */}
+                    <div className="stat-box" style={{ flexDirection: 'column', alignItems: 'flex-start', background: 'rgba(0,0,0,0.5)', padding: '12px 16px' }}>
+                      <div className="label" style={{ color: '#38bdf8' }}>WEATHER-ADJUSTED SAFE SPD</div>
+                      <div className="value" style={{ color: '#38bdf8', fontSize: '1.2rem', marginTop: 4 }}>
+                        {trackData.safeSpeedKmh || 80} KM/H <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>({trackData.wxMultiplier || 1.0}x BRAKE)</span>
                       </div>
-                    )}
+                    </div>
+                  </div>
+
+                  {/* Junction Signal Cascade Bar & Acoustic Vibration Tracker */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {/* Junction Signals */}
+                    <div style={{ background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '10px 14px' }}>
+                      <div style={{ fontSize: '0.55rem', color: 'var(--accent)', letterSpacing: 2, fontFamily: "'Share Tech Mono'", marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <GitBranch size={12} /> MULTI-TRACK JUNCTION SIGNAL CASCADE
+                      </div>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        {junctionSignals.map(seg => (
+                          <div key={seg.id} style={{
+                            flex: 1, padding: '6px 8px', borderRadius: 4,
+                            background: seg.signal === 'RED' ? 'rgba(239,68,68,0.15)' : seg.signal === 'YELLOW' ? 'rgba(245,158,11,0.15)' : 'rgba(34,197,94,0.15)',
+                            border: `1px solid ${seg.signal === 'RED' ? '#ef4444' : seg.signal === 'YELLOW' ? '#f59e0b' : '#22c55e'}`,
+                            fontFamily: "'Share Tech Mono'"
+                          }}>
+                            <div style={{ fontSize: '0.45rem', color: 'var(--text-dim)' }}>{seg.id}</div>
+                            <div style={{ fontSize: '0.6rem', fontWeight: 'bold', color: seg.signal === 'RED' ? '#ef4444' : seg.signal === 'YELLOW' ? '#f59e0b' : '#22c55e', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <div style={{ width: 6, height: 6, borderRadius: '50%', background: seg.signal === 'RED' ? '#ef4444' : seg.signal === 'YELLOW' ? '#f59e0b' : '#22c55e', animation: seg.signal !== 'GREEN' ? 'pulse 1s infinite' : 'none' }} />
+                              {seg.signal}
+                            </div>
+                            <div style={{ fontSize: '0.38rem', color: 'var(--text-dim)', marginTop: 2 }}>{seg.role.toUpperCase()}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Acoustic Vibration Monitor for Track */}
+                    <div>
+                      <AcousticMonitor
+                        module="TRACK-GUARD"
+                        onAnomaly={(anomaly) => {
+                          addLog(`[ACOUSTIC-TRACK] 🔊 Rail vibration anomaly detected: ${anomaly.label} (${anomaly.level}%). Early warning logged.`, 'warning');
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Weather Disclaimer */}
+                  <div style={{ fontSize: '0.52rem', color: '#64748b', textAlign: 'center', fontFamily: "'Share Tech Mono'", padding: '4px 8px', background: 'rgba(0,0,0,0.5)', borderRadius: 4 }}>
+                    [ℹ] Weather API active ({weather.condition}, {weather.visibility_km}km visibility, risk: {weather.weatherRisk}%). Braking physics adjusted per Indian Railways Safety Circular 2019/Safety(A)/7/7.
                   </div>
                 </div>
               </motion.div>

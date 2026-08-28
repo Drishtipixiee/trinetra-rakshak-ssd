@@ -1,80 +1,117 @@
-import { useState, useEffect } from 'react';
-import { Cloud, Sun, CloudRain, CloudLightning, Wind, Eye, Thermometer, Droplets } from 'lucide-react';
+/**
+ * WeatherWidget.jsx — Real-time Weather Display
+ *
+ * Powered by Open-Meteo API via useWeatherEngine hook.
+ * Data is real, not simulated. Shows live operational weather risk for Sector 7.
+ */
 
-const WEATHER_CONDITIONS = [
-    { label: 'CLEAR', icon: Sun, color: '#facc15', visibility: 95 },
-    { label: 'OVERCAST', icon: Cloud, color: '#94a3b8', visibility: 75 },
-    { label: 'RAIN', icon: CloudRain, color: '#60a5fa', visibility: 40 },
-    { label: 'STORM', icon: CloudLightning, color: '#f87171', visibility: 20 },
-];
+import { Cloud, Sun, CloudRain, CloudLightning, Wind, Eye, Thermometer, Droplets, Wifi, WifiOff, Snowflake } from 'lucide-react';
+import { useWeatherEngine } from '../lib/useWeatherEngine';
+
+const CONDITION_CONFIG = {
+  CLEAR:    { icon: Sun,            color: '#facc15', label: 'CLEAR' },
+  OVERCAST: { icon: Cloud,          color: '#94a3b8', label: 'OVERCAST' },
+  FOG:      { icon: Cloud,          color: '#cbd5e1', label: 'FOG' },
+  RAIN:     { icon: CloudRain,      color: '#60a5fa', label: 'RAIN' },
+  SNOW:     { icon: Snowflake,      color: '#bfdbfe', label: 'SNOW' },
+  STORM:    { icon: CloudLightning, color: '#f87171', label: 'STORM' },
+};
 
 export default function WeatherWidget() {
-    const [weather, setWeather] = useState({
-        temp: 28,
-        humidity: 62,
-        windSpeed: 12,
-        visibility: 85,
-        conditionIdx: 0,
-    });
+  const { weather, loading, apiReachable } = useWeatherEngine(300000); // refresh every 5 min
 
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setWeather(prev => {
-                const newTemp = Math.max(18, Math.min(42, prev.temp + (Math.random() - 0.5) * 2));
-                const newHumidity = Math.max(30, Math.min(95, prev.humidity + (Math.random() - 0.5) * 5));
-                const newWind = Math.max(2, Math.min(45, prev.windSpeed + (Math.random() - 0.5) * 4));
-                // Occasionally change condition
-                const changeCondition = Math.random() > 0.92;
-                const newIdx = changeCondition
-                    ? Math.min(3, Math.max(0, prev.conditionIdx + (Math.random() > 0.5 ? 1 : -1)))
-                    : prev.conditionIdx;
-                return {
-                    temp: newTemp,
-                    humidity: newHumidity,
-                    windSpeed: newWind,
-                    visibility: WEATHER_CONDITIONS[newIdx].visibility + (Math.random() - 0.5) * 10,
-                    conditionIdx: newIdx,
-                };
-            });
-        }, 8000);
-        return () => clearInterval(timer);
-    }, []);
+  const cfg = CONDITION_CONFIG[weather.condition] || CONDITION_CONFIG.OVERCAST;
+  const WeatherIcon = cfg.icon;
 
-    const condition = WEATHER_CONDITIONS[weather.conditionIdx];
-    const WeatherIcon = condition.icon;
+  // Risk colour gradient
+  const riskColor = weather.weatherRisk > 60
+    ? '#ef4444'
+    : weather.weatherRisk > 30
+      ? '#f59e0b'
+      : '#22c55e';
 
-    return (
-        <div className="weather-widget">
-            <div className="weather-header">
-                <WeatherIcon size={16} style={{ color: condition.color }} />
-                <span>WEATHER — SEC-7</span>
-            </div>
-            <div className="weather-condition" style={{ color: condition.color }}>
-                {condition.label}
-            </div>
-            <div className="weather-stats">
-                <div className="weather-stat">
-                    <Thermometer size={12} />
-                    <span>{Math.round(weather.temp)}°C</span>
-                </div>
-                <div className="weather-stat">
-                    <Droplets size={12} />
-                    <span>{Math.round(weather.humidity)}%</span>
-                </div>
-                <div className="weather-stat">
-                    <Wind size={12} />
-                    <span>{Math.round(weather.windSpeed)} km/h</span>
-                </div>
-                <div className="weather-stat">
-                    <Eye size={12} />
-                    <span>{Math.round(weather.visibility)}%</span>
-                </div>
-            </div>
-            {weather.visibility < 50 && (
-                <div className="weather-alert">
-                    ⚠ LOW VISIBILITY — THREAT RISK ELEVATED
-                </div>
-            )}
+  return (
+    <div className="weather-widget">
+      {/* Header */}
+      <div className="weather-header">
+        <WeatherIcon size={16} style={{ color: cfg.color }} />
+        <span>WEATHER — SEC-7</span>
+        {/* Live / Fallback indicator */}
+        <span style={{
+          marginLeft: 'auto', fontSize: '0.4rem', letterSpacing: 1,
+          color: apiReachable ? '#22c55e' : '#475569',
+          display: 'flex', alignItems: 'center', gap: 3,
+        }}>
+          {apiReachable
+            ? <><Wifi size={8} style={{ color: '#22c55e' }} /> LIVE</>
+            : <><WifiOff size={8} /> LOCAL</>}
+        </span>
+      </div>
+
+      {/* Condition label */}
+      <div className="weather-condition" style={{ color: cfg.color }}>
+        {loading ? 'FETCHING…' : cfg.label}
+      </div>
+
+      {/* Stats row */}
+      <div className="weather-stats">
+        <div className="weather-stat">
+          <Thermometer size={12} />
+          <span>{weather.temp}°C</span>
         </div>
-    );
+        <div className="weather-stat">
+          <Droplets size={12} />
+          <span>{weather.humidity}%</span>
+        </div>
+        <div className="weather-stat">
+          <Wind size={12} />
+          <span>{weather.wind_kmh} km/h</span>
+        </div>
+        <div className="weather-stat">
+          <Eye size={12} />
+          <span>{weather.visibility_km} km</span>
+        </div>
+      </div>
+
+      {/* Weather Risk bar — this is what flows into the fuzzy engine */}
+      <div style={{ marginTop: 6 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.42rem', color: 'var(--text-dim)', marginBottom: 2, fontFamily: "'Share Tech Mono'" }}>
+          <span>WEATHER RISK → FUZZY ENGINE</span>
+          <span style={{ color: riskColor, fontWeight: 'bold' }}>{weather.weatherRisk}%</span>
+        </div>
+        <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2 }}>
+          <div style={{
+            height: '100%', borderRadius: 2,
+            width: `${weather.weatherRisk}%`,
+            background: `linear-gradient(90deg, #22c55e, ${riskColor})`,
+            transition: 'width 1s ease',
+          }} />
+        </div>
+      </div>
+
+      {/* Alerts */}
+      {weather.condition === 'FOG' && (
+        <div className="weather-alert">
+          🌫 FOG — VISIBILITY {weather.visibility_km}km — STEALTH RISK HIGH
+        </div>
+      )}
+      {weather.condition === 'STORM' && (
+        <div className="weather-alert">
+          ⛈ STORM — SENSOR COVERAGE DEGRADED
+        </div>
+      )}
+      {(weather.condition === 'RAIN' || weather.condition === 'OVERCAST') && weather.weatherRisk > 30 && (
+        <div className="weather-alert" style={{ borderColor: '#f59e0b', color: '#f59e0b', background: 'rgba(245,158,11,0.08)' }}>
+          ⚠ {weather.condition} — RISK ELEVATED: {weather.weatherRisk}%
+        </div>
+      )}
+
+      {/* Data source + last update */}
+      {weather.lastUpdated && (
+        <div style={{ fontSize: '0.38rem', color: '#334155', marginTop: 4, fontFamily: "'Share Tech Mono'", textAlign: 'right' }}>
+          {weather.dataSource} • {weather.lastUpdated}
+        </div>
+      )}
+    </div>
+  );
 }

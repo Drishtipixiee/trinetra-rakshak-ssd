@@ -511,6 +511,75 @@ def send_test_alert():
 #  AI ENGINE ENDPOINTS
 # ═══════════════════════════════════════════
 
+@app.route('/api/evaluate_threat', methods=['POST'])
+def evaluate_threat_endpoint():
+    """
+    Evaluate threat using 4-input fuzzy logic engine (v2.1).
+    Inputs: velocity, proximity, visibility, weather_risk
+    """
+    data = request.json or {}
+    try:
+        velocity     = float(data.get("velocity", 0.0))
+        proximity    = float(data.get("proximity", 500.0))
+        visibility   = float(data.get("visibility", 100.0))
+        weather_risk = float(data.get("weather_risk", 0.0))
+        sensor_type  = data.get("sensor", "Border-Sentry")
+        detected_class = data.get("detected_class", "unknown")
+
+        score, xai = ai_engine.evaluate_risk(velocity, proximity, visibility, weather_risk)
+        predicted_class = threat_engine.predict_threat_class(sensor_type, velocity, proximity)
+
+        return jsonify({
+            "risk_score": round(score, 1),
+            "score": round(score, 1),
+            "xai_reasoning": xai,
+            "explanation": xai,
+            "threat_class": predicted_class,
+            "detected_class": detected_class,
+            "status": "success",
+            "engine": "Fuzzy Logic (Mamdani) v2.1 — 4-Input Weather-Aware",
+            "inputs": {
+                "velocity_kmh":   round(velocity, 1),
+                "proximity_m":    round(proximity, 1),
+                "visibility_pct": round(visibility, 1),
+                "weather_risk":   round(weather_risk, 1)
+            }
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+
+@app.route('/api/real_incident', methods=['POST'])
+def log_real_incident_vercel():
+    data = request.json or {}
+    try:
+        inc_type = data.get('type', 'DETECTION')
+        sector = data.get('sector', 'SEC-LIVE')
+        severity = data.get('severity', 'WARNING')
+        description = data.get('description', 'AI detection event')
+        risk_score = int(data.get('risk_score', 50))
+        detected_class = data.get('detected_class', 'unknown')
+        confidence = float(data.get('confidence', 0))
+
+        full_desc = (f"[REAL AI] TF.js COCO-SSD detected: {detected_class.upper()} "
+                     f"(conf: {confidence:.0f}%) | Fuzzy Risk: {risk_score}% | {description}")
+
+        inc = Incident(
+            type=inc_type,
+            sector=sector,
+            severity=severity,
+            description=full_desc,
+            status='ACTIVE',
+            risk_score=risk_score
+        )
+        db.session.add(inc)
+        db.session.commit()
+        return jsonify({"status": "logged", "incident_id": f"INC-{1000 + inc.id}"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
     data = request.json
