@@ -2504,3 +2504,148 @@ body.alert-mode .hud-container {
     overflow-y: auto;
   }
 }
+
+/* ═══════════════════════════════════════════════════
+   OSIRIS MODULES — OmniEye · CamForge · ThreatStream
+   ═══════════════════════════════════════════════════ */
+
+/* ── OSIRIS Gold tab accent ─────────────────────── */
+.tab-btn.osiris-active {
+  border-color: #ffd700 !important;
+  color: #ffd700 !important;
+  background: rgba(255, 215, 0, 0.08) !important;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.15) !important;
+}
+
+/* ── Full-height OSIRIS tab container ───────────── */
+.omnieye-container,
+.camforge-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+}
+
+/* ── Leaflet dark-mode override ─────────────────── */
+.leaflet-container {
+  background: #050811 !important;
+  font-family: 'Share Tech Mono', monospace !important;
+}
+.leaflet-popup-content-wrapper {
+  background: rgba(5, 8, 20, 0.97) !important;
+  border: 1px solid rgba(255, 215, 0, 0.2) !important;
+  color: #e8f5e9 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+}
+.leaflet-popup-tip {
+  background: rgba(5, 8, 20, 0.97) !important;
+}
+.leaflet-popup-close-button {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+.leaflet-popup-content {
+  color: #e8f5e9 !important;
+  font-family: 'Share Tech Mono', monospace !important;
+  font-size: 0.7rem !important;
+}
+.leaflet-control-attribution {
+  display: none !important;
+}
+.leaflet-bar {
+  display: none !important;
+}
+
+/* ── OmniEye status badge animations ───────────── */
+@keyframes osirisGlow {
+  0%, 100% { box-shadow: 0 0 6px currentColor; }
+  50% { box-shadow: 0 0 18px currentColor, 0 0 30px currentColor; }
+}
+
+/* ── CamForge SVG canvas ────────────────────────── */
+.camforge-canvas {
+  cursor: crosshair;
+  user-select: none;
+}
+.camforge-canvas:active {
+  cursor: grabbing;
+}
+
+/* ── CamForge range slider ──────────────────────── */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  border-radius: 3px;
+  outline: none;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+  transition: all 0.15s;
+}
+input[type='range']::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.6);
+}
+
+/* ── ThreatStream panel scrollbar ───────────────── */
+.threatstream-scroll::-webkit-scrollbar {
+  width: 2px;
+}
+.threatstream-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.threatstream-scroll::-webkit-scrollbar-thumb {
+  background: rgba(239, 68, 68, 0.3);
+  border-radius: 2px;
+}
+
+/* ── OSIRIS bottom ticker ───────────────────────── */
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.osiris-ticker {
+  display: flex;
+  gap: 60px;
+  animation: tickerScroll 35s linear infinite;
+  white-space: nowrap;
+}
+.osiris-ticker:hover {
+  animation-play-state: paused;
+}
+
+/* ── OmniEye layer badge pulse ──────────────────── */
+@keyframes layerBadgePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+.layer-badge-active {
+  animation: layerBadgePulse 2s ease-in-out infinite;
+}
+
+/* ── Data source live indicator ─────────────────── */
+@keyframes liveFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.live-dot {
+  animation: liveFlash 1.5s ease-in-out infinite;
+}
+
+/* ── Tinkercad modal backdrop blur ──────────────── */
+.tinkercad-backdrop {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+

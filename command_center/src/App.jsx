@@ -5,7 +5,7 @@ import {
   Shield, Activity, AlertTriangle, Fingerprint, Lock,
   Map as MapIcon, Video, Target, Radio, Scan, Train, Download, Terminal,
   BarChart3, Eye, Users, Play, Square, Volume2, VolumeX, LayoutDashboard, Cpu, Wifi, MapPin, Clock, Loader2 as Loader2Icon, Satellite, Brain,
-  CloudLightning, Navigation, Signal, GitBranch, Zap
+  CloudLightning, Navigation, Signal, GitBranch, Zap, Globe, Camera
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { logThreatEvent } from './lib/supabase';
@@ -32,6 +32,11 @@ import AIThreatAnalyst from './components/AIThreatAnalyst';
 import FlowSimulationDashboard from './components/FlowSimulationDashboard';
 import GeoEyePanel from './components/GeoEyePanel';
 import AcousticMonitor from './components/AcousticMonitor';
+
+// ── OSIRIS Modules (new) ──
+import OmniEyeGlobe from './components/OmniEyeGlobe';
+import CamForge from './components/CamForge';
+import ThreatStream from './components/ThreatStream';
 
 // ═══════════════════════════════════════════════════
 //  CONFIGURATION & CONSTANTS
@@ -534,6 +539,9 @@ const TABS = [
   { id: 'GEO-EYE', icon: MapIcon, label: 'GEO-EYE' },
   { id: 'TRACK-GUARD', icon: Train, label: 'TRACK' },
   { id: 'ANALYTICS', icon: BarChart3, label: 'ANALYTICS' },
+  // ── OSIRIS Modules ──
+  { id: 'OMNI-EYE', icon: Globe, label: '🌍 OMNI-EYE', osiris: true },
+  { id: 'CAMFORGE', icon: Camera, label: '📐 CAMFORGE', osiris: true },
 ];
 
 // ════════════════════════════════════════
@@ -574,6 +582,7 @@ export default function App() {
   const [trackActive, setTrackActive] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [analystOpen, setAnalystOpen] = useState(false);
+  const [threatStreamOpen, setThreatStreamOpen] = useState(false);
 
   // ─── Multi-Post Escalation Network (Border-Sentry) ───
   // 3 virtual border posts; adjacent posts elevate to AMBER when a threat is CRITICAL
@@ -1274,6 +1283,7 @@ export default function App() {
       <MobileAlert threatLevel={detectionData.threatLevel} riskScore={detectionData.riskScore} threatClass={detectionData.primaryClass} />
       <WalkieTalkie isOpen={walkieOpen} onToggle={() => setWalkieOpen(!walkieOpen)} threatLevel={detectionData.threatLevel} detectedClass={detectionData.primaryClass} />
       <AIThreatAnalyst isOpen={analystOpen} onToggle={() => setAnalystOpen(!analystOpen)} detectionData={detectionData} />
+      <ThreatStream isOpen={threatStreamOpen} onToggle={() => setThreatStreamOpen(!threatStreamOpen)} detectionData={detectionData} dbLogs={dbLogs} />
 
       <AnimatePresence>
         {smsVisible && (
@@ -1343,7 +1353,15 @@ export default function App() {
             {TABS.map(tab => {
               const Icon = tab.icon;
               return (
-                <button key={tab.id} className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}>
+                <button key={tab.id}
+                  className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={tab.osiris ? {
+                    borderColor: activeTab === tab.id ? '#ffd700' : 'rgba(255,215,0,0.2)',
+                    color: activeTab === tab.id ? '#ffd700' : 'rgba(255,215,0,0.5)',
+                    background: activeTab === tab.id ? 'rgba(255,215,0,0.08)' : 'transparent',
+                  } : {}}
+                >
                   <Icon size={12} /> {tab.label}
                 </button>
               );
@@ -2272,6 +2290,26 @@ export default function App() {
 
             {/* ── ANALYTICS ── */}
             {activeTab === 'ANALYTICS' && <AnalyticsDashboard />}
+
+            {/* ── OMNI-EYE GLOBE (OSIRIS Module) ── */}
+            {activeTab === 'OMNI-EYE' && (
+              <motion.div key="omnieye"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}
+              >
+                <OmniEyeGlobe detectionData={detectionData} postNetwork={postNetwork} />
+              </motion.div>
+            )}
+
+            {/* ── CAMFORGE CCTV PLANNER (Tinkercad Module) ── */}
+            {activeTab === 'CAMFORGE' && (
+              <motion.div key="camforge"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}
+              >
+                <CamForge />
+              </motion.div>
+            )}
 
           </AnimatePresence>
         </div >
