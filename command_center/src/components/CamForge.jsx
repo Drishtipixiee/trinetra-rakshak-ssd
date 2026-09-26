@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Camera, Plus, Trash2, Download, ChevronDown, ChevronUp,
   Eye, AlertTriangle, CheckCircle, Cpu, Settings, RotateCcw,
-  ZoomIn, ZoomOut, Grid, Info, X
+  ZoomIn, ZoomOut, Grid, Info, X, ExternalLink, Radio, Zap
 } from 'lucide-react';
 
 // ── Camera Type Definitions ───────────────────────────────────────────────────
@@ -174,6 +174,7 @@ export default function CamForge() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [coveragePct, setCoveragePct] = useState(0);
   const [showGrid, setShowGrid] = useState(true);
+  const [iframeFailed, setIframeFailed] = useState(false);
   const svgRef = useRef(null);
   const CANVAS_W = 800;
   const CANVAS_H = 560;
@@ -620,6 +621,7 @@ export default function CamForge() {
                   onClick={() => {
                     const typeInfo = CAMERA_TYPES.find(t => t.id === selectedCam.type);
                     setTinkercadUrl(typeInfo.tinkercadUrl);
+                    setIframeFailed(false);
                     setShowTinkercad(true);
                   }}
                   style={{
@@ -741,7 +743,44 @@ export default function CamForge() {
                   style={{ width: '100%', height: '100%', border: 'none' }}
                   title="Tinkercad ESP32-CAM Circuit"
                   allowFullScreen
+                  onError={() => setIframeFailed(true)}
                 />
+                <div style={{
+                  position: 'absolute', left: 16, top: 16, width: 330,
+                  background: 'rgba(5,12,5,0.92)', border: '1px solid rgba(168,85,247,0.35)',
+                  borderRadius: 10, padding: 12, boxShadow: '0 0 24px rgba(0,0,0,0.35)'
+                }}>
+                  <div style={{ color: '#a855f7', fontSize: '0.62rem', letterSpacing: 2, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Cpu size={12} /> LOCAL HARDWARE FALLBACK
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 24px 1fr', gap: 8, alignItems: 'center' }}>
+                    <CircuitNode icon={<Camera size={16} />} label="ESP32-CAM" meta="GPIO13 PIR IN" color="#a855f7" />
+                    <div style={{ color: '#a855f7', textAlign: 'center' }}>--</div>
+                    <CircuitNode icon={<Radio size={16} />} label="MQTT/WiFi" meta="Trinetra gateway" color="#38bdf8" />
+                    <CircuitNode icon={<Zap size={16} />} label="HC-SR501 PIR" meta="5V motion trigger" color="#f97316" />
+                    <div style={{ color: '#a855f7', textAlign: 'center' }}>--</div>
+                    <CircuitNode icon={<AlertTriangle size={16} />} label="Relay Output" meta="alarm/brake/siren" color="#22c55e" />
+                  </div>
+                  <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: '0.5rem', lineHeight: 1.5, marginTop: 10 }}>
+                    If Tinkercad blocks embedding, this simulator keeps the wiring architecture visible. Open the public circuit in a new tab for editing.
+                  </div>
+                  <button
+                    onClick={() => window.open(tinkercadUrl, '_blank', 'noopener,noreferrer')}
+                    style={{
+                      marginTop: 10, width: '100%', padding: '7px 9px', borderRadius: 6,
+                      border: '1px solid rgba(168,85,247,0.55)', background: 'rgba(168,85,247,0.15)',
+                      color: '#a855f7', fontFamily: "'Share Tech Mono'", fontSize: '0.55rem', letterSpacing: 1,
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                    }}
+                  >
+                    <ExternalLink size={11} /> OPEN TINKERCAD EXTERNALLY
+                  </button>
+                  {iframeFailed && (
+                    <div style={{ marginTop: 8, color: '#f59e0b', fontSize: '0.5rem' }}>
+                      Embed did not load. External editor link is ready.
+                    </div>
+                  )}
+                </div>
                 {/* Overlay hint if blocked */}
                 <div style={{
                   position: 'absolute', bottom: 16, right: 16,
@@ -794,6 +833,18 @@ function LegendItem({ color, stroke, label }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
       <div style={{ width: 20, height: 10, background: color, border: `1px solid ${stroke}`, borderRadius: 2 }} />
       <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.48rem' }}>{label}</span>
+    </div>
+  );
+}
+
+function CircuitNode({ icon, label, meta, color }) {
+  return (
+    <div style={{ border: `1px solid ${color}55`, background: `${color}14`, borderRadius: 7, padding: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color, fontSize: '0.55rem', fontFamily: "'Share Tech Mono'", letterSpacing: 1 }}>
+        {icon}
+        {label}
+      </div>
+      <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.45rem', marginTop: 4 }}>{meta}</div>
     </div>
   );
 }

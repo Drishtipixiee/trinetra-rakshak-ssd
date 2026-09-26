@@ -32,11 +32,13 @@ import AIThreatAnalyst from './components/AIThreatAnalyst';
 import FlowSimulationDashboard from './components/FlowSimulationDashboard';
 import GeoEyePanel from './components/GeoEyePanel';
 import AcousticMonitor from './components/AcousticMonitor';
+import RealOpsMedia from './components/RealOpsMedia';
 
 // ── OSIRIS Modules (new) ──
 import OmniEyeGlobe from './components/OmniEyeGlobe';
 import CamForge from './components/CamForge';
 import ThreatStream from './components/ThreatStream';
+import RealWorldBridge from './components/RealWorldBridge';
 
 // ═══════════════════════════════════════════════════
 //  CONFIGURATION & CONSTANTS
@@ -58,9 +60,9 @@ function useRealDetection(active, videoRef, canvasRef) {
   const rafRef = useRef(null);
   const tickRef = useRef(0);
 
-  // Load model on mount (cached — only loads once across all uses)
+  // Load model only when detection starts. TF.js is heavy, so keep idle pages light.
   useEffect(() => {
-    if (modelStatus !== 'idle') return;
+    if (!active || modelStatus !== 'idle') return;
     setModelStatus('loading');
     loadModel((progress, message) => {
       setModelProgress(Math.round(progress * 100));
@@ -70,7 +72,7 @@ function useRealDetection(active, videoRef, canvasRef) {
     }).catch(() => {
       setModelStatus('error');
     });
-  }, [modelStatus]);
+  }, [active, modelStatus]);
 
   // Run inference loop when active + model ready
   useEffect(() => {
@@ -542,6 +544,7 @@ const TABS = [
   // ── OSIRIS Modules ──
   { id: 'OMNI-EYE', icon: Globe, label: '🌍 OMNI-EYE', osiris: true },
   { id: 'CAMFORGE', icon: Camera, label: '📐 CAMFORGE', osiris: true },
+  { id: 'REAL-WORLD', icon: Signal, label: '🌐 REAL-WORLD', osiris: true, realWorld: true },
 ];
 
 // ════════════════════════════════════════
@@ -583,6 +586,7 @@ export default function App() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [analystOpen, setAnalystOpen] = useState(false);
   const [threatStreamOpen, setThreatStreamOpen] = useState(false);
+  const [realWorldOpen, setRealWorldOpen] = useState(false);
 
   // ─── Multi-Post Escalation Network (Border-Sentry) ───
   // 3 virtual border posts; adjacent posts elevate to AMBER when a threat is CRITICAL
@@ -761,6 +765,7 @@ export default function App() {
   const canvasRef = useRef(null);
   const trackCanvasRef = useRef(null);
   const [useWebcam, setUseWebcam] = useState(false);
+  const [trackVideoFailed, setTrackVideoFailed] = useState(false);
 
   // ── REAL TF.js DETECTION HOOKS ───────────────────────────────────
   const {
@@ -1284,6 +1289,11 @@ export default function App() {
       <WalkieTalkie isOpen={walkieOpen} onToggle={() => setWalkieOpen(!walkieOpen)} threatLevel={detectionData.threatLevel} detectedClass={detectionData.primaryClass} />
       <AIThreatAnalyst isOpen={analystOpen} onToggle={() => setAnalystOpen(!analystOpen)} detectionData={detectionData} />
       <ThreatStream isOpen={threatStreamOpen} onToggle={() => setThreatStreamOpen(!threatStreamOpen)} detectionData={detectionData} dbLogs={dbLogs} />
+      <AnimatePresence>
+        {realWorldOpen && (
+          <RealWorldBridge isOpen={realWorldOpen} onClose={() => { setRealWorldOpen(false); setActiveTab('DASHBOARD'); }} />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {smsVisible && (
@@ -1949,7 +1959,7 @@ export default function App() {
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, padding: '20px', overflowY: 'auto' }}>
                 <div style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid var(--glass-border)', borderRadius: 12, padding: 20 }}>
                   <div className="glitch-text" data-text="ACTIVE SIMULATION MODULES" style={{ fontSize: '1.2rem', fontFamily: "'Share Tech Mono'", marginBottom: 6, color: 'var(--accent)' }}>ACTIVE SIMULATION MODULES</div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginBottom: 20 }}>Trigger real database-backed scenarios to demonstrate system scalability and AI responsiveness.</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginBottom: 20 }}>Trigger database-backed scenarios, then inspect realistic online video simulations for railway wildlife, border intrusion, and illegal mining detection.</div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
@@ -1975,6 +1985,37 @@ export default function App() {
 
                   </div>
                 </div>
+
+                <RealOpsMedia
+                  onScenario={(scenarioId) => {
+                    const scenarioMap = {
+                      'rail-wildlife': {
+                        tab: 'TRACK-GUARD',
+                        sim: 'WILDLIFE',
+                        detection: { threatLevel: 'CRITICAL', riskScore: 82, primaryClass: 'WILDLIFE ON TRACK', personCount: 0, label: 'TRACK-GUARD' },
+                        log: '[REAL-OPS] Railway wildlife video scenario pushed to Track-Guard auto-brake workflow.'
+                      },
+                      'border-cctv': {
+                        tab: 'CCTV',
+                        sim: 'INTRUSION',
+                        detection: { threatLevel: 'CRITICAL', riskScore: 91, primaryClass: 'BORDER INTRUDER', personCount: 2, label: 'CCTV' },
+                        log: '[REAL-OPS] Border CCTV intrusion scenario pushed to command workflow.'
+                      },
+                      'mining-drone': {
+                        tab: 'GEO-EYE',
+                        sim: 'MINING',
+                        detection: { threatLevel: 'HIGH', riskScore: 78, primaryClass: 'ILLEGAL MINING OP', personCount: 0, label: 'GEO-EYE' },
+                        log: '[REAL-OPS] Mining drone scenario pushed to Geo-Eye satellite workflow.'
+                      },
+                    };
+                    const selected = scenarioMap[scenarioId];
+                    if (!selected) return;
+                    setDetectionData(prev => ({ ...prev, ...selected.detection }));
+                    triggerBackendSim(selected.sim);
+                    addLog(selected.log, selected.detection.threatLevel === 'CRITICAL' ? 'critical' : 'warning');
+                    setTimeout(() => setActiveTab(selected.tab), 500);
+                  }}
+                />
 
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.5)', border: '1px solid var(--glass-border)', borderLeft: '3px solid var(--accent)', borderRadius: 12, padding: 20 }}>
                   <div style={{ fontSize: '0.9rem', fontFamily: "'Share Tech Mono'", marginBottom: 12, color: 'var(--text-main)' }}>LIVE DATABASE EVENT STREAM</div>
@@ -2036,17 +2077,35 @@ export default function App() {
                       <video
                         ref={trackVideoRef}
                         autoPlay loop muted playsInline crossOrigin="anonymous"
-                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.55, zIndex: 0 }}
+                        preload="metadata"
+                        poster="https://images.unsplash.com/photo-1535941339077-2dd1c7963098?w=1200&h=680&fit=crop"
+                        onError={() => setTrackVideoFailed(true)}
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: trackVideoFailed ? 0 : 0.55, zIndex: 0 }}
                         src="https://assets.mixkit.co/videos/preview/mixkit-train-line-in-the-forest-34238-large.mp4"
                       />
+                    )}
+                    {(trackVideoFailed || !trackActive) && (
+                      <div style={{
+                        position: 'absolute', inset: 0, zIndex: 0,
+                        backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1535941339077-2dd1c7963098?w=1200&h=680&fit=crop")',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        filter: 'contrast(1.05) saturate(0.9)'
+                      }} />
                     )}
 
                     {/* Wildlife/Elephant crossing video overlay — shown when animal detected */}
                     {trackData.detected && (
-                      <video
-                        autoPlay loop muted playsInline
-                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6, zIndex: 1, filter: 'saturate(0.6) contrast(1.3)' }}
-                        src="https://assets.mixkit.co/videos/preview/mixkit-green-forest-viewed-from-the-sky-26-large.mp4"
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 0.62 }}
+                        style={{
+                          position: 'absolute', inset: 0, width: '100%', height: '100%',
+                          zIndex: 1, filter: 'saturate(0.75) contrast(1.25)',
+                          backgroundImage: 'linear-gradient(90deg, rgba(0,0,0,0.1), rgba(239,68,68,0.18)), url("https://images.unsplash.com/photo-1535941339077-2dd1c7963098?w=1200&h=680&fit=crop")',
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center'
+                        }}
                       />
                     )}
 

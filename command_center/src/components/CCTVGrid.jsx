@@ -6,6 +6,7 @@ const CAMERAS = [
     {
         id: 'CAM-01', name: 'MAIN GATE -- SEC-7A', coords: 'N28°38\'12" E77°13\'04"',
         videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-car-approaching-a-security-gate-at-night-42171-large.mp4',
+        posterUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=900&h=520&fit=crop',
         scenario: [
             { time: [0, 6], detections: [], status: 'CLEAR' },
             { time: [6, 12], detections: [{ class: 'vehicle', conf: 82, x: 20, y: 40, w: 22, h: 14, risk: 55, dx: 4 }], status: 'VEHICLE APPROACHING' },
@@ -16,6 +17,7 @@ const CAMERAS = [
     {
         id: 'CAM-02', name: 'PERIMETER NORTH', coords: 'N28°38\'18" E77°13\'09"',
         videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-security-camera-recording-a-robbery-41484-large.mp4',
+        posterUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=900&h=520&fit=crop',
         scenario: [
             { time: [0, 8], detections: [], status: 'SCANNING' },
             {
@@ -31,6 +33,7 @@ const CAMERAS = [
     {
         id: 'CAM-03', name: 'EAST WATCHTOWER', coords: 'N28°38\'15" E77°13\'15"',
         videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4',
+        posterUrl: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=900&h=520&fit=crop',
         scenario: [
             { time: [0, 20], detections: [], status: 'CLEAR' },
             { time: [20, 30], detections: [{ class: 'animal', conf: 88, x: 10, y: 50, w: 15, h: 10, risk: 20, dx: 3 }], status: 'WILDLIFE (STRAY DOG)' },
@@ -41,6 +44,7 @@ const CAMERAS = [
     {
         id: 'CAM-04', name: 'COMMAND BUNKER', coords: 'N28°38\'10" E77°13\'00"',
         videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-guard-walking-in-the-snow-during-winter-39845-large.mp4',
+        posterUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=900&h=520&fit=crop',
         scenario: [
             { time: [0, 180], detections: [], status: 'SECURE -- NO MOVEMENT' },
         ]
@@ -53,14 +57,9 @@ function drawCameraDetections(canvas, phase, tick) {
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
 
-    // Lighter noise overlay (to blend with video)
-    const imgData = ctx.createImageData(W, H);
-    for (let i = 0; i < imgData.data.length; i += 16) {
-        const v = Math.random() * 15;
-        imgData.data[i] = v; imgData.data[i + 1] = v + 3; imgData.data[i + 2] = v;
-        imgData.data[i + 3] = 20;
-    }
-    ctx.putImageData(imgData, 0, 0);
+    // Lightweight scan wash. Per-pixel random noise was causing UI lag.
+    ctx.fillStyle = 'rgba(0, 20, 8, 0.08)';
+    ctx.fillRect(0, 0, W, H);
 
     // Grid
     ctx.strokeStyle = 'rgba(34,197,94,0.03)';
@@ -187,6 +186,7 @@ function drawCameraDetections(canvas, phase, tick) {
 export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDetectionData, setSmsText, setSmsVisible, playDetectionBeep }) {
     const [expandedCam, setExpandedCam] = useState(null);
     const [tick, setTick] = useState(0);
+    const [failedVideos, setFailedVideos] = useState({});
     const canvasRefs = useRef([]);
     const videoRefs = useRef([]);
     const modalCanvasRef = useRef(null);
@@ -292,8 +292,8 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
     }, []);
 
     useEffect(() => {
-        // High refresh rate tick (10x faster updates, interpolates 0.1s slices)
-        const timer = setInterval(() => setTick(t => Number((t + 0.1).toFixed(1)) % 180), 100);
+        // HUD refresh at 4 fps keeps detections smooth without making the app lag.
+        const timer = setInterval(() => setTick(t => Number((t + 0.25).toFixed(2)) % 180), 250);
         return () => clearInterval(timer);
     }, []);
 
@@ -388,16 +388,30 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
                                 loop
                                 muted
                                 playsInline
+                                preload="metadata"
                                 ref={el => videoRefs.current[index] = el}
+                                onError={() => setFailedVideos(prev => ({ ...prev, [cam.id]: true }))}
                                 style={{
                                     position: 'absolute', inset: 0,
                                     width: '100%', height: '100%',
                                     objectFit: 'cover', zIndex: 0, 
-                                    opacity: isOffline ? 0 : 0.6,
+                                    opacity: isOffline || failedVideos[cam.id] ? 0 : 0.6,
                                     filter: camFilters[cam.id] || 'none'
                                 }}
                                 src={cam.videoUrl}
                             />
+                            {!isOffline && failedVideos[cam.id] && (
+                                <img
+                                    src={cam.posterUrl}
+                                    alt={`${cam.name} fallback`}
+                                    style={{
+                                        position: 'absolute', inset: 0,
+                                        width: '100%', height: '100%',
+                                        objectFit: 'cover', zIndex: 0, opacity: 0.58,
+                                        filter: `${camFilters[cam.id] || 'none'} contrast(1.15) grayscale(0.25)`
+                                    }}
+                                />
+                            )}
                             {isOffline && (
                                 <div style={{ position: 'absolute', inset: 0, background: '#111', zIndex: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontFamily: "'Share Tech Mono'", fontSize: '1.2rem' }}>
                                     <CameraOff size={24} style={{marginRight: 8}}/> OFFLINE

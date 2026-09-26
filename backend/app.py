@@ -29,8 +29,23 @@ db.init_app(app)
 ai_engine = ReasoningEngine()
 threat_engine = ThreatPredictor()
 
+
+def ensure_sqlite_schema():
+    """Repair old local SQLite files after model columns are added."""
+    if not app.config['SQLALCHEMY_DATABASE_URI'].startswith('sqlite:///'):
+        return
+
+    with db.engine.connect() as conn:
+        user_columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()}
+        if user_columns and 'created_at' not in user_columns:
+            conn.exec_driver_sql("ALTER TABLE users ADD COLUMN created_at DATETIME")
+            conn.commit()
+            print(">> SQLite migration applied: users.created_at")
+
+
 with app.app_context():
     db.create_all()
+    ensure_sqlite_schema()
     print(">> Trinetra Rakshak 2.0 DB initialized.")
     # Seed default user if none exists
     if not User.query.first():
