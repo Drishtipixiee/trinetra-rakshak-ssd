@@ -242,7 +242,7 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
 
   const tileUrl = mapStyle === 'SAT'
     ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-    : 'https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png';
+    : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
 
   return (
     <div style={{

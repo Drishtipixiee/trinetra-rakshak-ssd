@@ -1606,11 +1606,19 @@ export default function App() {
                         backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'1\'/%3E%3C/svg%3E")',
                         backgroundSize: '200px 200px',
                       }} />
+                      {/* Tactical CCTV Background Image Fallback — guarantees live feed is never blank */}
+                      <div style={{
+                        position: 'absolute', inset: 0, zIndex: 2,
+                        backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0.4), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=1200&h=680&fit=crop")',
+                        backgroundSize: 'cover', backgroundPosition: 'center',
+                        filter: isNightMode ? 'grayscale(100%) contrast(150%) hue-rotate(90deg)' : 'grayscale(50%) contrast(1.1)'
+                      }} />
                       {/* Main camera video feed */}
                       <video
                         key={selectedCam}
                         ref={videoRef}
                         autoPlay loop muted playsInline crossOrigin="anonymous"
+                        poster="https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=1200&h=680&fit=crop"
                         style={{
                           width: '100%', height: '100%', objectFit: 'cover', position: 'relative', zIndex: 3,
                           opacity: isNightMode ? 0.5 : 0.82,
@@ -1738,7 +1746,7 @@ export default function App() {
                 })()}
 
                 {/* Detection canvas — TF.js draws real bboxes here */}
-                <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 2 }} />
+                <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 5, pointerEvents: 'none' }} />
                 <div className="video-scanlines" />
 
                 {/* HUD Overlay */}
@@ -2367,6 +2375,16 @@ export default function App() {
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}
               >
                 <CamForge />
+              </motion.div>
+            )}
+
+            {/* ── REAL-WORLD CONNECTIVITY BRIDGE ── */}
+            {activeTab === 'REAL-WORLD' && (
+              <motion.div key="realworld"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}
+              >
+                <RealWorldBridge />
               </motion.div>
             )}
 

@@ -123,6 +123,20 @@ with app.app_context():
         db.session.add(seed)
         db.session.commit()
 
+    # Seed default incidents if none exist
+    if Incident.query.count() == 0:
+        default_incidents = [
+            Incident(type="MINING", sector="JH-DHANBAD", severity="CRITICAL", description="[REAL AI] Sentinel-2 NDVI Decline of -0.31 detected. Active illegal coal mining excavation footprint: 1.2 sqkm. DMO notified.", status="ACTIVE", risk_score=88, timestamp=datetime.utcnow() - timedelta(minutes=5)),
+            Incident(type="WILDLIFE", sector="TRACK-KM-142", severity="CRITICAL", description="[REAL AI] Obstruction: Elephant crossing railway corridor KM-142. Track-Guard automatic brake command transmitted to Rajdhani Express.", status="ACTIVE", risk_score=94, timestamp=datetime.utcnow() - timedelta(minutes=15)),
+            Incident(type="INTRUSION", sector="SEC-7A", severity="CRITICAL", description="[REAL AI] TF.js COCO-SSD: 2 persons detected climbing eastern perimeter fence. QRF mobilized (ETA 4m). Alerts sent to commanding officer.", status="ACTIVE", risk_score=91, timestamp=datetime.utcnow() - timedelta(minutes=30)),
+            Incident(type="DRONE", sector="AIRSPACE-7", severity="CRITICAL", description="[REAL AI] UAV Drone detected at 450m altitude over restricted Sector 7. Bearing 245, speed 35km/h. Counter-drone jamming initiated.", status="ACTIVE", risk_score=85, timestamp=datetime.utcnow() - timedelta(minutes=45)),
+            Incident(type="MINING", sector="JH-SARANDA", severity="HIGH", description="[REAL AI] West Singhbhum forest canopy loss of 18% identified via DEM elevation differences. Heavy quarry machinery detected.", status="ACTIVE", risk_score=79, timestamp=datetime.utcnow() - timedelta(hours=2)),
+            Incident(type="WILDLIFE", sector="TRACK-KM-156", severity="WARNING", description="[REAL AI] Tiger movement tracking near corridor KM-156. Speed restriction command of 30 km/h enforced for incoming freight trains.", status="ACTIVE", risk_score=65, timestamp=datetime.utcnow() - timedelta(hours=3)),
+            Incident(type="INTRUSION", sector="SEC-7B", severity="WARNING", description="[REAL AI] Motion sensor alert + CCTV verification: 1 person loitering near restricted buffer. Security patrols dispatched.", status="ACTIVE", risk_score=58, timestamp=datetime.utcnow() - timedelta(hours=4)),
+        ]
+        db.session.add_all(default_incidents)
+        db.session.commit()
+
 
 # ═══════════════════════════════════════════
 #  HTML EMAIL TEMPLATE
