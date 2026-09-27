@@ -360,6 +360,12 @@ const TypewriterText = ({ text, speed = 8 }) => {
 // ─── Login & Registration ───
 const LoginOverlay = ({ onLogin }) => {
   const [username, setUsername] = useState('');
+
+  useEffect(() => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  }, []);
   const [password, setPassword] = useState('');
   const [status, setStatus] = useState('AWAITING');
   const [error, setError] = useState('');
@@ -697,6 +703,7 @@ export default function App() {
   // Fetch from Real Backend DB — falls back to simulated events gracefully
   const isInitialLoad = useRef(true);
   useEffect(() => {
+    if (!isAuthenticated) return;
     const fetchDBLogs = async () => {
       try {
         const res = await fetch(`${API_URL}/api/incidents?limit=10`);
@@ -739,7 +746,7 @@ export default function App() {
     fetchDBLogs(); // immediate first call
     return () => clearInterval(initPoller);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voiceEnabled, activeTab]);
+  }, [voiceEnabled, activeTab, isAuthenticated]);
 
   const triggerBackendSim = async (scenario) => {
     try {
@@ -752,12 +759,20 @@ export default function App() {
     } catch (err) { }
   };
 
-  // AI Voice
+  // AI Voice — strict guard: active only after authenticated login
   const voiceRef = useRef(null);
   useEffect(() => {
+    if (!isAuthenticated) {
+      if (voiceRef.current) voiceRef.current.destroy();
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      return;
+    }
     voiceRef.current = new AIVoiceSystem();
-    return () => voiceRef.current?.destroy();
-  }, []);
+    return () => {
+      if (voiceRef.current) voiceRef.current.destroy();
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    };
+  }, [isAuthenticated]);
 
   // ── REAL VIDEO + WEBCAM REFS ──────────────────────────────────────
   const videoRef = useRef(null);

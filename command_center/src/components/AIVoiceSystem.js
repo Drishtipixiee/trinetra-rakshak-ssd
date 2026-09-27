@@ -25,6 +25,19 @@ class AIVoiceSystem {
     speak(text, priority = 'normal') {
         if (!this.enabled || !this.synth) return;
 
+        // Strict guard: Never allow AI Voice to speak before user authentication
+        try {
+            const authData = sessionStorage.getItem('trinetra_auth');
+            if (!authData) {
+                this.synth.cancel();
+                this.queue = [];
+                this.speaking = false;
+                return;
+            }
+        } catch {
+            return;
+        }
+
         if (priority === 'critical') {
             this.synth.cancel();
             this.queue = []; // Clear queue on critical to prioritize
