@@ -238,14 +238,15 @@ export default function RealWorldBridge({ isOpen, onClose }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       style={{
-        position: 'fixed', left: 0, top: 0, bottom: 0, width: 360, zIndex: 1800,
+        flex: 1, width: '100%', height: '100%', minHeight: 0,
         background: 'rgba(3,6,18,0.97)', backdropFilter: 'blur(24px)',
-        borderRight: '1px solid rgba(0,229,255,0.15)',
+        border: '1px solid rgba(0,229,255,0.15)', borderRadius: 12,
         display: 'flex', flexDirection: 'column',
         fontFamily: "'Share Tech Mono', monospace",
-        boxShadow: '4px 0 40px rgba(0,229,255,0.08)',
+        boxShadow: '0 0 40px rgba(0,229,255,0.08)',
+        overflow: 'hidden'
       }}
     >
       {/* Header */}
