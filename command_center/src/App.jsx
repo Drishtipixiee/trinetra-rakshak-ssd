@@ -1650,22 +1650,28 @@ export default function App() {
                           borderRadius: 6, zIndex: 12, padding: 8, fontFamily: "'Share Tech Mono'",
                           boxShadow: '0 0 15px rgba(239,68,68,0.25)'
                         }}>
-                          <div style={{ fontSize: '0.45rem', color: 'var(--danger)', borderBottom: '1px solid rgba(239,68,68,0.3)', paddingBottom: 4, marginBottom: 6, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <div className="rec-dot" style={{ width: 4, height: 4, background: 'var(--danger)', borderRadius: '50%', animation: 'pulse 1s infinite' }} />
-                            AI FACE MATCHING
+                          <div style={{ fontSize: '0.45rem', color: '#00f3ff', borderBottom: '1px solid rgba(0,243,255,0.3)', paddingBottom: 4, marginBottom: 6, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <div className="rec-dot" style={{ width: 4, height: 4, background: '#00f3ff', borderRadius: '50%', animation: 'pulse 1s infinite' }} />
+                            AR/VR VEHICLE TARGET LOCK
                           </div>
                           
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                             {[
-                              { name: 'SUSPECT #091', match: '96%', file: 'WANTED-CRIM', src: 'https://images.unsplash.com/photo-1542909168-82c3e7fdca5c?w=80&h=80&fit=crop' },
-                              { name: 'SUSPECT #073', match: '91%', file: 'TERR-WATCH', src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop' },
-                              { name: 'SUSPECT #104', match: '87%', file: 'POI-ALPHA', src: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop' },
+                              { name: 'TACTICAL APC #091', match: '96%', file: 'ARMORED-ACV', type: 'tank' },
+                              { name: 'RECON ROVER #073', match: '91%', file: 'PATROL-UNIT', type: 'rover' },
+                              { name: 'SENTINEL DRONE #104', match: '87%', file: 'UAV-ALPHA', type: 'drone' },
                             ].map((sus, idx) => (
-                              <div key={idx} style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,0.03)', padding: 4, borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
-                                <img src={sus.src} style={{ width: 32, height: 32, objectFit: 'cover', filter: 'grayscale(100%) contrast(140%)', border: '1px solid rgba(255,255,255,0.1)' }} alt="face" />
+                              <div key={idx} style={{ display: 'flex', gap: 6, background: 'rgba(0,243,255,0.04)', padding: 4, borderRadius: 3, border: '1px solid rgba(0,243,255,0.15)' }}>
+                                <svg width="32" height="32" viewBox="0 0 40 40">
+                                  <rect x="5" y="16" width="30" height="14" rx="2" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
+                                  <polygon points="12,16 28,16 23,8 17,8" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
+                                  <circle cx="12" cy="30" r="3.5" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
+                                  <circle cx="28" cy="30" r="3.5" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
+                                  <circle cx="20" cy="20" r="14" fill="none" stroke="#ef4444" strokeWidth="0.8" strokeDasharray="3 2" />
+                                </svg>
                                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                   <div style={{ fontSize: '0.42rem', color: '#fff', fontWeight: 'bold' }}>{sus.name}</div>
-                                  <div style={{ fontSize: '0.38rem', color: 'var(--danger)' }}>MATCH: {sus.match}</div>
+                                  <div style={{ fontSize: '0.38rem', color: '#00f3ff' }}>AR LOCK: {sus.match}</div>
                                   <div style={{ fontSize: '0.35rem', color: 'var(--text-dim)' }}>{sus.file}</div>
                                 </div>
                               </div>
@@ -2100,7 +2106,6 @@ export default function App() {
                         ref={trackVideoRef}
                         autoPlay loop muted playsInline crossOrigin="anonymous"
                         preload="metadata"
-                        poster="https://images.unsplash.com/photo-1535941339077-2dd1c7963098?w=1200&h=680&fit=crop"
                         onError={() => setTrackVideoFailed(true)}
                         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: trackVideoFailed ? 0 : 0.55, zIndex: 0 }}
                         src="https://assets.mixkit.co/videos/preview/mixkit-train-line-in-the-forest-34238-large.mp4"
@@ -2109,24 +2114,22 @@ export default function App() {
                     {(trackVideoFailed || !trackActive) && (
                       <div style={{
                         position: 'absolute', inset: 0, zIndex: 0,
-                        backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1535941339077-2dd1c7963098?w=1200&h=680&fit=crop")',
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        filter: 'contrast(1.05) saturate(0.9)'
+                        background: 'radial-gradient(ellipse at center, #06150c 0%, #020804 100%)',
+                        backgroundImage: 'linear-gradient(rgba(34,197,94,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(34,197,94,0.08) 1px, transparent 1px)',
+                        backgroundSize: '32px 32px'
                       }} />
                     )}
 
-                    {/* Wildlife/Elephant crossing video overlay — shown when animal detected */}
+                    {/* AR/VR Spatial Mesh overlay — shown when obstruction/vehicle detected */}
                     {trackData.detected && (
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 0.62 }}
                         style={{
                           position: 'absolute', inset: 0, width: '100%', height: '100%',
-                          zIndex: 1, filter: 'saturate(0.75) contrast(1.25)',
-                          backgroundImage: 'linear-gradient(90deg, rgba(0,0,0,0.1), rgba(239,68,68,0.18)), url("https://images.unsplash.com/photo-1535941339077-2dd1c7963098?w=1200&h=680&fit=crop")',
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center'
+                          zIndex: 1,
+                          backgroundImage: 'radial-gradient(ellipse at center, rgba(239,68,68,0.2) 0%, transparent 70%), linear-gradient(rgba(239,68,68,0.1) 1px, transparent 1px)',
+                          backgroundSize: '100% 100%, 20px 20px'
                         }}
                       />
                     )}
@@ -2153,25 +2156,29 @@ export default function App() {
                       animation: trackActive && trackData.trainSpeed > 0 ? `scrollDown ${200/trackData.trainSpeed}s linear infinite` : 'none'
                     }} />
 
-                    {/* Wildlife detection bounding box + label */}
+                    {/* Wildlife / Vehicle detection bounding box + AR wireframe label */}
                     {trackData.detected && (
                       <>
-                         {/* YOLO-style bbox around animal */}
+                         {/* YOLO-style bbox around vehicle / hazard */}
                          <motion.div
                            initial={{ opacity: 0, scale: 1.5 }} animate={{ opacity: 1, scale: 1 }}
-                           style={{ position: 'absolute', left: '33%', top: '12%', width: '34%', height: '45%', border: '2px solid var(--danger)', boxShadow: '0 0 20px rgba(239,68,68,0.6)', zIndex: 10, borderRadius: 4 }}>
+                           style={{ position: 'absolute', left: '33%', top: '12%', width: '34%', height: '45%', border: '2px solid var(--danger)', boxShadow: '0 0 20px rgba(239,68,68,0.6)', zIndex: 10, borderRadius: 4, background: 'rgba(5,15,8,0.85)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                            
-                           {/* Animal Image */}
-                           <img 
-                             src={trackData.object === 'Elephant' 
-                               ? 'https://images.unsplash.com/photo-1549488344-1f9b8d2bd1f3?w=400&h=300&fit=crop' 
-                               : 'https://images.unsplash.com/photo-1561731216-c3a4d99437d5?w=400&h=300&fit=crop'} 
-                             style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9, borderRadius: 3 }} 
-                             alt={trackData.object}
-                           />
+                           {/* AR/VR Vehicle Spatial Wireframe Graphic */}
+                           <svg width="120" height="80" viewBox="0 0 120 80">
+                             <polygon points="20,60 100,60 85,32 35,32" fill="none" stroke="#22c55e" strokeWidth="1.8" strokeDasharray="3 2" />
+                             <rect x="42" y="18" width="36" height="14" rx="2" fill="none" stroke="#00f3ff" strokeWidth="1.5" />
+                             <circle cx="35" cy="60" r="9" fill="none" stroke="#22c55e" strokeWidth="2" />
+                             <circle cx="85" cy="60" r="9" fill="none" stroke="#22c55e" strokeWidth="2" />
+                             <line x1="60" y1="5" x2="60" y2="75" stroke="#ef4444" strokeWidth="0.8" strokeDasharray="2 2" />
+                             <circle cx="60" cy="40" r="28" fill="none" stroke="rgba(239,68,68,0.6)" strokeWidth="1" strokeDasharray="4 2" />
+                           </svg>
+                           <div style={{ color: '#00f3ff', fontSize: '0.62rem', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>
+                             AR VEHICLE PATROL MESH
+                           </div>
 
                            <div style={{ position: 'absolute', top: -20, left: 0, background: '#ef4444', color: '#fff', fontSize: '0.6rem', fontFamily: "'Share Tech Mono'", padding: '2px 8px', borderRadius: '4px 4px 0 0', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
-                             {trackData.object === 'Elephant' ? '🐘' : '🐅'} {trackData.object.toUpperCase()} | 94% | COCO-SSD
+                             🚙 AR {trackData.object.toUpperCase()} VEHICLE DETECTED | 94% | COCO-SSD
                            </div>
                            {/* Corner brackets */}
                            <div style={{ position: 'absolute', top: 0, left: 0, width: 14, height: 14, borderTop: '3px solid #ef4444', borderLeft: '3px solid #ef4444' }} />

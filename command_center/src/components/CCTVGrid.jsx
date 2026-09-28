@@ -6,7 +6,6 @@ const CAMERAS = [
     {
         id: 'CAM-01', name: 'MAIN GATE -- SEC-7A', coords: 'N28°38\'12" E77°13\'04"',
         videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-car-approaching-a-security-gate-at-night-42171-large.mp4',
-        posterUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=900&h=520&fit=crop',
         scenario: [
             { time: [0, 6], detections: [], status: 'CLEAR' },
             { time: [6, 12], detections: [{ class: 'vehicle', conf: 82, x: 20, y: 40, w: 22, h: 14, risk: 55, dx: 4 }], status: 'VEHICLE APPROACHING' },
@@ -17,7 +16,6 @@ const CAMERAS = [
     {
         id: 'CAM-02', name: 'PERIMETER NORTH', coords: 'N28°38\'18" E77°13\'09"',
         videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-security-camera-recording-a-robbery-41484-large.mp4',
-        posterUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=900&h=520&fit=crop',
         scenario: [
             { time: [0, 8], detections: [], status: 'SCANNING' },
             {
@@ -33,7 +31,6 @@ const CAMERAS = [
     {
         id: 'CAM-03', name: 'EAST WATCHTOWER', coords: 'N28°38\'15" E77°13\'15"',
         videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4',
-        posterUrl: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=900&h=520&fit=crop',
         scenario: [
             { time: [0, 20], detections: [], status: 'CLEAR' },
             { time: [20, 30], detections: [{ class: 'animal', conf: 88, x: 10, y: 50, w: 15, h: 10, risk: 20, dx: 3 }], status: 'WILDLIFE (STRAY DOG)' },
@@ -44,7 +41,6 @@ const CAMERAS = [
     {
         id: 'CAM-04', name: 'COMMAND BUNKER', coords: 'N28°38\'10" E77°13\'00"',
         videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-guard-walking-in-the-snow-during-winter-39845-large.mp4',
-        posterUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=900&h=520&fit=crop',
         scenario: [
             { time: [0, 180], detections: [], status: 'SECURE -- NO MOVEMENT' },
         ]
@@ -426,7 +422,13 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
                                     background: 'rgba(0,0,0,0.8)', border: '1px solid #ef4444',
                                     zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
                                 }}>
-                                    <img src="https://images.unsplash.com/photo-1542909168-82c3e7fdca5c?w=100&h=100&fit=crop" style={{ width: 45, height: 45, filter: 'grayscale(100%) contrast(150%)', border: '1px solid #555' }} alt="suspect" />
+                                    <svg width="45" height="45" viewBox="0 0 60 60">
+                                        <rect x="10" y="25" width="40" height="20" rx="3" fill="none" stroke="#ef4444" strokeWidth="1.5" />
+                                        <polygon points="18,25 42,25 36,12 24,12" fill="none" stroke="#ef4444" strokeWidth="1.5" />
+                                        <circle cx="20" cy="45" r="5" fill="none" stroke="#ef4444" strokeWidth="1.5" />
+                                        <circle cx="40" cy="45" r="5" fill="none" stroke="#ef4444" strokeWidth="1.5" />
+                                        <circle cx="30" cy="30" r="18" fill="none" stroke="#00f3ff" strokeWidth="1" strokeDasharray="4 2" />
+                                    </svg>
                                     <div style={{ fontSize: '7px', color: '#ef4444', marginTop: 4, fontFamily: "'Share Tech Mono'" }}>WANTED</div>
                                 </div>
                             )}
@@ -627,7 +629,15 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
                                         background: 'rgba(0,0,0,0.8)', border: '2px solid #ef4444',
                                         zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
                                     }}>
-                                        <img src="https://images.unsplash.com/photo-1542909168-82c3e7fdca5c?w=100&h=100&fit=crop" style={{ width: 70, height: 70, filter: 'grayscale(100%) contrast(150%)', border: '1px solid #555' }} alt="suspect" />
+                                        <svg width="70" height="70" viewBox="0 0 70 70">
+                                            <rect x="10" y="30" width="50" height="24" rx="4" fill="none" stroke="#ef4444" strokeWidth="2" />
+                                            <polygon points="20,30 50,30 42,14 26,14" fill="none" stroke="#ef4444" strokeWidth="2" />
+                                            <circle cx="22" cy="54" r="6" fill="none" stroke="#ef4444" strokeWidth="2" />
+                                            <circle cx="48" cy="54" r="6" fill="none" stroke="#ef4444" strokeWidth="2" />
+                                            <circle cx="35" cy="35" r="24" fill="none" stroke="#00f3ff" strokeWidth="1" strokeDasharray="5 3" />
+                                            <line x1="35" y1="5" x2="35" y2="65" stroke="#00f3ff" strokeWidth="0.8" />
+                                            <line x1="5" y1="35" x2="65" y2="35" stroke="#00f3ff" strokeWidth="0.8" />
+                                        </svg>
                                         <div style={{ fontSize: '10px', color: '#ef4444', marginTop: 6, fontFamily: "'Share Tech Mono'" }}>WANTED // HIGH RISK</div>
                                     </div>
                                 )}

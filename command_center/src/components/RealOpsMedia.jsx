@@ -5,48 +5,48 @@ import { AlertTriangle, Camera, Cpu, Mountain, Radio, Satellite, Train, Video } 
 const OPS_FEEDS = [
   {
     id: 'rail-wildlife',
-    title: 'Railway Elephant AI',
+    title: 'Railway Safari & Track Vehicle AI',
     sector: 'Tamil Nadu / Kerala border elephant corridor',
     icon: Train,
     color: '#22c55e',
-    sourceLabel: 'railway wildlife monitoring simulation',
+    vehicleType: 'RAIL-INSPECTOR-V1',
+    sourceLabel: 'AR/VR Spatial Track Inspection & Vehicle Patrol',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-train-moving-through-a-rural-landscape-41576-large.mp4',
-    posterUrl: 'https://images.unsplash.com/photo-1535941339077-2dd1c7963098?w=1200&h=680&fit=crop',
     detections: [
-      { label: 'elephant-size obstruction', risk: 92, x: 56, y: 61, w: 20, h: 18 },
-      { label: 'track clear window', risk: 24, x: 22, y: 70, w: 28, h: 9 },
+      { label: 'AR Patrol Vehicle - Track Inspection', risk: 92, x: 56, y: 61, w: 22, h: 20 },
+      { label: 'LiDAR Track Clear Corridor', risk: 24, x: 22, y: 70, w: 28, h: 9 },
     ],
-    telemetry: ['Palakkad-Madukkarai', 'ETI 31s', 'brake relay armed'],
+    telemetry: ['Palakkad-Madukkarai', 'ETI 31s', 'AR Guidance active'],
   },
   {
     id: 'border-cctv',
-    title: 'Human Intrusion CCTV',
-    sector: 'Border fence / night CCTV',
+    title: 'Perimeter Tactical ACV & Drone',
+    sector: 'Border fence / AR vehicle patrol',
     icon: Radio,
     color: '#ef4444',
-    sourceLabel: 'human intrusion surveillance simulation',
+    vehicleType: 'TACTICAL-APC-X9',
+    sourceLabel: 'AR/VR Combat Vehicle Surveillance Matrix',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-security-camera-recording-a-robbery-41484-large.mp4',
-    posterUrl: 'https://images.unsplash.com/photo-1509099836639-18ba1795216d?w=1200&h=680&fit=crop',
     detections: [
-      { label: 'unknown person', risk: 91, x: 64, y: 38, w: 13, h: 31 },
-      { label: 'fence approach vector', risk: 67, x: 18, y: 50, w: 24, h: 18 },
+      { label: 'Unidentified Armored Target', risk: 91, x: 64, y: 38, w: 16, h: 28 },
+      { label: 'Vector Approach Path', risk: 67, x: 18, y: 50, w: 24, h: 18 },
     ],
-    telemetry: ['sector 7A', 'QRF notified', 'thermal confirm pending'],
+    telemetry: ['sector 7A', 'QRF Armored Unit', 'AR Lock Confirmed'],
   },
   {
     id: 'mining-drone',
-    title: 'Mining Detection Drone',
-    sector: 'Open-pit anomaly scan',
+    title: 'Aerial Recon & Land Rover Drone',
+    sector: 'Open-pit AR vehicle scan',
     icon: Mountain,
     color: '#f59e0b',
-    sourceLabel: 'public drone / terrain footage simulation',
+    vehicleType: 'RECON-DRONE-QUAD',
+    sourceLabel: 'AR/VR Autonomous Vehicle Field Mapping',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-construction-site-4481-large.mp4',
-    posterUrl: 'https://images.unsplash.com/photo-1518709414768-a88981a4515d?w=1200&h=680&fit=crop',
     detections: [
-      { label: 'fresh excavation', risk: 78, x: 34, y: 45, w: 32, h: 22 },
-      { label: 'haul road change', risk: 58, x: 61, y: 65, w: 27, h: 10 },
+      { label: 'Autonomous Rover Extraction', risk: 78, x: 34, y: 45, w: 32, h: 22 },
+      { label: 'Haul Road Vehicle Path', risk: 58, x: 61, y: 65, w: 27, h: 10 },
     ],
-    telemetry: ['NDVI -0.31', 'area 1.2 sq km', 'Sentinel cross-check'],
+    telemetry: ['NDVI -0.31', 'Rover Mesh Active', 'LiDAR 3D Mesh'],
   },
 ];
 
@@ -101,22 +101,39 @@ export default function RealOpsMedia({ onScenario }) {
             muted
             playsInline
             preload="metadata"
-            poster={activeFeed.posterUrl}
             onError={() => setFailedVideos(prev => ({ ...prev, [activeFeed.id]: true }))}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.72, filter: activeFeed.id === 'border-cctv' ? 'contrast(1.25) grayscale(0.45)' : 'contrast(1.08) saturate(1.05)' }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: hasVideoFailed ? 0 : 0.72, filter: activeFeed.id === 'border-cctv' ? 'contrast(1.25) grayscale(0.45)' : 'contrast(1.08) saturate(1.05)' }}
           />
           {hasVideoFailed && (
-            <motion.img
-              key={`${activeFeed.id}-poster`}
-              src={activeFeed.posterUrl}
-              alt={activeFeed.title}
-              initial={{ scale: 1 }}
-              animate={{ scale: 1.05 }}
-              transition={{ duration: 12, repeat: Infinity, repeatType: 'reverse', ease: 'linear' }}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.78, filter: activeFeed.id === 'border-cctv' ? 'contrast(1.3) grayscale(0.55)' : 'contrast(1.08) saturate(1.05)' }}
-            />
+            <div
+              style={{
+                position: 'absolute', inset: 0, width: '100%', height: '100%',
+                background: 'radial-gradient(ellipse at center, #091a10 0%, #020704 100%)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                backgroundImage: 'linear-gradient(rgba(34,197,94,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(34,197,94,0.1) 1px, transparent 1px)',
+                backgroundSize: '24px 24px'
+              }}
+            >
+              {/* AR/VR Tactical Vehicle 3D Wireframe Graphics */}
+              <svg width="220" height="140" viewBox="0 0 200 120" style={{ filter: `drop-shadow(0 0 12px ${activeFeed.color})` }}>
+                <polygon points="40,90 160,90 140,50 60,50" fill="none" stroke={activeFeed.color} strokeWidth="1.5" strokeDasharray="4 2" />
+                <rect x="70" y="30" width="60" height="20" rx="3" fill="none" stroke={activeFeed.color} strokeWidth="1.5" />
+                <circle cx="65" cy="90" r="14" fill="none" stroke={activeFeed.color} strokeWidth="2" />
+                <circle cx="135" cy="90" r="14" fill="none" stroke={activeFeed.color} strokeWidth="2" />
+                <line x1="100" y1="20" x2="100" y2="30" stroke="#00f3ff" strokeWidth="2" />
+                <circle cx="100" cy="18" r="4" fill="#00f3ff" />
+                <line x1="20" y1="60" x2="180" y2="60" stroke={activeFeed.color} strokeWidth="0.5" strokeDasharray="2 2" />
+                <circle cx="100" cy="60" r="40" fill="none" stroke="rgba(0,243,255,0.4)" strokeWidth="1" strokeDasharray="6 3" />
+              </svg>
+              <div style={{ color: activeFeed.color, fontFamily: "'Share Tech Mono'", fontSize: '0.85rem', letterSpacing: 2, marginTop: 8 }}>
+                AR/VR VEHICLE WIREFRAME HUD // {activeFeed.vehicleType}
+              </div>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontFamily: "'Share Tech Mono'", fontSize: '0.62rem', marginTop: 4 }}>
+                SPATIAL RADAR MATRIX ACTIVE • LIDAR 3D VEHICLE MESH
+              </div>
+            </div>
           )}
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.65))' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.65))', pointerEvents: 'none' }} />
           <div className="video-scanlines" />
           {activeFeed.detections.map((det, index) => (
             <motion.div
@@ -142,7 +159,7 @@ export default function RealOpsMedia({ onScenario }) {
             <div>
               <div style={{ color: activeFeed.color, fontFamily: "'Share Tech Mono'", fontSize: '0.75rem', letterSpacing: 2 }}>{activeFeed.sector}</div>
               <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.58rem', marginTop: 3 }}>
-                {hasVideoFailed ? 'Video provider blocked playback; showing real visual fallback with live AI overlay.' : activeFeed.sourceLabel}
+                {activeFeed.sourceLabel}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
