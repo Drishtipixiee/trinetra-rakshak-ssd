@@ -2094,19 +2094,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Model Loading Overlay */}
-                {simActive && modelStatus === 'loading' && (
-                  <div style={{ position: 'absolute', bottom: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: 'rgba(0,0,0,0.85)', border: '1px solid #22c55e', borderRadius: 10, padding: '12px 20px', minWidth: 280 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <Loader2Icon size={13} className="spin" style={{ color: '#22c55e' }} />
-                      <span style={{ color: '#22c55e', fontSize: '0.65rem', fontFamily: "'Share Tech Mono'" }}>{modelMessage || 'Loading AI model...'}</span>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 4, height: 5 }}>
-                      <div style={{ width: `${modelProgress}%`, height: '100%', background: '#22c55e', borderRadius: 4, transition: 'width 0.3s' }} />
-                    </div>
-                    <div style={{ fontSize: '0.5rem', color: '#475569', marginTop: 5 }}>TF.js COCO-SSD MobileNetV2 — 80 COCO classes</div>
-                  </div>
-                )}
+                {/* Neural model loading overlay removed: the built-in lightweight detector starts instantly. */}
 
                 {/* Center start button when not active */}
                 {!simActive && (
