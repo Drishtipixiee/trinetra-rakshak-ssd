@@ -38,7 +38,7 @@ export default function LiveFeedARBattleground({
     let lastTime = performance.now();
     let lastRenderTime = 0;
     let angle = 0;
-    const frameInterval = 1000 / 30; // Cap expensive canvas redraws at 30 FPS.
+    const frameInterval = 1000 / 24; // Keep complex 3D redraws within a lighter 24 FPS budget.
 
     // Tactical Unit Positions & Paths
     const units = {
@@ -91,7 +91,7 @@ export default function LiveFeedARBattleground({
 
     const handleResize = () => {
       const rect = canvas.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1);
       const w = rect.width || canvas.clientWidth || canvas.parentElement?.clientWidth || window.innerWidth || 800;
       const h = rect.height || canvas.clientHeight || canvas.parentElement?.clientHeight || window.innerHeight || 500;
       if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
