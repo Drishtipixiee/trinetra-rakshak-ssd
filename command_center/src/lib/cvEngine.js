@@ -5,6 +5,9 @@
  * with automatic fallback to Tactical AI Simulation to ensure 0% freeze/hang rate.
  */
 
+import * as tf from '@tensorflow/tfjs';
+import * as cocoSsd from '@tensorflow-models/coco-ssd';
+
 // ─── Singleton model cache ───────────────────────────────────────
 let _model = null;
 let _modelLoading = false;
@@ -62,16 +65,55 @@ export const THREAT_CLASSES = {
  * If network is slow or offline, activates built-in tactical AI engine without freezing.
  */
 export async function loadModel(onProgress = null) {
-  // Live Feed is a simulation-first experience: never wait for remote model weights
-  // or initialize TensorFlow/WebGL on the UI thread. Use the built-in lightweight
-  // tactical detector immediately so battlefield animation remains responsive.
-  _useFallbackDetector = true;
-  _model = null;
-  _modelLoading = false;
-  if (onProgress) onProgress(1.0, 'Tactical Edge Engine Active');
-  _modelLoadCallbacks.forEach(cb => cb({ isFallback: true }));
-  _modelLoadCallbacks = [];
-  return { isFallback: true };
+  if (_model) return _model;
+  if (_useFallbackDetector) return { isFallback: true };
+
+  if (_modelLoading) {
+    return new Promise((resolve) => {
+      _modelLoadCallbacks.push(resolve);
+    });
+  }
+
+  _modelLoading = true;
+  if (onProgress) onProgress(0.2, 'Initializing AI neural engine...');
+
+  // Prefer GPU acceleration, but never let a slow neural backend stall the feed.
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('Model loading timed out (activating fast local engine)')), 3800);
+  });
+
+  const loadPromise = (async () => {
+    await tf.setBackend('webgl').catch(() => tf.setBackend('cpu'));
+    await tf.ready();
+    if (onProgress) onProgress(0.5, 'Neural backend initialized. Loading COCO-SSD weights...');
+
+    return cocoSsd.load({
+      base: 'mobilenet_v2',
+    });
+  })();
+
+  try {
+    _model = await Promise.race([loadPromise, timeoutPromise]);
+    clearTimeout(timeoutId);
+    if (onProgress) onProgress(1.0, 'COCO-SSD Model Loaded — Real AI Active');
+    _modelLoading = false;
+    _modelLoadCallbacks.forEach(cb => cb(_model));
+    _modelLoadCallbacks = [];
+    return _model;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    // Prevent a late model-load completion from leaving a dangling rejected race or blocking retries.
+    loadPromise.catch(() => {});
+    console.warn('[TF.js] Using High-Performance Tactical AI Fallback:', err.message);
+    _useFallbackDetector = true;
+    _model = null;
+    _modelLoading = false;
+    if (onProgress) onProgress(1.0, 'Tactical AI Engine Active (Zero-Latency)');
+    _modelLoadCallbacks.forEach(cb => cb({ isFallback: true }));
+    _modelLoadCallbacks = [];
+    return { isFallback: true };
+  }
 }
 
 /**
@@ -338,9 +380,9 @@ export function isModelLoaded() {
 export function getModelInfo() {
   return {
     loaded: true,
-    backend: 'simulation',
-    model: 'Tactical Edge AI Engine',
-    classes: Object.keys(THREAT_CLASSES).length,
-    framework: 'Built-in lightweight detector',
+    backend: tf.getBackend(),
+    model: _useFallbackDetector ? 'Tactical Edge AI Engine' : 'COCO-SSD MobileNetV2',
+    classes: 80,
+    framework: `TensorFlow.js v${tf.version.tfjs}`,
   };
 }
