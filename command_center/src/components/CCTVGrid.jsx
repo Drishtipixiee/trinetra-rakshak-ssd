@@ -88,7 +88,10 @@ const CAMERAS = [
     id: 'CAM-04', name: 'COMMAND BUNKER', coords: "N28°38'10\" E77°13'00\"",
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-guard-walking-in-the-snow-during-winter-39845-large.mp4',
     scenario: [
-      { time: [0, 180], detections: [], status: 'SECURE -- NO MOVEMENT' },
+      { time: [0, 45], detections: [{ class: 'person', conf: 94, x: 24, y: 28, w: 10, h: 30, risk: 78, dx: 2 }], status: 'PERSONNEL PATROL IN MOTION' },
+      { time: [45, 90], detections: [{ class: 'vehicle', conf: 86, x: 58, y: 52, w: 22, h: 14, risk: 60, dx: -2 }], status: 'AR/VR VEHICLE PATROL' },
+      { time: [90, 135], detections: [{ class: 'person', conf: 89, x: 72, y: 32, w: 10, h: 30, risk: 72, dx: -2.5 }, { class: 'drone', conf: 81, x: 30, y: 16, w: 8, h: 5, risk: 66, dx: 2, dy: 1 }], status: 'MOVING TARGETS TRACKED' },
+      { time: [135, 180], detections: [{ class: 'vehicle', conf: 91, x: 36, y: 48, w: 24, h: 16, risk: 74, dx: 2.5 }, { class: 'person', conf: 87, x: 65, y: 35, w: 9, h: 28, risk: 70, dx: -1.5 }], status: 'PATROL CONTINUES' },
     ]
   },
 ];
@@ -1012,6 +1015,34 @@ export default function CCTVGrid({
               <text x="10" y="185" fill="rgba(34,197,94,0.3)" fontSize="7" fontFamily="monospace">N28°38'12" E77°13'04" | ALT:412m</text>
             </svg>
           </div>
+
+          {/* Additive animated AR/VR targets; the original CAM-06 scene remains untouched. */}
+          <svg aria-label="Animated CAM-06 AR vehicle and target overlays" width="100%" height="100%" viewBox="0 0 300 200" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
+            <g>
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="32 132;108 132;32 132" dur="9s" repeatCount="indefinite" />
+                <polygon points="0,0 30,-9 52,0 22,10" fill="rgba(34,197,94,0.12)" stroke="#22c55e" strokeWidth="1.2" />
+                <polygon points="22,10 52,0 52,9 22,19" fill="rgba(34,197,94,0.08)" stroke="#22c55e" strokeWidth="1" />
+                <text x="0" y="-13" fill="#22c55e" fontSize="7" fontFamily="monospace">AR/VR PATROL VEHICLE</text>
+              </g>
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0 0;0 10;0 0" dur="3.2s" repeatCount="indefinite" />
+                <circle cx="244" cy="42" r="5" fill="none" stroke="#a855f7" strokeWidth="1.2" />
+                <line x1="230" y1="42" x2="258" y2="42" stroke="#a855f7" strokeWidth="1" />
+                <line x1="244" y1="30" x2="244" y2="54" stroke="#a855f7" strokeWidth="1" />
+                <circle cx="230" cy="42" r="3" fill="none" stroke="#a855f7" />
+                <circle cx="258" cy="42" r="3" fill="none" stroke="#a855f7" />
+                <text x="215" y="25" fill="#a855f7" fontSize="7" fontFamily="monospace">UAV TARGET</text>
+              </g>
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0 0;24 0;0 0" dur="6s" repeatCount="indefinite" />
+                <rect x="198" y="96" width="25" height="49" fill="none" stroke="#38bdf8" strokeDasharray="3 2" />
+                <circle cx="210" cy="103" r="4" fill="none" stroke="#38bdf8" />
+                <path d="M210 107 V126 M210 113 L202 121 M210 113 L218 121 M210 126 L204 139 M210 126 L216 139" fill="none" stroke="#38bdf8" strokeWidth="1.5" />
+                <text x="193" y="90" fill="#38bdf8" fontSize="7" fontFamily="monospace">PERSON TRACK</text>
+              </g>
+            </g>
+          </svg>
 
           <div className="cctv-overlay">
             <div className="cctv-top-bar">
