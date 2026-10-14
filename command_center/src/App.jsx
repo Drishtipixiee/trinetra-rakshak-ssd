@@ -1092,7 +1092,9 @@ export default function App() {
 
   // ═══ REAL TF.js TRACK-GUARD DETECTION EFFECT (Weather-Adjusted Braking) ═══
   useEffect(() => {
-    if (!trackActive) return;
+    // The deterministic crossing simulation owns speed/distance while active; live detector
+    // updates must not overwrite the braking sequence and keep the train moving forever.
+    if (!trackActive || trackScenarioActive) return;
 
     const TRACK_RELEVANT = ['elephant', 'horse', 'cow', 'dog', 'cat', 'person', 'car', 'truck', 'bus', 'bicycle', 'motorcycle'];
     const trackObstacles = trackDetections.filter(d => TRACK_RELEVANT.includes(d.class));
@@ -1143,7 +1145,7 @@ export default function App() {
       }
     }
 
-  }, [trackDetections, trackActive, addLog, voiceEnabled, weather]);
+  }, [trackDetections, trackActive, trackScenarioActive, addLog, voiceEnabled, weather]);
 
   // Reset when detection stops
   useEffect(() => {
@@ -2483,21 +2485,34 @@ export default function App() {
                            initial={{ opacity: 0, scale: 1.5 }} animate={{ opacity: 1, scale: 1 }}
                            style={{ position: 'absolute', left: '33%', top: '12%', width: '34%', height: '45%', border: '2px solid var(--danger)', boxShadow: '0 0 20px rgba(239,68,68,0.6)', zIndex: 10, borderRadius: 4, background: 'rgba(5,15,8,0.85)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                            
-                           {/* AR/VR Vehicle Spatial Wireframe Graphic */}
-                           <svg width="120" height="80" viewBox="0 0 120 80">
-                             <polygon points="20,60 100,60 85,32 35,32" fill="none" stroke="#22c55e" strokeWidth="1.8" strokeDasharray="3 2" />
-                             <rect x="42" y="18" width="36" height="14" rx="2" fill="none" stroke="#00f3ff" strokeWidth="1.5" />
-                             <circle cx="35" cy="60" r="9" fill="none" stroke="#22c55e" strokeWidth="2" />
-                             <circle cx="85" cy="60" r="9" fill="none" stroke="#22c55e" strokeWidth="2" />
-                             <line x1="60" y1="5" x2="60" y2="75" stroke="#ef4444" strokeWidth="0.8" strokeDasharray="2 2" />
-                             <circle cx="60" cy="40" r="28" fill="none" stroke="rgba(239,68,68,0.6)" strokeWidth="1" strokeDasharray="4 2" />
-                           </svg>
-                           <div style={{ color: '#00f3ff', fontSize: '0.62rem', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>
-                             AR VEHICLE PATROL MESH
-                           </div>
+                           {['ELEPHANT', 'TIGER'].includes(trackData.object.toUpperCase()) ? (
+                             <div role="img" aria-label={`${trackData.object} on railway track`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 88 }}>
+                               <span style={{ fontSize: '3.8rem', lineHeight: 1, filter: 'drop-shadow(0 0 12px rgba(239,68,68,0.75))' }}>
+                                 {trackData.object.toUpperCase() === 'ELEPHANT' ? '🐘' : '🐅'}
+                               </span>
+                               <span style={{ color: '#ef4444', fontSize: '0.65rem', fontFamily: "'Share Tech Mono'", fontWeight: 'bold', marginTop: 6 }}>
+                                 {trackData.object.toUpperCase()} — TRACK OBSTRUCTION
+                               </span>
+                             </div>
+                           ) : (
+                             <>
+                               {/* Keep the existing AR/VR vehicle mesh for vehicle detections. */}
+                               <svg width="120" height="80" viewBox="0 0 120 80">
+                                 <polygon points="20,60 100,60 85,32 35,32" fill="none" stroke="#22c55e" strokeWidth="1.8" strokeDasharray="3 2" />
+                                 <rect x="42" y="18" width="36" height="14" rx="2" fill="none" stroke="#00f3ff" strokeWidth="1.5" />
+                                 <circle cx="35" cy="60" r="9" fill="none" stroke="#22c55e" strokeWidth="2" />
+                                 <circle cx="85" cy="60" r="9" fill="none" stroke="#22c55e" strokeWidth="2" />
+                                 <line x1="60" y1="5" x2="60" y2="75" stroke="#ef4444" strokeWidth="0.8" strokeDasharray="2 2" />
+                                 <circle cx="60" cy="40" r="28" fill="none" stroke="rgba(239,68,68,0.6)" strokeWidth="1" strokeDasharray="4 2" />
+                               </svg>
+                               <div style={{ color: '#00f3ff', fontSize: '0.62rem', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>
+                                 AR VEHICLE PATROL MESH
+                               </div>
+                             </>
+                           )}
 
                            <div style={{ position: 'absolute', top: -20, left: 0, background: '#ef4444', color: '#fff', fontSize: '0.6rem', fontFamily: "'Share Tech Mono'", padding: '2px 8px', borderRadius: '4px 4px 0 0', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
-                             🚙 AR {trackData.object.toUpperCase()} VEHICLE DETECTED | 94% | COCO-SSD
+                             {['ELEPHANT', 'TIGER'].includes(trackData.object.toUpperCase()) ? 'WILDLIFE' : 'VEHICLE'} {trackData.object.toUpperCase()} DETECTED | 94% | TRACK-GUARD
                            </div>
                            {/* Corner brackets */}
                            <div style={{ position: 'absolute', top: 0, left: 0, width: 14, height: 14, borderTop: '3px solid #ef4444', borderLeft: '3px solid #ef4444' }} />
