@@ -148,7 +148,7 @@ export default function IncidentLogPanel({ dbLogs = [] }) {
       {/* Stats Row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
         {[
-          { label: 'TOTAL', value: displayData.length, color: '#38bdf8' },
+          { label: 'TOTAL', value: displayData.length, color: '#22c55e' },
           { label: 'CRITICAL', value: critCount, color: '#ef4444' },
           { label: 'WARNING', value: warnCount, color: '#f59e0b' },
         ].map((s, i) => (

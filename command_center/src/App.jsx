@@ -571,14 +571,13 @@ const TABS = [
   { id: 'ANALYTICS',   icon: BarChart3,   label: 'ANALYTICS' },
   { id: 'OMNI-EYE',    icon: Globe,       label: 'OMNI-EYE' },
   { id: 'CAMFORGE',    icon: Cpu,         label: 'CAMFORGE' },
-  { id: 'REAL-WORLD',  icon: Signal,      label: 'REAL-WORLD' },
 ];
 
 // ─── Left Sidebar Nav Items ───
 const SIDEBAR_VIEWS = [
   { id: 'patrol',   icon: Navigation,  label: 'Patrolling',    color: '#22c55e' },
   { id: 'incidents',icon: AlertTriangle,label: 'Incident Logs', color: '#ef4444' },
-  { id: 'personnel',icon: Users,       label: 'Personnel',      color: '#38bdf8' },
+  { id: 'personnel',icon: Users,       label: 'Personnel',      color: '#22c55e' },
   { id: 'weather',  icon: Layers,      label: 'Weather / Intel',color: '#f59e0b' },
 ];
 
@@ -1453,7 +1452,7 @@ export default function App() {
           {/* Sidebar content panel */}
           <div className="sidebar-content">
             {sidebarView === 'patrol' && (
-              <PatrolPanel />
+              <PatrolPanel addLog={addLog} />
             )}
             {sidebarView === 'incidents' && (
               <IncidentLogPanel dbLogs={dbLogs} />
@@ -1905,7 +1904,7 @@ export default function App() {
                         {simActive ? <><div className="rec-dot" /> LIVE — SEC-7</> : <><Eye size={12} /> STANDBY</>}
                       </div>
                       {simActive && modelStatus === 'ready' && (
-                        <div className="hud-badge" style={{ background: 'rgba(168,85,247,0.15)', border: '1px solid #a855f7', color: '#a855f7' }}>
+                        <div className="hud-badge" style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid #22c55e', color: '#22c55e' }}>
                           <Brain size={10} /> COCO-SSD ACTIVE
                         </div>
                       )}
@@ -1954,13 +1953,13 @@ export default function App() {
 
                 {/* Model Loading Overlay */}
                 {simActive && modelStatus === 'loading' && (
-                  <div style={{ position: 'absolute', bottom: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: 'rgba(0,0,0,0.85)', border: '1px solid #a855f7', borderRadius: 10, padding: '12px 20px', minWidth: 280 }}>
+                  <div style={{ position: 'absolute', bottom: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: 'rgba(0,0,0,0.85)', border: '1px solid #22c55e', borderRadius: 10, padding: '12px 20px', minWidth: 280 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <Loader2Icon size={13} className="spin" style={{ color: '#a855f7' }} />
-                      <span style={{ color: '#a855f7', fontSize: '0.65rem', fontFamily: "'Share Tech Mono'" }}>{modelMessage || 'Loading AI model...'}</span>
+                      <Loader2Icon size={13} className="spin" style={{ color: '#22c55e' }} />
+                      <span style={{ color: '#22c55e', fontSize: '0.65rem', fontFamily: "'Share Tech Mono'" }}>{modelMessage || 'Loading AI model...'}</span>
                     </div>
                     <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 4, height: 5 }}>
-                      <div style={{ width: `${modelProgress}%`, height: '100%', background: '#a855f7', borderRadius: 4, transition: 'width 0.3s' }} />
+                      <div style={{ width: `${modelProgress}%`, height: '100%', background: '#22c55e', borderRadius: 4, transition: 'width 0.3s' }} />
                     </div>
                     <div style={{ fontSize: '0.5rem', color: '#475569', marginTop: 5 }}>TF.js COCO-SSD MobileNetV2 — 80 COCO classes</div>
                   </div>
@@ -1969,7 +1968,7 @@ export default function App() {
                 {/* Center start button when not active */}
                 {!simActive && (
                   <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-                    <div style={{ color: '#a855f7', fontFamily: "'Share Tech Mono'", fontSize: '0.7rem', letterSpacing: 2, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ color: '#22c55e', fontFamily: "'Share Tech Mono'", fontSize: '0.7rem', letterSpacing: 2, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Brain size={13} /> REAL-TIME AI DETECTION ENGINE
                     </div>
                     <div style={{ color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", fontSize: '0.55rem', marginBottom: 16 }}>TensorFlow.js COCO-SSD + LangGraph YOLOv | 80 Classes | In-Browser Inference</div>
@@ -1982,7 +1981,7 @@ export default function App() {
                       >VIDEO FEED</button>
                       <button
                         onClick={() => setUseWebcam(true)}
-                        style={{ background: useWebcam ? 'rgba(56,189,248,0.2)' : 'transparent', border: `1px solid ${useWebcam ? '#38bdf8' : '#334155'}`, color: useWebcam ? '#38bdf8' : '#64748b', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.6rem', borderRadius: 4 }}
+                        style={{ background: useWebcam ? 'rgba(34,197,94,0.2)' : 'transparent', border: `1px solid ${useWebcam ? '#22c55e' : '#334155'}`, color: useWebcam ? '#22c55e' : '#64748b', padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.6rem', borderRadius: 4 }}
                       >WEBCAM (CAM-05)</button>
                     </div>
 
@@ -1998,11 +1997,11 @@ export default function App() {
                         addLog('[SYS] ▶ Real AI detection started. Loading TF.js COCO-SSD model...', 'safe');
                       }}
                       style={{
-                        background: 'rgba(168,85,247,0.15)', border: '2px solid #a855f7',
+                        background: 'rgba(34,197,94,0.15)', border: '2px solid #22c55e',
                         borderRadius: 16, padding: '16px 32px', cursor: 'pointer',
-                        color: '#a855f7', fontFamily: "'Share Tech Mono'", fontSize: '0.9rem',
+                        color: '#22c55e', fontFamily: "'Share Tech Mono'", fontSize: '0.9rem',
                         letterSpacing: 2, display: 'flex', alignItems: 'center', gap: 10,
-                        boxShadow: '0 0 30px rgba(168,85,247,0.15)', transition: 'all 0.3s ease'
+                        boxShadow: '0 0 30px rgba(34,197,94,0.15)', transition: 'all 0.3s ease'
                       }}
                     >
                       <Play size={20} /> START REAL AI DETECTION
@@ -2208,7 +2207,7 @@ export default function App() {
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontSize: '1rem', padding: '12px 16px', background: 'rgba(0,0,0,0.6)', margin: 0, borderBottom: '1px solid var(--glass-border)' }}>
                   <Train size={18} /> TRACK-GUARD — RAILWAY OBSTRUCTION DETECTION
                   {trackModelStatus === 'ready' && (
-                    <span style={{ fontSize: '0.55rem', background: 'rgba(168,85,247,0.15)', border: '1px solid #a855f7', color: '#a855f7', padding: '1px 6px', borderRadius: 4, marginLeft: 4 }}>COCO-SSD ACTIVE</span>
+                    <span style={{ fontSize: '0.55rem', background: 'rgba(34,197,94,0.15)', border: '1px solid #22c55e', color: '#22c55e', padding: '1px 6px', borderRadius: 4, marginLeft: 4 }}>COCO-SSD ACTIVE</span>
                   )}
                   {trackActive && (
                     <span style={{ fontSize: '0.55rem', background: 'rgba(34,197,94,0.15)', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '1px 6px', borderRadius: 4, marginLeft: 4 }}>
@@ -2524,16 +2523,6 @@ export default function App() {
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}
               >
                 <CamForge />
-              </motion.div>
-            )}
-
-            {/* ── REAL-WORLD CONNECTIVITY BRIDGE ── */}
-            {activeTab === 'REAL-WORLD' && (
-              <motion.div key="realworld"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}
-              >
-                <RealWorldBridge />
               </motion.div>
             )}
 
