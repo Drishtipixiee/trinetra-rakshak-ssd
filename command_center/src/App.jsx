@@ -1290,35 +1290,39 @@ export default function App() {
               voiceRef.current.speak('Track Guard. Elephant has cleared the corridor. Normal track speed restored.', 'normal');
             }
 
-            // Schedule a second tiger crossing in 15 seconds
+            // Repeat the requested elephant-crossing demo after the corridor clears.
             trackScenarioRef.current = setTimeout(() => {
               if (trackActive) {
                 setTrackScenarioActive(true);
-                setTrackData({ detected: true, object: 'Tiger', trainSpeed: 80, distance: 1000, timeToImpact: 45 });
-                addLog('[TRK-GUARD] ⚠ TIGER SPOTTED near track corridor KM-156. Triggering emergency brake sequence.', 'critical');
+                setTrackData({ detected: true, object: 'Elephant', trainSpeed: 80, distance: 1200, timeToImpact: 54 });
+                addLog('[TRK-GUARD] ⚠ ELEPHANT DETECTED at KM-142. Repeating auto-brake demonstration.', 'critical');
                 playKlaxon();
                 if (voiceRef.current && voiceEnabled) {
-                  voiceRef.current.speak('Track Guard alert. Tiger spotted near track corridor KM 156. Enforcing emergency brake.', 'critical');
+                  voiceRef.current.speak('Track Guard alert. Elephant detected on the railway track. Automatic braking initiated.', 'critical');
                 }
 
-                // Tiger deceleration loop
-                let tigerSpeed = 80;
-                let tigerDist = 1000;
+                let elephantSpeed = 80;
+                let elephantDist = 1200;
                 intervalId = setInterval(() => {
-                  tigerSpeed = Math.max(0, tigerSpeed - 10);
-                  tigerDist = Math.max(120, tigerDist - 120);
-                  const tigerImpact = tigerSpeed > 0 ? Math.round((tigerDist / (tigerSpeed / 3.6))) : 0;
+                  elephantSpeed = Math.max(0, elephantSpeed - 8);
+                  elephantDist = Math.max(150, elephantDist - 105);
+                  const elephantImpact = elephantSpeed > 0 ? Math.round(elephantDist / (elephantSpeed / 3.6)) : 0;
                   setTrackData(prev => ({
                     ...prev,
-                    trainSpeed: tigerSpeed,
-                    distance: tigerDist,
-                    timeToImpact: tigerImpact
+                    detected: true,
+                    object: 'Elephant',
+                    trainSpeed: elephantSpeed,
+                    distance: elephantDist,
+                    timeToImpact: elephantImpact
                   }));
-                  if (tigerSpeed === 0) {
+                  if (elephantSpeed === 0) {
                     clearInterval(intervalId);
-                    addLog('[TRK-GUARD] ✓ Train stopped safely before animal crossing. Awaiting clearance.', 'safe');
+                    addLog('[TRK-GUARD] ✓ TRAIN SAFELY STOPPED 150m before elephant crossing.', 'safe');
+                    if (voiceRef.current && voiceEnabled) {
+                      voiceRef.current.speak('Train safely stopped before the elephant crossing. Collision avoided.', 'safe');
+                    }
                   }
-                }, 80000 / 80); // Decelerate tiger
+                }, 800);
               }
             }, 15000);
 
@@ -2414,7 +2418,9 @@ export default function App() {
                   
                   {/* Dynamic Track Visualizer */}
                   <div style={{ 
-                    flex: 1, 
+                    flex: '0 0 auto',
+                    height: 'clamp(180px, 24vh, 260px)',
+                    minHeight: 180,
                     position: 'relative', 
                     borderRadius: 12, 
                     overflow: 'hidden', 
