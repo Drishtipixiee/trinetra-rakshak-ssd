@@ -141,8 +141,8 @@ export default function LiveFeedARBattleground({
       ctx.fillRect(0, 0, w, h);
 
       const cx = w / 2;
-      const cy = h / 2 + 30;
-      const scale = Math.min(w / 900, h / 600) * 1.35;
+      const cy = h / 2 - Math.min(70, h * 0.12);
+      const scale = Math.min(w / 900, h / 600) * 1.2;
 
       // 3D Perspective Projection Function
       const project = (x, y, z) => {
@@ -292,9 +292,9 @@ export default function LiveFeedARBattleground({
 
       // ── 4. TACTICAL APC #091 (3D ARMORED VEHICLE) ──
       // Dynamic patrol motion
-      const apcT = angle * 0.45;
-      const apcX = -130 + Math.cos(apcT) * 70;
-      const apcY = 50 + Math.sin(apcT) * 45;
+      const apcT = angle * 0.72;
+      const apcX = -95 + Math.cos(apcT) * 105;
+      const apcY = 15 + Math.sin(apcT * 1.15) * 78;
       const apcProj = project(apcX, apcY, 0);
       const apcHullTop = project(apcX, apcY, 22);
 
@@ -383,9 +383,9 @@ export default function LiveFeedARBattleground({
       ctx.restore();
 
       // ── 5. RECON ROVER #073 (6-WHEEL AUTONOMOUS UGV) ──
-      const rovT = -angle * 0.55;
-      const rovX = 110 + Math.sin(rovT) * 60;
-      const rovY = -40 + Math.cos(rovT) * 50;
+      const rovT = -angle * 0.68;
+      const rovX = 90 + Math.sin(rovT) * 95;
+      const rovY = -25 + Math.cos(rovT * 0.9) * 75;
       const rovProj = project(rovX, rovY, 0);
       const rovHullTop = project(rovX, rovY, 18);
 
@@ -449,9 +449,9 @@ export default function LiveFeedARBattleground({
       ctx.restore();
 
       // ── 6. SENTINEL DRONE #104 (HOVERING 3D QUADCOPTER UAV) ──
-      const droneAlt = 105 + Math.sin(angle * 2.2) * 8; // Hover bobbing
-      const droneX = 10 + Math.cos(angle * 0.7) * 90;
-      const droneY = -70 + Math.sin(angle * 0.7) * 60;
+      const droneAlt = 115 + Math.sin(angle * 2.8) * 14; // Hover bobbing
+      const droneX = 10 + Math.cos(angle * 1.05) * 125;
+      const droneY = -45 + Math.sin(angle * 0.95) * 95;
       const droneProj = project(droneX, droneY, droneAlt);
       const droneGroundProj = project(droneX, droneY, 0);
 
