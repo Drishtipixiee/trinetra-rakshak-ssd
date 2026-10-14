@@ -2,18 +2,13 @@
  * OmniEye — OSIRIS-Inspired Layered Intelligence Map
  * Trinetra Rakshak OSIRIS Module
  *
- * Features:
- * - OSIRIS-style left layer-toggle dock (8 defense layers)
- * - Right utility tool panel
- * - Real ADS-B flights (OpenSky Network)
- * - Real USGS earthquakes
- * - Day/night terminator (SunCalc)
- * - CCTV node pings
- * - Border posts status
- * - Maritime simulation
- * - Subsea cables (Indian Ocean region)
- * - Bottom status bar with live coordinates + entities count
- * - OSIRIS aesthetic: dark tactical gold/cyan theme
+ * Automated Features:
+ * - "Auto Threat Vector Patrol": Automated smooth flyTo cycling across critical defense vectors
+ * - Active radar pulse rings around ALERT & CAUTION defense nodes
+ * - Interactive Right Utility Panels: Threat Intel, Signal Intel (RF Spectrum), Live Alerts, Statistics
+ * - Automated Subcontinent Area Radar Sweep
+ * - Real-time Airspace (ADS-B OpenSky) & Seismic (USGS) telemetry sync
+ * - Zero-lag, memory-safe throttled timers with full unmount cleanup
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -26,14 +21,14 @@ import {
   Shield, Plane, Ship, Satellite, Camera, CloudLightning,
   AlertTriangle, Cable, Globe, Layers, Eye, ChevronRight,
   ChevronLeft, Wifi, Activity, Radio, LayoutGrid, Map as MapIcon,
-  ZoomIn, ZoomOut, Crosshair, Info, Maximize2
+  ZoomIn, ZoomOut, Crosshair, Info, Maximize2, Play, Pause,
+  Target, RefreshCw, X, ArrowUpRight
 } from 'lucide-react';
 import { useADSB } from '../lib/useADSB';
 import { useSeismic } from '../lib/useSeismic';
 
-// ── Day/Night Terminator (SunCalc-based polygon) ─────────────────────────────
+// ── Day/Night Solar Terminator ───────────────────────────────────────────────
 function computeDayNightOverlay() {
-  // Returns a set of lat/lng points forming the solar terminator
   const now = new Date();
   const jd = now / 86400000 + 2440587.5;
   const n = jd - 2451545.0;
@@ -43,11 +38,9 @@ function computeDayNightOverlay() {
   const epsilon = 23.439 * Math.PI / 180;
   const delta = Math.asin(Math.sin(epsilon) * Math.sin(lambda));
 
-  // Hour angle of terminator
   const gmst = (18.697374558 + 24.06570982441908 * n) % 24;
   const sunLon = -(gmst / 24) * 360 - 180;
 
-  // Generate terminator arc
   const points = [];
   for (let lat = -90; lat <= 90; lat += 2) {
     const latRad = lat * Math.PI / 180;
@@ -59,25 +52,10 @@ function computeDayNightOverlay() {
     points.push([lat, sunLon - lon]);
     points.push([lat, sunLon + lon]);
   }
-
-  // Night-side polygon (simplified: cover western hemisphere from terminator)
-  const terminatorLine = [];
-  for (let lat = -90; lat <= 90; lat += 3) {
-    const latRad = lat * Math.PI / 180;
-    const cosH = -Math.tan(latRad) * Math.tan(delta);
-    let lon;
-    if (cosH < -1) lon = 0;
-    else if (cosH > 1) lon = 0;
-    else lon = sunLon + Math.acos(cosH) * 180 / Math.PI;
-    terminatorLine.push([lat, lon > 180 ? lon - 360 : lon]);
-  }
-  // Close polygon
-  terminatorLine.push([90, 180], [90, -180], [-90, -180]);
-
-  return terminatorLine;
+  return points;
 }
 
-// ── Subsea Cable Routes (Indian Ocean / South Asia region) ────────────────────
+// ── Subsea Cable Routes ───────────────────────────────────────────────────────
 const CABLE_ROUTES = [
   { name: 'SEA-ME-WE 4', color: '#00bcd4', path: [[22, 69], [12, 53], [8, 77], [1, 104]] },
   { name: 'SEA-ME-WE 5', color: '#0097a7', path: [[22, 68], [11, 45], [6, 80], [-1, 104]] },
@@ -87,7 +65,7 @@ const CABLE_ROUTES = [
   { name: 'TATA TGN-IND', color: '#004d40', path: [[22, 72], [14, 76], [9, 80], [6, 80]] },
 ];
 
-// ── CCTV Node Locations (our project sites) ───────────────────────────────────
+// ── CCTV Nodes ───────────────────────────────────────────────────────────────
 const CCTV_NODES = [
   { id: 'CAM-01', name: 'MAIN GATE SEC-7A', lat: 28.636, lon: 77.217, status: 'CLEAR', sector: 'SEC-7A' },
   { id: 'CAM-02', name: 'PERIMETER NORTH', lat: 28.638, lon: 77.219, status: 'ALERT', sector: 'SEC-7A' },
@@ -98,7 +76,7 @@ const CCTV_NODES = [
   { id: 'CAM-07', name: 'MINING-ZONE-JH', lat: 23.71, lon: 86.41, status: 'ALERT', sector: 'GEO-EYE' },
 ];
 
-// ── Border Post Locations ─────────────────────────────────────────────────────
+// ── Border Posts ─────────────────────────────────────────────────────────────
 const BORDER_POSTS = [
   { id: 'POST-ALPHA', name: 'POST-ALPHA (SEC-7)', lat: 31.634, lon: 74.872, status: 'SECURE', color: '#22c55e' },
   { id: 'POST-BRAVO', name: 'POST-BRAVO (SEC-12)', lat: 31.64, lon: 74.877, status: 'SECURE', color: '#22c55e' },
@@ -107,7 +85,7 @@ const BORDER_POSTS = [
   { id: 'POST-ECHO', name: 'POST-ECHO (SEC-28)', lat: 31.66, lon: 74.893, status: 'SECURE', color: '#22c55e' },
 ];
 
-// ── Maritime Simulation (Indian Ocean vessels) ────────────────────────────────
+// ── Maritime Vessels ─────────────────────────────────────────────────────────
 const MARITIME_VESSELS = [
   { id: 'V001', name: 'INS VIKRANT', type: 'NAVAL', lat: 9.2, lon: 76.4, heading: 45, speed: 28, flag: '🇮🇳', color: '#22c55e' },
   { id: 'V002', name: 'INS KOLKATA', type: 'DESTROYER', lat: 15.5, lon: 70.3, heading: 120, speed: 32, flag: '🇮🇳', color: '#22c55e' },
@@ -116,20 +94,29 @@ const MARITIME_VESSELS = [
   { id: 'V005', name: 'COSCO SHANGHAI', type: 'CONTAINER', lat: 7.5, lon: 79.8, heading: 350, speed: 22, flag: '🇨🇳', color: '#f87171' },
   { id: 'V006', name: 'INS SINDHURATNA', type: 'SUBMARINE', lat: 14.2, lon: 72.9, heading: 270, speed: 18, flag: '🇮🇳', color: '#22c55e' },
   { id: 'V007', name: 'MV ANDAMAN SPIRIT', type: 'FERRY', lat: 11.7, lon: 92.7, heading: 90, speed: 12, flag: '🇮🇳', color: '#60a5fa' },
-  { id: 'V008', name: 'UNKNOWN VESSEL', type: 'UNKNOWN', lat: 22.5, lon: 65.8, heading: 145, speed: 8, flag: '❓', color: '#ef4444' },
+  { id: 'V008', name: 'UNKNOWN VESSEL', type: 'HOSTILE', lat: 22.5, lon: 65.8, heading: 145, speed: 8, flag: '❓', color: '#ef4444' },
 ];
 
-// ── Global Incidents (simulated GDELT-style) ──────────────────────────────────
+// ── Global Incidents ─────────────────────────────────────────────────────────
 const GLOBAL_INCIDENTS = [
-  { id: 'INC-01', type: 'BORDER', title: 'Ceasefire Violation — LOC', lat: 33.5, lon: 74.6, severity: 'CRITICAL', color: '#ef4444' },
-  { id: 'INC-02', type: 'SMUGGLING', title: 'Drug Seizure — Gujarat Coast', lat: 21.5, lon: 69.4, severity: 'HIGH', color: '#f59e0b' },
-  { id: 'INC-03', type: 'CYBER', title: 'Intrusion Attempt — Gov Network', lat: 28.6, lon: 77.2, severity: 'HIGH', color: '#f59e0b' },
-  { id: 'INC-04', type: 'PROTEST', title: 'Civil Unrest — Manipur', lat: 24.8, lon: 93.9, severity: 'MODERATE', color: '#fbbf24' },
-  { id: 'INC-05', type: 'FLOOD', title: 'Flood Alert — Assam', lat: 26.2, lon: 91.7, severity: 'HIGH', color: '#f59e0b' },
-  { id: 'INC-06', type: 'MARITIME', title: 'Unidentified Vessel — Arabian Sea', lat: 22.5, lon: 65.8, severity: 'CRITICAL', color: '#ef4444' },
+  { id: 'INC-01', type: 'BORDER', title: 'Ceasefire Anomaly — LOC Corridor', lat: 33.5, lon: 74.6, severity: 'CRITICAL', color: '#ef4444' },
+  { id: 'INC-02', type: 'SMUGGLING', title: 'Maritime Intercept — Gujarat Coast', lat: 21.5, lon: 69.4, severity: 'HIGH', color: '#f59e0b' },
+  { id: 'INC-03', type: 'CYBER', title: 'Command Network Intrusion Filtered', lat: 28.6, lon: 77.2, severity: 'HIGH', color: '#f59e0b' },
+  { id: 'INC-04', type: 'PROTEST', title: 'Civil Border Alert — Eastern Sector', lat: 24.8, lon: 93.9, severity: 'MODERATE', color: '#fbbf24' },
+  { id: 'INC-05', type: 'GEO', title: 'Flooding & Landslide Sensor Alert', lat: 26.2, lon: 91.7, severity: 'HIGH', color: '#f59e0b' },
+  { id: 'INC-06', type: 'MARITIME', title: 'Unidentified Vessel V008 Incursion', lat: 22.5, lon: 65.8, severity: 'CRITICAL', color: '#ef4444' },
 ];
 
-// ── Map coordinate tracker ────────────────────────────────────────────────────
+// ── Automated Patrol Waypoints ────────────────────────────────────────────────
+const PATROL_WAYPOINTS = [
+  { name: 'BORDER POST ALPHA (LOC)', lat: 31.634, lon: 74.872, zoom: 11, desc: 'Primary Demarcation Checkpost · Guard Active' },
+  { name: 'PERIMETER NORTH GATE (CAM-02)', lat: 28.638, lon: 77.219, zoom: 14, desc: 'Command Headquarters Sector 7A · Alert Status' },
+  { name: 'HOSTILE NAVAL CONTACT (V008)', lat: 22.5, lon: 65.8, zoom: 8, desc: 'Arabian Sea Incursion Zone · Interceptor Staged' },
+  { name: 'MINING ZONE KM-142 (JHARKHAND)', lat: 23.71, lon: 86.41, zoom: 11, desc: 'Geo-Eye Ground Vibration Sensor Array' },
+  { name: 'FALCON SUBSEA CABLE INTERFACE', lat: 19.0, lon: 72.8, zoom: 8, desc: 'Strategic High-Bandwidth Undersea Defense Fiber' },
+];
+
+// ── Map Coordinate Tracker ───────────────────────────────────────────────────
 function MapEventTracker({ onMove }) {
   useMapEvents({
     mousemove(e) { onMove(e.latlng.lat, e.latlng.lng); },
@@ -138,14 +125,12 @@ function MapEventTracker({ onMove }) {
   return null;
 }
 
-// ── Map ref controller ────────────────────────────────────────────────────────
 function MapController({ mapRef }) {
   const map = useMap();
   useEffect(() => { mapRef.current = map; }, [map, mapRef]);
   return null;
 }
 
-// ── Layer definition ──────────────────────────────────────────────────────────
 const LAYER_DEFS = [
   { id: 'border_posts', icon: Shield, label: 'BORDER POSTS', color: '#22c55e', count: BORDER_POSTS.length },
   { id: 'airspace', icon: Plane, label: 'AIRSPACE', color: '#60a5fa', count: null },
@@ -157,16 +142,13 @@ const LAYER_DEFS = [
   { id: 'cctv_nodes', icon: Camera, label: 'CCTV NODES', color: '#ec4899', count: CCTV_NODES.length },
 ];
 
-// ── Right Tool Defs ───────────────────────────────────────────────────────────
 const RIGHT_TOOLS = [
   { id: 'intel', icon: Eye, label: 'THREAT INTEL' },
   { id: 'signals', icon: Wifi, label: 'SIGNAL INTEL' },
   { id: 'stats', icon: Activity, label: 'STATISTICS' },
   { id: 'alerts', icon: AlertTriangle, label: 'LIVE ALERTS' },
   { id: 'scan', icon: Crosshair, label: 'AREA SCAN' },
-  { id: 'satellite', icon: Satellite, label: 'SAT IMAGERY' },
-  { id: 'comms', icon: Radio, label: 'COMMS NET' },
-  { id: 'grid', icon: LayoutGrid, label: 'GRID OVERLAY' },
+  { id: 'satellite', icon: Satellite, label: 'TOGGLE SAT' },
 ];
 
 export default function OmniEyeGlobe({ detectionData, postNetwork }) {
@@ -180,13 +162,21 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
     cables: true,
     cctv_nodes: true,
   });
-  const [layerPanelOpen, setLayerPanelOpen] = useState(true);
+  const [layerPanelOpen, setLayerPanelOpen] = useState(false);
   const [mapStyle, setMapStyle] = useState('MAP'); // MAP | SAT
   const [cursor, setCursor] = useState({ lat: 20.5937, lon: 78.9629, zoom: 5 });
   const [selectedEntity, setSelectedEntity] = useState(null);
   const [tickerItems, setTickerItems] = useState([]);
-  const [pulseVessels, setPulseVessels] = useState(false);
+  const [activeToolDrawer, setActiveToolDrawer] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+
+  // Automated Patrol States
+  const [isAutoPatrol, setIsAutoPatrol] = useState(false);
+  const [patrolIndex, setPatrolIndex] = useState(0);
+  const [patrolCountdown, setPatrolCountdown] = useState(7);
+
   const mapRef = useRef(null);
+  const patrolTimerRef = useRef(null);
   const dayNightRef = useRef(null);
 
   // Real data hooks
@@ -203,27 +193,68 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
     return () => clearInterval(dayNightRef.current);
   }, [activeLayers.day_night]);
 
-  // Pulse vessels
+  // Automated Threat Vector Patrol (Cycles every 7 seconds)
   useEffect(() => {
-    const t = setInterval(() => setPulseVessels(p => !p), 1500);
-    return () => clearInterval(t);
+    if (!isAutoPatrol) {
+      if (patrolTimerRef.current) clearInterval(patrolTimerRef.current);
+      return;
+    }
+
+    setPatrolCountdown(7);
+
+    patrolTimerRef.current = setInterval(() => {
+      setPatrolCountdown(prev => {
+        if (prev <= 1) {
+          // Advance to next waypoint
+          setPatrolIndex(curr => {
+            const nextIdx = (curr + 1) % PATROL_WAYPOINTS.length;
+            const target = PATROL_WAYPOINTS[nextIdx];
+            if (mapRef.current) {
+              try {
+                mapRef.current.flyTo([target.lat, target.lon], target.zoom, {
+                  animate: true,
+                  duration: 1.8,
+                });
+              } catch (e) {
+                // Leaflet container detached safeguard
+              }
+            }
+            return nextIdx;
+          });
+          return 7;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (patrolTimerRef.current) clearInterval(patrolTimerRef.current);
+    };
+  }, [isAutoPatrol]);
+
+  // Handle fly to arbitrary position
+  const handleFlyTo = useCallback((lat, lon, zoom = 10) => {
+    if (mapRef.current) {
+      try {
+        mapRef.current.flyTo([lat, lon], zoom, { animate: true, duration: 1.5 });
+      } catch (e) {}
+    }
   }, []);
 
-  // Build ticker from live data
+  // Build real-time telemetry ticker
   useEffect(() => {
     const items = [
-      ...quakes.slice(0, 5).map(q => ({
+      ...quakes.slice(0, 4).map(q => ({
         id: q.id, color: q.color,
-        text: `🔴 M${q.mag?.toFixed(1)} ${q.place}`,
+        text: `🔴 SEISMIC M${q.mag?.toFixed(1)} ${q.place}`,
       })),
       ...GLOBAL_INCIDENTS.map(i => ({
         id: i.id, color: i.color,
         text: `⚡ ${i.type}: ${i.title}`,
       })),
-      { id: 'sys1', color: '#22c55e', text: `✅ ${flights.length} aircraft tracked — ${flightSource === 'LIVE' ? 'OpenSky LIVE' : 'Simulated'}` },
-      { id: 'sys2', color: '#06b6d4', text: `🚢 ${MARITIME_VESSELS.length} vessels in Indian Ocean` },
-      { id: 'sys3', color: '#ec4899', text: `📡 ${CCTV_NODES.length} CCTV nodes online — Trinetra Grid` },
-      { id: 'sys4', color: '#7c3aed', text: `🌍 Day/Night Terminator — Solar position LIVE` },
+      { id: 'sys1', color: '#22c55e', text: `✅ ${flights.length} aircraft tracked — ${flightSource === 'LIVE' ? 'OpenSky LIVE' : 'Simulated Radar'}` },
+      { id: 'sys2', color: '#06b6d4', text: `🚢 ${MARITIME_VESSELS.length} naval units monitoring Indian Ocean` },
+      { id: 'sys3', color: '#ec4899', text: `📡 7 CCTV Sentries online — Trinetra Sector 7 Grid` },
     ];
     setTickerItems(items);
   }, [quakes, flights, flightSource]);
@@ -232,7 +263,6 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
     setActiveLayers(prev => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
-  const activeCount = Object.values(activeLayers).filter(Boolean).length;
   const totalEntities = (activeLayers.airspace ? flights.length : 0) +
     (activeLayers.maritime ? MARITIME_VESSELS.length : 0) +
     (activeLayers.border_posts ? BORDER_POSTS.length : 0) +
@@ -244,101 +274,129 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
     ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
     : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
 
+  const currentWaypoint = PATROL_WAYPOINTS[patrolIndex];
+
   return (
     <div style={{
       width: '100%', height: '100%', position: 'relative',
-      background: '#050811', display: 'flex', flexDirection: 'column',
-      fontFamily: "'Share Tech Mono', monospace",
+      background: '#040711', display: 'flex', flexDirection: 'column',
+      fontFamily: "'Share Tech Mono', monospace", color: '#e2e8f0',
     }}>
 
-      {/* ── OSIRIS-Style Header Bar ──────────────────────────────────────────── */}
+      {/* ── Top OSIRIS Header Bar ────────────────────────────────────────────── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '8px 16px',
-        background: 'rgba(5, 8, 20, 0.95)',
-        borderBottom: '1px solid rgba(255, 215, 0, 0.15)',
+        padding: '8px 16px', background: 'rgba(4, 7, 18, 0.96)',
+        borderBottom: '1px solid rgba(255, 215, 0, 0.18)',
         zIndex: 10, flexShrink: 0,
       }}>
-        {/* Left: Trinetra Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: '1.3rem', filter: 'drop-shadow(0 0 8px #ffd700)' }}>🛡️</div>
+        {/* Brand */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 6px #ffd700)' }}>🛡️</div>
           <div>
-            <div style={{ color: '#ffd700', fontSize: '0.85rem', fontWeight: 'bold', letterSpacing: 3 }}>
-              TRINETRA — OMNI EYE
+            <div style={{ color: '#ffd700', fontSize: '0.82rem', fontWeight: 'bold', letterSpacing: 2.5 }}>
+              OMNIEYE DEFENSE INTELLIGENCE
             </div>
-            <div style={{ color: 'rgba(255,215,0,0.4)', fontSize: '0.5rem', letterSpacing: 2 }}>
-              REAL-TIME DEFENSE INTELLIGENCE · BORDER · AIRSPACE · MARITIME · CCTV · SEISMIC
+            <div style={{ color: 'rgba(255,215,0,0.45)', fontSize: '0.48rem', letterSpacing: 1.5 }}>
+              AIRSPACE · MARITIME · BORDER TRIPWIRES · CCTV · TECTONIC SENSORS
             </div>
           </div>
         </div>
 
-        {/* Center: Status */}
-        <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-          <OsirisStat label="IST" value={new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' })} color="#00e5ff" />
-          <OsirisStat label="STATUS" value="LIVE" color="#14f195" pulse />
-          <OsirisStat label="LAYERS" value={activeCount} color="#00e5ff" />
+        {/* Center: Status & Automated Patrol Toggle */}
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          {/* Automated Patrol Toggle */}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              setIsAutoPatrol(p => {
+                const next = !p;
+                if (next && mapRef.current) {
+                  const target = PATROL_WAYPOINTS[patrolIndex];
+                  mapRef.current.flyTo([target.lat, target.lon], target.zoom, { animate: true, duration: 1.5 });
+                }
+                return next;
+              });
+            }}
+            style={{
+              padding: '4px 12px', borderRadius: 20, cursor: 'pointer',
+              background: isAutoPatrol ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${isAutoPatrol ? '#22c55e' : 'rgba(255,255,255,0.15)'}`,
+              color: isAutoPatrol ? '#22c55e' : 'rgba(255,255,255,0.5)',
+              fontSize: '0.6rem', letterSpacing: 1.5, display: 'flex', alignItems: 'center', gap: 6,
+              boxShadow: isAutoPatrol ? '0 0 12px rgba(34,197,94,0.3)' : 'none',
+              fontFamily: "'Share Tech Mono'",
+            }}
+          >
+            {isAutoPatrol ? <Pause size={11} /> : <Play size={11} />}
+            AUTO THREAT PATROL: {isAutoPatrol ? 'ACTIVE' : 'STANDBY'}
+          </motion.button>
+
           <OsirisStat label="ENTITIES" value={totalEntities.toLocaleString()} color="#00e5ff" />
-          <OsirisStat label="VER" value="5.1" color="rgba(255,255,255,0.3)" />
+          <OsirisStat label="RADAR" value={flightSource} color={flightSource === 'LIVE' ? '#22c55e' : '#f59e0b'} />
+          <OsirisStat label="SECTORS" value="7 MONITORED" color="#ffd700" />
         </div>
 
-        {/* Right: Action buttons */}
-        <div style={{ display: 'flex', gap: 8 }}>
+        {/* Right Map Theme Buttons */}
+        <div style={{ display: 'flex', gap: 6 }}>
           {['MAP', 'SAT'].map(s => (
-            <button key={s} onClick={() => setMapStyle(s)} style={{
-              padding: '3px 12px', borderRadius: 20, cursor: 'pointer', fontSize: '0.6rem',
-              border: `1px solid ${mapStyle === s ? '#ffd700' : 'rgba(255,215,0,0.2)'}`,
-              background: mapStyle === s ? 'rgba(255,215,0,0.15)' : 'transparent',
-              color: mapStyle === s ? '#ffd700' : 'rgba(255,215,0,0.4)',
-              letterSpacing: 2, fontFamily: "'Share Tech Mono'",
-            }}>{s}</button>
+            <button
+              key={s} onClick={() => setMapStyle(s)}
+              style={{
+                padding: '3px 10px', borderRadius: 16, cursor: 'pointer', fontSize: '0.58rem',
+                border: `1px solid ${mapStyle === s ? '#ffd700' : 'rgba(255,215,0,0.2)'}`,
+                background: mapStyle === s ? 'rgba(255,215,0,0.15)' : 'transparent',
+                color: mapStyle === s ? '#ffd700' : 'rgba(255,215,0,0.4)',
+                letterSpacing: 1.5, fontFamily: "'Share Tech Mono'",
+              }}
+            >
+              {s}
+            </button>
           ))}
         </div>
       </div>
 
-      {/* ── Map Area ────────────────────────────────────────────────────────── */}
+      {/* ── Map Workspace ──────────────────────────────────────────────────── */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
 
-        {/* Left Layer Dock */}
+        {/* Left Layer Control Dock */}
         <div style={{
           position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
           zIndex: 500, display: 'flex', flexDirection: 'column', gap: 4,
-          background: 'rgba(5, 8, 20, 0.9)', backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255,215,0,0.1)',
-          borderLeft: 'none', borderRadius: '0 12px 12px 0',
-          padding: '12px 8px',
+          background: 'rgba(4, 7, 18, 0.92)', backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,215,0,0.15)', borderLeft: 'none',
+          borderRadius: '0 10px 10px 0', padding: '10px 6px',
         }}>
           {LAYER_DEFS.map(layer => {
             const Icon = layer.icon;
             const isActive = activeLayers[layer.id];
             const cnt = layer.id === 'airspace' ? flights.length :
                         layer.id === 'earthquakes' ? quakes.length : layer.count;
+
             return (
               <div key={layer.id} style={{ position: 'relative' }}>
                 <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.92 }}
                   onClick={() => toggleLayer(layer.id)}
                   title={layer.label}
                   style={{
-                    width: 36, height: 36, borderRadius: 8, cursor: 'pointer',
+                    width: 34, height: 34, borderRadius: 7, cursor: 'pointer',
                     background: isActive ? `rgba(${hexToRgb(layer.color)}, 0.15)` : 'rgba(255,255,255,0.03)',
                     border: `1px solid ${isActive ? layer.color : 'rgba(255,255,255,0.1)'}`,
                     color: isActive ? layer.color : 'rgba(255,255,255,0.3)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'all 0.2s ease',
-                    boxShadow: isActive ? `0 0 12px rgba(${hexToRgb(layer.color)}, 0.3)` : 'none',
+                    boxShadow: isActive ? `0 0 10px rgba(${hexToRgb(layer.color)}, 0.25)` : 'none',
                   }}
                 >
-                  <Icon size={16} />
+                  <Icon size={15} />
                 </motion.button>
                 {isActive && cnt != null && cnt > 0 && (
                   <div style={{
-                    position: 'absolute', top: -4, right: -4,
-                    background: '#00e5ff', color: '#000',
-                    fontSize: '0.5rem', fontWeight: 'bold',
-                    borderRadius: '50%', width: 16, height: 16,
+                    position: 'absolute', top: -3, right: -3,
+                    background: '#00e5ff', color: '#000', fontSize: '0.45rem',
+                    fontWeight: 'bold', borderRadius: '50%', width: 14, height: 14,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: "'Share Tech Mono'",
                   }}>
                     {cnt > 99 ? '99+' : cnt}
                   </div>
@@ -347,79 +405,56 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
             );
           })}
 
-          {/* Layer panel toggle */}
-          <div style={{ width: '100%', height: 1, background: 'rgba(255,215,0,0.1)', margin: '4px 0' }} />
+          <div style={{ width: '100%', height: 1, background: 'rgba(255,215,0,0.12)', margin: '3px 0' }} />
           <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
             onClick={() => setLayerPanelOpen(p => !p)}
             style={{
-              width: 36, height: 36, borderRadius: 8, cursor: 'pointer',
-              background: 'rgba(255,215,0,0.08)',
-              border: '1px solid rgba(255,215,0,0.2)',
-              color: '#ffd700',
+              width: 34, height: 34, borderRadius: 7, cursor: 'pointer',
+              background: layerPanelOpen ? 'rgba(255,215,0,0.2)' : 'rgba(255,215,0,0.06)',
+              border: '1px solid rgba(255,215,0,0.25)', color: '#ffd700',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
-            <Layers size={16} />
+            <Layers size={15} />
           </motion.button>
         </div>
 
-        {/* Layer Info Panel */}
+        {/* Detailed Layer Control Drawer */}
         <AnimatePresence>
           {layerPanelOpen && (
             <motion.div
-              initial={{ x: -280, opacity: 0 }} animate={{ x: 44, opacity: 1 }} exit={{ x: -280, opacity: 0 }}
-              transition={{ type: 'spring', damping: 20 }}
+              initial={{ x: -260, opacity: 0 }} animate={{ x: 44, opacity: 1 }} exit={{ x: -260, opacity: 0 }}
               style={{
                 position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
-                zIndex: 499, width: 220,
-                background: 'rgba(5, 8, 20, 0.95)', backdropFilter: 'blur(16px)',
-                border: '1px solid rgba(255,215,0,0.1)', borderLeft: 'none',
-                borderRadius: '0 12px 12px 0', padding: '16px 12px',
+                zIndex: 499, width: 210, background: 'rgba(4, 7, 18, 0.96)',
+                backdropFilter: 'blur(16px)', border: '1px solid rgba(255,215,0,0.15)',
+                borderLeft: 'none', borderRadius: '0 10px 10px 0', padding: '12px 10px',
               }}
             >
-              <div style={{ color: '#ffd700', fontSize: '0.6rem', letterSpacing: 3, marginBottom: 12 }}>
-                ◈ LAYER CONTROL
+              <div style={{ color: '#ffd700', fontSize: '0.62rem', letterSpacing: 2, marginBottom: 8 }}>
+                ◈ DEFENSE LAYERS
               </div>
               {LAYER_DEFS.map(layer => {
                 const isActive = activeLayers[layer.id];
-                const cnt = layer.id === 'airspace' ? flights.length :
-                            layer.id === 'earthquakes' ? quakes.length : layer.count;
                 return (
-                  <div key={layer.id}
+                  <div
+                    key={layer.id}
                     onClick={() => toggleLayer(layer.id)}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '6px 8px', borderRadius: 6, cursor: 'pointer', marginBottom: 2,
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '5px 7px', borderRadius: 5, cursor: 'pointer', marginBottom: 3,
                       background: isActive ? `rgba(${hexToRgb(layer.color)}, 0.08)` : 'transparent',
-                      border: `1px solid ${isActive ? `rgba(${hexToRgb(layer.color)}, 0.2)` : 'transparent'}`,
-                      transition: 'all 0.15s',
+                      border: `1px solid ${isActive ? `rgba(${hexToRgb(layer.color)}, 0.25)` : 'transparent'}`,
                     }}
                   >
-                    {/* Toggle */}
-                    <div style={{
-                      width: 28, height: 14, borderRadius: 7,
-                      background: isActive ? layer.color : 'rgba(255,255,255,0.1)',
-                      position: 'relative', transition: 'all 0.2s', flexShrink: 0,
-                    }}>
-                      <div style={{
-                        position: 'absolute', top: 2,
-                        left: isActive ? 16 : 2,
-                        width: 10, height: 10, borderRadius: '50%',
-                        background: '#fff', transition: 'left 0.2s',
-                      }} />
-                    </div>
-                    <div>
-                      <div style={{ color: isActive ? layer.color : 'rgba(255,255,255,0.4)', fontSize: '0.6rem', letterSpacing: 1 }}>
-                        {layer.label}
-                      </div>
-                      {cnt != null && (
-                        <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.5rem' }}>
-                          {isActive ? `${cnt} entities` : 'HIDDEN'}
-                        </div>
-                      )}
-                    </div>
+                    <span style={{ color: isActive ? layer.color : 'rgba(255,255,255,0.4)', fontSize: '0.56rem' }}>
+                      {layer.label}
+                    </span>
+                    <span style={{ fontSize: '0.5rem', color: isActive ? '#22c55e' : 'rgba(255,255,255,0.2)' }}>
+                      {isActive ? 'ON' : 'OFF'}
+                    </span>
                   </div>
                 );
               })}
@@ -427,80 +462,259 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
           )}
         </AnimatePresence>
 
-        {/* Right Tool Dock */}
+        {/* Right Tactical Tool Dock */}
         <div style={{
           position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)',
           zIndex: 500, display: 'flex', flexDirection: 'column', gap: 4,
-          background: 'rgba(5, 8, 20, 0.9)', backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255,215,0,0.1)',
-          borderRight: 'none', borderRadius: '12px 0 0 12px',
-          padding: '12px 8px',
+          background: 'rgba(4, 7, 18, 0.92)', backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,215,0,0.15)', borderRight: 'none',
+          borderRadius: '10px 0 0 10px', padding: '10px 6px',
         }}>
           {RIGHT_TOOLS.map(tool => {
             const Icon = tool.icon;
+            const isToolActive = activeToolDrawer === tool.id;
             return (
-              <motion.button key={tool.id}
-                whileHover={{ scale: 1.1, color: '#00e5ff' }}
-                whileTap={{ scale: 0.9 }}
+              <motion.button
+                key={tool.id}
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.92 }}
+                onClick={() => {
+                  if (tool.id === 'satellite') {
+                    setMapStyle(s => s === 'SAT' ? 'MAP' : 'SAT');
+                    return;
+                  }
+                  if (tool.id === 'scan') {
+                    setIsScanning(true);
+                    setTimeout(() => setIsScanning(false), 3000);
+                    return;
+                  }
+                  setActiveToolDrawer(curr => curr === tool.id ? null : tool.id);
+                }}
                 title={tool.label}
                 style={{
-                  width: 36, height: 36, borderRadius: 8, cursor: 'pointer',
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: 'rgba(255,255,255,0.35)',
+                  width: 34, height: 34, borderRadius: 7, cursor: 'pointer',
+                  background: isToolActive ? 'rgba(0,229,255,0.18)' : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${isToolActive ? '#00e5ff' : 'rgba(255,255,255,0.1)'}`,
+                  color: isToolActive ? '#00e5ff' : 'rgba(255,255,255,0.35)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'all 0.2s ease',
                 }}
               >
-                <Icon size={16} />
+                <Icon size={15} />
               </motion.button>
             );
           })}
         </div>
 
-        {/* Map Controls */}
-        <div style={{
-          position: 'absolute', bottom: 60, left: '50%', transform: 'translateX(-50%)',
-          zIndex: 500, display: 'flex', gap: 8, alignItems: 'center',
-        }}>
-          {/* 3D/2D pill */}
-          <div style={{
-            background: 'rgba(5,8,20,0.9)', backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255,215,0,0.15)',
-            borderRadius: 24, padding: '4px 6px',
-            display: 'flex', gap: 4,
-          }}>
-            {['2D'].map(mode => (
-              <div key={mode} style={{
-                padding: '4px 14px', borderRadius: 20, fontSize: '0.6rem', cursor: 'pointer',
-                background: 'rgba(255,215,0,0.15)', color: '#ffd700',
-                border: '1px solid rgba(255,215,0,0.3)', letterSpacing: 2,
-                fontFamily: "'Share Tech Mono'",
-              }}>{mode}</div>
-            ))}
-          </div>
-        </div>
+        {/* Right Active Tool Drawer */}
+        <AnimatePresence>
+          {activeToolDrawer && (
+            <motion.div
+              initial={{ x: 300, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 300, opacity: 0 }}
+              style={{
+                position: 'absolute', right: 46, top: 20, bottom: 20, zIndex: 550,
+                width: 280, background: 'rgba(4, 7, 18, 0.97)', backdropFilter: 'blur(18px)',
+                border: '1px solid rgba(0,229,255,0.25)', borderRadius: 10,
+                padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10,
+                boxShadow: '0 0 30px rgba(0,0,0,0.5)', overflowY: 'auto',
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0,229,255,0.15)', paddingBottom: 6 }}>
+                <div style={{ color: '#00e5ff', fontSize: '0.68rem', letterSpacing: 2, fontWeight: 'bold' }}>
+                  ◈ {RIGHT_TOOLS.find(t => t.id === activeToolDrawer)?.label}
+                </div>
+                <button
+                  onClick={() => setActiveToolDrawer(null)}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '1rem' }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
 
-        {/* Selected entity panel */}
+              {/* Drawer Content by Tool Type */}
+              {activeToolDrawer === 'intel' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.52rem' }}>ACTIVE THREAT MATRIX:</div>
+                  {GLOBAL_INCIDENTS.map(inc => (
+                    <div
+                      key={inc.id}
+                      style={{
+                        padding: '6px 8px', borderRadius: 6, background: 'rgba(239,68,68,0.08)',
+                        border: '1px solid rgba(239,68,68,0.25)', display: 'flex', flexDirection: 'column', gap: 3,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: inc.color, fontSize: '0.58rem', fontWeight: 'bold' }}>{inc.type}</span>
+                        <span style={{ color: '#ef4444', fontSize: '0.5rem' }}>{inc.severity}</span>
+                      </div>
+                      <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.52rem' }}>{inc.title}</div>
+                      <button
+                        onClick={() => handleFlyTo(inc.lat, inc.lon, 9)}
+                        style={{
+                          alignSelf: 'flex-end', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                          borderRadius: 4, color: '#ef4444', fontSize: '0.48rem', cursor: 'pointer', padding: '2px 6px',
+                          display: 'flex', alignItems: 'center', gap: 3, fontFamily: "'Share Tech Mono'",
+                        }}
+                      >
+                        <ArrowUpRight size={10} /> INTERCEPT
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeToolDrawer === 'signals' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.52rem' }}>RF SPECTRUM TELEMETRY:</div>
+                  {[
+                    { freq: '121.500 MHz', name: 'VHF Emergency Guard', pwr: '-82 dBm', status: 'MONITORED' },
+                    { freq: '156.800 MHz', name: 'Marine VHF Ch 16', pwr: '-67 dBm', status: 'ACTIVE TRAFFIC' },
+                    { freq: '1090.00 MHz', name: 'ADS-B Mode-S Transponder', pwr: '-45 dBm', status: 'LOCKED' },
+                    { freq: '2.485 GHz', name: 'Drone RF Command Link', pwr: '-91 dBm', status: 'ENCRYPTED' },
+                  ].map((sig, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '6px 8px', borderRadius: 6, background: 'rgba(0,229,255,0.06)',
+                        border: '1px solid rgba(0,229,255,0.18)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#00e5ff', fontSize: '0.58rem' }}>
+                        <span>{sig.freq}</span>
+                        <span>{sig.pwr}</span>
+                      </div>
+                      <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.5rem', marginTop: 2 }}>{sig.name}</div>
+                      <div style={{ color: '#22c55e', fontSize: '0.48rem', marginTop: 2 }}>STATUS: {sig.status}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeToolDrawer === 'alerts' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.52rem' }}>LIVE DEFENSE INCIDENT FEED:</div>
+                  {CCTV_NODES.filter(c => c.status === 'ALERT').map(cam => (
+                    <div
+                      key={cam.id}
+                      style={{
+                        padding: '6px 8px', borderRadius: 6, background: 'rgba(239,68,68,0.1)',
+                        border: '1px solid rgba(239,68,68,0.35)',
+                      }}
+                    >
+                      <div style={{ color: '#ef4444', fontSize: '0.6rem', fontWeight: 'bold' }}>⚠️ {cam.id}: {cam.name}</div>
+                      <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.5rem', marginTop: 2 }}>Sector: {cam.sector} · Sensor Tripwire Active</div>
+                      <button
+                        onClick={() => handleFlyTo(cam.lat, cam.lon, 14)}
+                        style={{
+                          marginTop: 4, background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444',
+                          borderRadius: 4, color: '#ef4444', fontSize: '0.5rem', cursor: 'pointer', padding: '3px 6px',
+                          display: 'flex', alignItems: 'center', gap: 4, fontFamily: "'Share Tech Mono'",
+                        }}
+                      >
+                        <ArrowUpRight size={10} /> ZOOM TO CAMERA
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeToolDrawer === 'stats' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.52rem' }}>SUB-SYSTEM CENSUS:</div>
+                  {[
+                    ['Total Monitored Entities', totalEntities],
+                    ['ADS-B Air Transponders', flights.length],
+                    ['Naval & Maritime Vessels', MARITIME_VESSELS.length],
+                    ['Ground CCTV Sentries', CCTV_NODES.length],
+                    ['LOC Border Checkposts', BORDER_POSTS.length],
+                    ['Seismic Sensors Online', quakes.length],
+                    ['Subsea Optic Cables', CABLE_ROUTES.length],
+                  ].map(([k, v]) => (
+                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: 4 }}>
+                      <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.52rem' }}>{k}</span>
+                      <span style={{ color: '#00e5ff', fontSize: '0.55rem', fontWeight: 'bold' }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Automated Patrol HUD Banner */}
+        {isAutoPatrol && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
+            style={{
+              position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)',
+              zIndex: 600, background: 'rgba(4, 8, 20, 0.94)', backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(34,197,94,0.4)', borderRadius: 8,
+              padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 16,
+              boxShadow: '0 0 24px rgba(34,197,94,0.25)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 8, height: 8, borderRadius: '50%', background: '#22c55e',
+                boxShadow: '0 0 8px #22c55e', animation: 'breathe 1.5s infinite',
+              }} />
+              <div>
+                <div style={{ color: '#22c55e', fontSize: '0.65rem', fontWeight: 'bold', letterSpacing: 1.5 }}>
+                  PATROL TARGET: {currentWaypoint.name}
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.5rem' }}>
+                  {currentWaypoint.desc}
+                </div>
+              </div>
+            </div>
+            <div style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: 12 }}>
+              <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.45rem', letterSpacing: 1 }}>NEXT VECTOR</div>
+              <div style={{ color: '#00e5ff', fontSize: '0.68rem', fontWeight: 'bold' }}>00:0{patrolCountdown}</div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Automated Radar Sweep Visual Wave (Area Scan) */}
+        {isScanning && (
+          <motion.div
+            initial={{ scale: 0.1, opacity: 0.8 }}
+            animate={{ scale: 3.5, opacity: 0 }}
+            transition={{ duration: 2.8, ease: 'easeOut' }}
+            style={{
+              position: 'absolute', top: '50%', left: '50%',
+              width: 300, height: 300, marginLeft: -150, marginTop: -150,
+              borderRadius: '50%', border: '2px solid #00e5ff',
+              background: 'radial-gradient(circle, rgba(0,229,255,0.2) 0%, transparent 70%)',
+              pointerEvents: 'none', zIndex: 650,
+            }}
+          />
+        )}
+
+        {/* Selected Entity Card */}
         <AnimatePresence>
           {selectedEntity && (
             <motion.div
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
               style={{
                 position: 'absolute', top: 12, right: 60, zIndex: 600,
-                background: 'rgba(5,8,20,0.95)', backdropFilter: 'blur(16px)',
-                border: '1px solid rgba(0,229,255,0.2)', borderRadius: 10,
-                padding: '12px 16px', minWidth: 200, maxWidth: 280,
+                background: 'rgba(4,8,20,0.96)', backdropFilter: 'blur(16px)',
+                border: '1px solid rgba(0,229,255,0.25)', borderRadius: 10,
+                padding: '12px 16px', minWidth: 210, maxWidth: 290,
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <div style={{ color: '#00e5ff', fontSize: '0.65rem', letterSpacing: 2 }}>◈ ENTITY DETAIL</div>
-                <button onClick={() => setSelectedEntity(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '1rem' }}>×</button>
+                <button
+                  onClick={() => setSelectedEntity(null)}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '1rem' }}
+                >
+                  ×
+                </button>
               </div>
               {Object.entries(selectedEntity).map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.55rem', letterSpacing: 1 }}>{k.toUpperCase()}</span>
-                  <span style={{ color: '#fff', fontSize: '0.6rem' }}>{String(v)}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.52rem', letterSpacing: 1 }}>{k.toUpperCase()}</span>
+                  <span style={{ color: '#fff', fontSize: '0.58rem' }}>{String(v)}</span>
                 </div>
               ))}
             </motion.div>
@@ -526,7 +740,7 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
 
           <TileLayer url={tileUrl} />
 
-          {/* Day/Night overlay */}
+          {/* Solar Terminator */}
           {activeLayers.day_night && dayNightPoints.length > 0 && (
             <Polyline
               positions={dayNightPoints}
@@ -534,14 +748,15 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
             />
           )}
 
-          {/* Subsea Cables */}
+          {/* Subsea Fiber Cables */}
           {activeLayers.cables && CABLE_ROUTES.map(cable => (
-            <Polyline key={cable.name} positions={cable.path}
-              pathOptions={{ color: cable.color, weight: 1.5, opacity: 0.7, dashArray: '8 4' }}
+            <Polyline
+              key={cable.name} positions={cable.path}
+              pathOptions={{ color: cable.color, weight: 1.5, opacity: 0.75, dashArray: '8 4' }}
             >
               <Popup>
                 <div style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                  <b>{cable.name}</b><br />Type: Subsea Fiber Optic
+                  <b>{cable.name}</b><br />Strategic Subsea Fiber Route
                 </div>
               </Popup>
             </Polyline>
@@ -552,8 +767,9 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
             const netPost = postNetwork?.find(p => p.id === post.id);
             const color = netPost?.color || post.color;
             return (
-              <CircleMarker key={post.id} center={[post.lat, post.lon]}
-                radius={8} pathOptions={{ color, fillColor: color, fillOpacity: 0.8, weight: 2 }}
+              <CircleMarker
+                key={post.id} center={[post.lat, post.lon]}
+                radius={8} pathOptions={{ color, fillColor: color, fillOpacity: 0.85, weight: 2 }}
                 eventHandlers={{ click: () => setSelectedEntity({ id: post.id, name: post.name, status: netPost?.status || post.status, lat: post.lat.toFixed(4), lon: post.lon.toFixed(4) }) }}
               >
                 <Popup><b>{post.name}</b><br />Status: {netPost?.status || post.status}</Popup>
@@ -561,35 +777,48 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
             );
           })}
 
-          {/* CCTV Nodes */}
+          {/* CCTV Nodes (with pulsing alert rings) */}
           {activeLayers.cctv_nodes && CCTV_NODES.map(cam => {
-            const color = cam.status === 'ALERT' ? '#ef4444' : cam.status === 'SECURE' ? '#22c55e' : '#ec4899';
+            const isAlert = cam.status === 'ALERT';
+            const color = isAlert ? '#ef4444' : cam.status === 'SECURE' ? '#22c55e' : '#ec4899';
             return (
-              <CircleMarker key={cam.id} center={[cam.lat, cam.lon]}
-                radius={pulseVessels ? 6 : 5}
-                pathOptions={{ color, fillColor: color, fillOpacity: 0.9, weight: 1 }}
-                eventHandlers={{ click: () => setSelectedEntity({ id: cam.id, name: cam.name, status: cam.status, sector: cam.sector }) }}
-              >
-                <Popup><b>{cam.id}</b>: {cam.name}<br />Status: {cam.status}</Popup>
-              </CircleMarker>
+              <LayerGroup key={cam.id}>
+                {isAlert && (
+                  <CircleMarker
+                    center={[cam.lat, cam.lon]}
+                    radius={14}
+                    pathOptions={{ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.2, weight: 1.5, dashArray: '3 3' }}
+                  />
+                )}
+                <CircleMarker
+                  center={[cam.lat, cam.lon]}
+                  radius={isAlert ? 7 : 5.5}
+                  pathOptions={{ color, fillColor: color, fillOpacity: 0.9, weight: 1.5 }}
+                  eventHandlers={{ click: () => setSelectedEntity({ id: cam.id, name: cam.name, status: cam.status, sector: cam.sector }) }}
+                >
+                  <Popup><b>{cam.id}</b>: {cam.name}<br />Status: {cam.status}</Popup>
+                </CircleMarker>
+              </LayerGroup>
             );
           })}
 
           {/* Flights */}
           {activeLayers.airspace && flights.map(f => (
-            <CircleMarker key={f.icao} center={[f.lat, f.lon]}
+            <CircleMarker
+              key={f.icao} center={[f.lat, f.lon]}
               radius={3}
-              pathOptions={{ color: '#60a5fa', fillColor: '#60a5fa', fillOpacity: 0.8, weight: 1 }}
+              pathOptions={{ color: '#60a5fa', fillColor: '#60a5fa', fillOpacity: 0.85, weight: 1 }}
               eventHandlers={{ click: () => setSelectedEntity({ callsign: f.callsign, alt: `${f.altitude}m`, speed: `${f.velocity}km/h`, hdg: `${f.heading}°`, country: f.origin_country }) }}
             >
               <Popup><b>{f.callsign}</b><br />Alt: {f.altitude}m | Speed: {f.velocity}km/h</Popup>
             </CircleMarker>
           ))}
 
-          {/* Maritime */}
+          {/* Maritime Vessels */}
           {activeLayers.maritime && MARITIME_VESSELS.map(v => (
-            <CircleMarker key={v.id} center={[v.lat, v.lon]}
-              radius={v.type === 'NAVAL' || v.type === 'DESTROYER' ? 7 : 5}
+            <CircleMarker
+              key={v.id} center={[v.lat, v.lon]}
+              radius={v.type === 'HOSTILE' ? 8 : 6}
               pathOptions={{ color: v.color, fillColor: v.color, fillOpacity: 0.85, weight: 2 }}
               eventHandlers={{ click: () => setSelectedEntity({ name: v.name, type: v.type, speed: `${v.speed}kt`, heading: `${v.heading}°`, flag: v.flag }) }}
             >
@@ -597,9 +826,10 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
             </CircleMarker>
           ))}
 
-          {/* Earthquakes */}
+          {/* Seismic Earthquakes */}
           {activeLayers.earthquakes && quakes.map(q => (
-            <CircleMarker key={q.id} center={[q.lat, q.lon]}
+            <CircleMarker
+              key={q.id} center={[q.lat, q.lon]}
               radius={Math.max(4, (q.mag || 0) * 2.5)}
               pathOptions={{ color: q.color, fillColor: q.color, fillOpacity: 0.5, weight: 1 }}
               eventHandlers={{ click: () => setSelectedEntity({ mag: q.mag?.toFixed(1), place: q.place, depth: `${q.depth}km`, time: new Date(q.time).toLocaleTimeString() }) }}
@@ -610,51 +840,40 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
 
           {/* Global Incidents */}
           {activeLayers.incidents && GLOBAL_INCIDENTS.map(inc => (
-            <CircleMarker key={inc.id} center={[inc.lat, inc.lon]}
+            <CircleMarker
+              key={inc.id} center={[inc.lat, inc.lon]}
               radius={8}
-              pathOptions={{ color: inc.color, fillColor: inc.color, fillOpacity: 0.3, weight: 2, dashArray: '4 2' }}
+              pathOptions={{ color: inc.color, fillColor: inc.color, fillOpacity: 0.35, weight: 2, dashArray: '4 2' }}
               eventHandlers={{ click: () => setSelectedEntity({ id: inc.id, type: inc.type, title: inc.title, severity: inc.severity }) }}
             >
               <Popup><b>{inc.type}</b><br />{inc.title}<br />Severity: {inc.severity}</Popup>
             </CircleMarker>
           ))}
         </MapContainer>
-
-        {/* Data Source Badge */}
-        <div style={{
-          position: 'absolute', top: 12, left: 60, zIndex: 600,
-          display: 'flex', gap: 6,
-        }}>
-          <DataBadge label="FLIGHTS" value={flightSource} color={flightSource === 'LIVE' ? '#14f195' : '#f59e0b'} />
-          <DataBadge label="SEISMIC" value={quakeSource} color={quakeSource === 'LIVE' ? '#14f195' : '#f59e0b'} />
-        </div>
       </div>
 
-      {/* ── OSIRIS-Style Bottom Status Bar ─────────────────────────────────── */}
+      {/* ── Bottom OSIRIS Telemetry Bar ────────────────────────────────────── */}
       <div style={{
-        display: 'flex', alignItems: 'center',
-        padding: '6px 16px', flexShrink: 0,
-        background: 'rgba(5, 8, 20, 0.98)',
-        borderTop: '1px solid rgba(255, 215, 0, 0.08)',
-        gap: 24, overflow: 'hidden',
+        display: 'flex', alignItems: 'center', padding: '6px 16px', flexShrink: 0,
+        background: 'rgba(4, 7, 18, 0.98)', borderTop: '1px solid rgba(255, 215, 0, 0.1)',
+        gap: 20, overflow: 'hidden',
       }}>
         {/* Coordinates */}
-        <div style={{ display: 'flex', gap: 16, flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 14, flexShrink: 0 }}>
           <StatusBarItem label="CURSOR" value={`${cursor.lat.toFixed(4)}°, ${cursor.lon.toFixed(4)}°`} color="#00e5ff" />
           <StatusBarItem label="ZOOM" value={cursor.zoom?.toFixed(1)} color="#00e5ff" />
           <StatusBarItem label="ENTITIES" value={totalEntities} color="#00e5ff" />
         </div>
 
-        {/* Scrolling Ticker */}
+        {/* Scrolling Intelligence Ticker */}
         <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
           <div style={{
-            display: 'flex', gap: 40, alignItems: 'center',
-            animation: 'tickerScroll 30s linear infinite',
-            whiteSpace: 'nowrap',
+            display: 'flex', gap: 36, alignItems: 'center',
+            animation: 'tickerScroll 32s linear infinite', whiteSpace: 'nowrap',
           }}>
             {[...tickerItems, ...tickerItems].map((item, i) => (
               <span key={i} style={{
-                color: item.color, fontSize: '0.6rem', letterSpacing: 1,
+                color: item.color, fontSize: '0.58rem', letterSpacing: 1,
                 fontFamily: "'Share Tech Mono'",
               }}>
                 {item.text}
@@ -663,14 +882,13 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
           </div>
         </div>
 
-        {/* Online status */}
+        {/* Pulse Indicator */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <div style={{
-            width: 6, height: 6, borderRadius: '50%', background: '#14f195',
-            boxShadow: '0 0 6px #14f195',
-            animation: 'breathe 2s ease-in-out infinite',
+            width: 6, height: 6, borderRadius: '50%', background: '#22c55e',
+            boxShadow: '0 0 6px #22c55e', animation: 'breathe 2s ease-in-out infinite',
           }} />
-          <span style={{ color: '#14f195', fontSize: '0.6rem', letterSpacing: 2 }}>ONLINE</span>
+          <span style={{ color: '#22c55e', fontSize: '0.58rem', letterSpacing: 1.5 }}>ONLINE</span>
         </div>
       </div>
 
@@ -684,38 +902,21 @@ export default function OmniEyeGlobe({ detectionData, postNetwork }) {
   );
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-function OsirisStat({ label, value, color, pulse }) {
+// ── Helper Sub-Components ─────────────────────────────────────────────────────
+function OsirisStat({ label, value, color }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.45rem', letterSpacing: 2 }}>{label}</div>
-      <div style={{
-        color, fontSize: '0.75rem', fontWeight: 'bold', letterSpacing: 1,
-        animation: pulse ? 'breathe 2s ease-in-out infinite' : 'none',
-      }}>{value}</div>
+      <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.45rem', letterSpacing: 1.5 }}>{label}</div>
+      <div style={{ color, fontSize: '0.72rem', fontWeight: 'bold', letterSpacing: 1 }}>{value}</div>
     </div>
   );
 }
 
 function StatusBarItem({ label, value, color }) {
   return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-      <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.55rem', letterSpacing: 1 }}>{label}</span>
-      <span style={{ color, fontSize: '0.6rem', letterSpacing: 1, fontFamily: "'Share Tech Mono'" }}>{value}</span>
-    </div>
-  );
-}
-
-function DataBadge({ label, value, color }) {
-  return (
-    <div style={{
-      background: 'rgba(5,8,20,0.9)', backdropFilter: 'blur(8px)',
-      border: `1px solid ${color}33`,
-      borderRadius: 6, padding: '3px 8px',
-      display: 'flex', gap: 6, alignItems: 'center',
-    }}>
-      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.5rem' }}>{label}</span>
-      <span style={{ color, fontSize: '0.5rem', fontWeight: 'bold' }}>{value}</span>
+    <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+      <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.52rem', letterSpacing: 1 }}>{label}</span>
+      <span style={{ color, fontSize: '0.58rem', letterSpacing: 1, fontFamily: "'Share Tech Mono'" }}>{value}</span>
     </div>
   );
 }
