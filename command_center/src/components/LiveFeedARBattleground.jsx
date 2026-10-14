@@ -90,8 +90,12 @@ export default function LiveFeedARBattleground({
     const handleResize = () => {
       const rect = canvas.getBoundingClientRect();
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      const w = rect.width || canvas.clientWidth || canvas.parentElement?.clientWidth || window.innerWidth || 800;
+      const h = rect.height || canvas.clientHeight || canvas.parentElement?.clientHeight || window.innerHeight || 500;
+      if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
+      }
     };
     handleResize();
     window.addEventListener('resize', handleResize);
@@ -102,9 +106,11 @@ export default function LiveFeedARBattleground({
       lastTime = now;
       angle += dt * 0.8;
 
-      const w = canvas.width;
-      const h = canvas.height;
-      if (w === 0 || h === 0) return;
+      if (canvas.width === 0 || canvas.height === 0) {
+        handleResize();
+      }
+      const w = canvas.width || 800;
+      const h = canvas.height || 500;
 
       ctx.save();
       ctx.clearRect(0, 0, w, h);

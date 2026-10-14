@@ -2018,7 +2018,7 @@ export default function App() {
                       <div style={{ position: 'absolute', inset: 0, zIndex: 4, background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.6) 100%)', pointerEvents: 'none' }} />
                       {/* Camera selector row */}
                       <div style={{ position: 'absolute', bottom: 140, left: 12, zIndex: 10, display: 'flex', gap: 6 }}>
-                        {Object.keys(CAM_FEEDS).map(camId => (
+                        {['CAM-01', 'CAM-02', 'CAM-03', 'CAM-04'].map(camId => (
                           <button key={camId} onClick={() => setSelectedCam(camId)}
                             style={{
                               fontSize: '0.48rem', fontFamily: "'Share Tech Mono'", padding: '3px 8px',
