@@ -878,7 +878,7 @@ export default function App() {
     modelProgress,
     modelMessage,
     getPrevDetections,
-  } = useRealDetection(simActive, videoRef, canvasRef);
+  } = useRealDetection(simActive && useWebcam, videoRef, canvasRef);
 
   const {
     detections: trackDetections,
