@@ -7,6 +7,7 @@ import {
   Lock, CheckCircle2, ChevronRight, RefreshCw, Volume2
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { CameraARModel, BiometricARAvatar } from './CCTVGrid';
 
 // ── Executive Stat Card ──
 function StatCard({ icon: Icon, label, value, sub, color, pulse, onClick }) {
@@ -95,9 +96,9 @@ function ModuleCard({ title, code, desc, status, statusColor, icon: Icon, onClic
   );
 }
 
-// ── CCTV Matrix Grid with Real Human Suspect Profiles (Image 2) & AR/VR Mode ──
+// ── CCTV Matrix Grid with 3D AR/VR Vector Modelling (Zero Broken AI Images) ──
 function CCTVMatrix({ onClick }) {
-  const [cctvMode, setCctvMode] = useState('HUMAN'); // 'HUMAN' or 'ARVR'
+  const [cctvMode, setCctvMode] = useState('ARVR'); // 'ARVR' or 'BIOMETRIC'
 
   const feeds = [
     {
@@ -109,8 +110,6 @@ function CCTVMatrix({ onClick }) {
       label: 'UNAUTHORIZED SENTRY',
       match: '88%',
       threat: 'HIGH',
-      // Real serious tactical sentry (no smile)
-      photo: 'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=600&auto=format&fit=crop&q=80',
       coords: "N28°38'12\" E77°13'04\"",
       arData: { range: '142m', azimuth: '042°', elev: '+1.4m', target: 'BIO-TARGET [S-003]' },
       target: { box: { top: '14%', left: '32%', width: '36%', height: '64%' } },
@@ -124,8 +123,6 @@ function CCTVMatrix({ onClick }) {
       label: 'ARMED INTRUDER',
       match: '96%',
       threat: 'CRITICAL',
-      // Night hooded operative (serious, no smile)
-      photo: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80',
       coords: "N28°38'18\" E77°13'09\"",
       arData: { range: '085m', azimuth: '318°', elev: '+0.8m', target: 'HOSTILE INTRUDER [S-001]' },
       target: { box: { top: '12%', left: '28%', width: '44%', height: '68%' } },
@@ -139,8 +136,6 @@ function CCTVMatrix({ onClick }) {
       label: 'WANTED RECON SCOUT',
       match: '82%',
       threat: 'HIGH',
-      // Cold, intense unsmiling adult male face
-      photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80',
       coords: "N28°38'15\" E77°13'15\"",
       arData: { range: '210m', azimuth: '112°', elev: '-2.1m', target: 'RECON UNIT [S-004]' },
       target: { box: { top: '15%', left: '30%', width: '38%', height: '64%' } },
@@ -154,8 +149,6 @@ function CCTVMatrix({ onClick }) {
       label: 'PERIMETER BREACHER',
       match: '93%',
       threat: 'CRITICAL',
-      // Serious security operative (no smile)
-      photo: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&auto=format&fit=crop&q=80',
       coords: "N28°38'10\" E77°13'00\"",
       arData: { range: '168m', azimuth: '275°', elev: '+3.2m', target: 'BREACH POINT [S-002]' },
       target: { box: { top: '14%', left: '28%', width: '42%', height: '66%' } },
@@ -185,11 +178,11 @@ function CCTVMatrix({ onClick }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {/* AR/VR vs Human Mode Switch */}
+          {/* AR/VR vs Biometric HUD Mode Switch */}
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setCctvMode(prev => prev === 'HUMAN' ? 'ARVR' : 'HUMAN');
+              setCctvMode(prev => prev === 'ARVR' ? 'BIOMETRIC' : 'ARVR');
             }}
             style={{
               fontSize: '0.48rem',
@@ -206,9 +199,9 @@ function CCTVMatrix({ onClick }) {
               alignItems: 'center',
               gap: 4,
             }}
-            title="Toggle between Real Human Suspect Intel and Blank AR/VR Wireframe HUD"
+            title="Toggle between 3D AR Vector Wireframe and 3D Biometric LiDAR Mode"
           >
-            {cctvMode === 'HUMAN' ? '👤 HUMAN MODE' : '🥽 AR/VR HUD'}
+            {cctvMode === 'ARVR' ? '🥽 3D AR WIREFRAME' : '🎯 3D BIOMETRIC HUD'}
           </button>
 
           <span style={{ fontSize: '0.48rem', background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(34,197,94,0.3)', fontFamily: "'Share Tech Mono'" }}>
@@ -233,37 +226,12 @@ function CCTVMatrix({ onClick }) {
               boxShadow: cam.status === 'ALERT' ? '0 0 14px rgba(239,68,68,0.3)' : 'none',
             }}
           >
-            {cctvMode === 'HUMAN' ? (
+            {cctvMode === 'ARVR' ? (
               <>
-                {/* ── REAL HUMAN SUSPECT PHOTO MATCHING IMAGE 2 ── */}
-                <img
-                  src={cam.photo}
-                  alt={cam.name}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    filter: 'contrast(1.1) brightness(0.85) saturate(0.9)',
-                  }}
-                />
+                {/* ── 3D AR/VR VECTOR WIREFRAME MODEL (GATE, PERIMETER, WATCHTOWER, BUNKER) ── */}
+                <CameraARModel camId={cam.id} />
 
-                {/* Night vision phosphor overlay */}
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  background: cam.status === 'ALERT'
-                    ? 'radial-gradient(ellipse at center, rgba(239,68,68,0.12) 0%, rgba(0,0,0,0.55) 100%)'
-                    : 'radial-gradient(ellipse at center, rgba(34,197,94,0.08) 0%, rgba(0,0,0,0.55) 100%)',
-                  pointerEvents: 'none'
-                }} />
-
-                {/* Scanline overlay */}
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.35) 0px, rgba(0,0,0,0.35) 1px, transparent 1px, transparent 2px)',
-                  pointerEvents: 'none'
-                }} />
-
-                {/* AI Facial Bounding Reticle on Human Target */}
+                {/* AR Vector Target Lock Crosshair */}
                 <div
                   style={{
                     position: 'absolute',
@@ -272,27 +240,26 @@ function CCTVMatrix({ onClick }) {
                     width: cam.target.box.width,
                     height: cam.target.box.height,
                     border: `1.5px solid ${cam.color}`,
-                    boxShadow: `0 0 8px ${cam.color}60`,
+                    boxShadow: `0 0 10px ${cam.color}60`,
                     pointerEvents: 'none',
+                    zIndex: 2,
                   }}
                 >
                   <div style={{ position: 'absolute', top: -3, left: -3, width: 6, height: 6, borderTop: `2px solid ${cam.color}`, borderLeft: `2px solid ${cam.color}` }} />
                   <div style={{ position: 'absolute', top: -3, right: -3, width: 6, height: 6, borderTop: `2px solid ${cam.color}`, borderRight: `2px solid ${cam.color}` }} />
                   <div style={{ position: 'absolute', bottom: -3, left: -3, width: 6, height: 6, borderBottom: `2px solid ${cam.color}`, borderLeft: `2px solid ${cam.color}` }} />
                   <div style={{ position: 'absolute', bottom: -3, right: -3, width: 6, height: 6, borderBottom: `2px solid ${cam.color}`, borderRight: `2px solid ${cam.color}` }} />
-
-                  {/* Crosshair reticle center */}
                   <div style={{ position: 'absolute', top: '50%', left: '50%', width: 8, height: 8, transform: 'translate(-50%, -50%)', border: `1px dashed ${cam.color}90`, borderRadius: '50%' }} />
                 </div>
 
-                {/* ── IMAGE 2 EXACT SUSPECT PROFILE CARD OVERLAY ── */}
+                {/* ── VECTOR BIOMETRIC CARD OVERLAY (ZERO PHOTO DEPENDENCY) ── */}
                 <div
                   style={{
                     position: 'absolute',
                     bottom: 6,
                     left: 6,
                     right: 6,
-                    background: 'rgba(6, 12, 8, 0.92)',
+                    background: 'rgba(6, 12, 8, 0.94)',
                     border: `1px solid ${cam.color}90`,
                     borderRadius: 4,
                     padding: '3px 6px',
@@ -305,14 +272,8 @@ function CCTVMatrix({ onClick }) {
                     zIndex: 2,
                   }}
                 >
-                  {/* Human suspect thumbnail matching Image 2 */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                    <div style={{
-                      width: 22, height: 22, borderRadius: 3, overflow: 'hidden',
-                      border: `1px solid ${cam.color}`, flexShrink: 0
-                    }}>
-                      <img src={cam.photo} alt={cam.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
+                    <BiometricARAvatar id={cam.suspectId} color={cam.color} width={22} height={22} />
                     <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                       <span style={{
                         fontSize: '0.46rem',
@@ -354,7 +315,7 @@ function CCTVMatrix({ onClick }) {
               </>
             ) : (
               <>
-                {/* ── AR/VR WIREFRAME HUD MODE (CLEAN / BLANK TACTICAL SCAN) ── */}
+                {/* ── BIOMETRIC 3D RADAR SCAN HUD MODE ── */}
                 <div style={{
                   position: 'absolute', inset: 0,
                   background: 'linear-gradient(180deg, #020804 0%, #010402 100%)',

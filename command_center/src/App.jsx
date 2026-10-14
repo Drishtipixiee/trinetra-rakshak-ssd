@@ -37,11 +37,9 @@ import AcousticMonitor from './components/AcousticMonitor';
 import CleanDashboard from './components/CleanDashboard';
 import IncidentTimeline from './components/IncidentTimeline';
 import FlowSimulationDashboard from './components/FlowSimulationDashboard';
-import RealOpsMedia from './components/RealOpsMedia';
-
-// New sidebar panels
 import PatrolPanel from './components/PatrolPanel';
 import IncidentLogPanel from './components/IncidentLogPanel';
+import LiveFeedARBattleground from './components/LiveFeedARBattleground';
 
 // Heavy modules — lazy loaded for performance
 const OmniEyeGlobe   = lazy(() => import('./components/OmniEyeGlobe'));
@@ -634,6 +632,7 @@ export default function App() {
   const [sidebarView, setSidebarView] = useState('patrol'); // left sidebar panel
   const [isOpsSidebarOpen, setIsOpsSidebarOpen] = useState(false); // Collapsible: hidden by default
   const [isAiControlsOpen, setIsAiControlsOpen] = useState(false); // Collapsible: hidden by default
+  const [activeTargetLock, setActiveTargetLock] = useState('apc'); // 3D AR Target lock for Live Feed
   const [sessionTime, setSessionTime] = useState(7200);
   const [logs, setLogs] = useState([{ id: 1, text: "[SYS] All subsystems initialized. Defense grid online.", type: "normal" }]);
   const logsEndRef = useRef(null);
@@ -1883,88 +1882,80 @@ export default function App() {
               <motion.div key="live" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="live-feed-container"
               >
-                {/* ── ALWAYS-ON CCTV-STYLE VIDEO (grey, never empty) ── */}
-                {(() => {
-                  const CAM_FEEDS = {
-                    'CAM-01': 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4',
-                    'CAM-02': 'https://assets.mixkit.co/videos/preview/mixkit-security-camera-recording-a-robbery-41484-large.mp4',
-                    'CAM-03': 'https://assets.mixkit.co/videos/preview/mixkit-car-approaching-a-security-gate-at-night-42171-large.mp4',
-                    'CAM-04': 'https://assets.mixkit.co/videos/preview/mixkit-guard-walking-in-the-snow-during-winter-39845-large.mp4',
-                  };
-                  const activeSrc = useWebcam ? undefined : (CAM_FEEDS[selectedCam] || CAM_FEEDS['CAM-01']);
-                  return (
-                    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#1a1c1e' }}>
-                      {/* Grey grid CCTV background — always visible */}
-                      <div style={{
-                        position: 'absolute', inset: 0, zIndex: 0,
-                        backgroundImage: 'linear-gradient(rgba(180,180,180,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(180,180,180,0.04) 1px, transparent 1px)',
-                        backgroundSize: '32px 32px',
-                        background: 'linear-gradient(135deg, #161819 0%, #1e2123 50%, #161819 100%)',
-                      }} />
-                      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(200,200,200,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(200,200,200,0.03) 1px, transparent 1px)', backgroundSize: '32px 32px', zIndex: 1 }} />
-                      {/* Camera static noise overlay */}
-                      <div style={{ position: 'absolute', inset: 0, zIndex: 2, opacity: 0.035,
-                        backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'1\'/%3E%3C/svg%3E")',
-                        backgroundSize: '200px 200px',
-                      }} />
-                      {/* Tactical Dark Grid CCTV Background — clean military feed, zero photo fallbacks */}
-                      <div style={{
-                        position: 'absolute', inset: 0, zIndex: 2,
-                        background: 'radial-gradient(ellipse at center, #0c140e 0%, #030704 100%)',
-                        backgroundImage: 'linear-gradient(rgba(34,197,94,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(34,197,94,0.06) 1px, transparent 1px)',
-                        backgroundSize: '36px 36px',
-                      }} />
-                      {/* Main camera video feed */}
-                      <video
-                        key={selectedCam}
-                        ref={videoRef}
-                        autoPlay loop muted playsInline crossOrigin="anonymous"
-                        style={{
-                          width: '100%', height: '100%', objectFit: 'cover', position: 'relative', zIndex: 3,
-                          opacity: isNightMode ? 0.5 : 0.88,
-                          filter: isNightMode
-                            ? 'grayscale(100%) contrast(140%) brightness(0.6) hue-rotate(90deg)'
-                            : 'grayscale(60%) contrast(1.15) brightness(0.88) saturate(0.5)',
-                        }}
-                        src={activeSrc}
-                      />
-                      {/* AI Suspect Face Capture / Wanted Profiles Overlay */}
-                      {simActive && (
-                        <div style={{
-                          position: 'absolute', right: 12, top: 45, width: 140,
-                          background: 'rgba(10,12,14,0.9)', border: '1px solid var(--danger)',
-                          borderRadius: 6, zIndex: 12, padding: 8, fontFamily: "'Share Tech Mono'",
-                          boxShadow: '0 0 15px rgba(239,68,68,0.25)'
-                        }}>
-                          <div style={{ fontSize: '0.45rem', color: '#00f3ff', borderBottom: '1px solid rgba(0,243,255,0.3)', paddingBottom: 4, marginBottom: 6, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <div className="rec-dot" style={{ width: 4, height: 4, background: '#00f3ff', borderRadius: '50%', animation: 'pulse 1s infinite' }} />
-                            AR/VR VEHICLE TARGET LOCK
+                {/* ── 3D AR/VR BATTLEFIELD (NEVER BLANK / FULL 3D MODELING) ── */}
+                <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#020603' }}>
+                  {useWebcam ? (
+                    <video
+                      key={selectedCam}
+                      ref={videoRef}
+                      autoPlay loop muted playsInline
+                      style={{
+                        width: '100%', height: '100%', objectFit: 'cover', position: 'relative', zIndex: 3,
+                        opacity: isNightMode ? 0.6 : 0.9,
+                        filter: isNightMode
+                          ? 'grayscale(100%) contrast(140%) brightness(0.6) hue-rotate(90deg)'
+                          : 'grayscale(50%) contrast(1.1) brightness(0.9)',
+                      }}
+                    />
+                  ) : (
+                    <LiveFeedARBattleground
+                      selectedCam={selectedCam}
+                      activeTargetLock={activeTargetLock}
+                      onSelectTarget={setActiveTargetLock}
+                      isNightMode={isNightMode}
+                      simActive={simActive}
+                    />
+                  )}
+
+                  {/* AI Suspect Face Capture / Wanted Profiles Overlay */}
+                  {simActive && (
+                    <div style={{
+                      position: 'absolute', right: 12, top: 45, width: 140,
+                      background: 'rgba(10,12,14,0.92)', border: '1px solid var(--danger)',
+                      borderRadius: 6, zIndex: 12, padding: 8, fontFamily: "'Share Tech Mono'",
+                      boxShadow: '0 0 15px rgba(239,68,68,0.25)', backdropFilter: 'blur(8px)'
+                    }}>
+                      <div style={{ fontSize: '0.45rem', color: '#00f3ff', borderBottom: '1px solid rgba(0,243,255,0.3)', paddingBottom: 4, marginBottom: 6, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <div className="rec-dot" style={{ width: 4, height: 4, background: '#00f3ff', borderRadius: '50%', animation: 'pulse 1s infinite' }} />
+                        AR/VR VEHICLE TARGET LOCK
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {[
+                          { id: 'apc', name: 'TACTICAL APC #091', match: '96%', file: 'ARMORED-ACV', type: 'tank' },
+                          { id: 'rover', name: 'RECON ROVER #073', match: '91%', file: 'PATROL-UNIT', type: 'rover' },
+                          { id: 'drone', name: 'SENTINEL DRONE #104', match: '87%', file: 'UAV-ALPHA', type: 'drone' },
+                        ].map((sus) => (
+                          <div
+                            key={sus.id}
+                            onClick={() => setActiveTargetLock(sus.id)}
+                            style={{
+                              display: 'flex', gap: 6,
+                              background: activeTargetLock === sus.id ? 'rgba(0,243,255,0.18)' : 'rgba(0,243,255,0.04)',
+                              padding: 4, borderRadius: 3,
+                              border: `1px solid ${activeTargetLock === sus.id ? '#00f3ff' : 'rgba(0,243,255,0.15)'}`,
+                              cursor: 'pointer',
+                              boxShadow: activeTargetLock === sus.id ? '0 0 10px rgba(0,243,255,0.25)' : 'none',
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            <svg width="32" height="32" viewBox="0 0 40 40">
+                              <rect x="5" y="16" width="30" height="14" rx="2" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
+                              <polygon points="12,16 28,16 23,8 17,8" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
+                              <circle cx="12" cy="30" r="3.5" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
+                              <circle cx="28" cy="30" r="3.5" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
+                              <circle cx="20" cy="20" r="14" fill="none" stroke={activeTargetLock === sus.id ? '#00f3ff' : '#ef4444'} strokeWidth="0.8" strokeDasharray="3 2" />
+                            </svg>
+                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                              <div style={{ fontSize: '0.42rem', color: '#fff', fontWeight: 'bold' }}>{sus.name}</div>
+                              <div style={{ fontSize: '0.38rem', color: '#00f3ff' }}>AR LOCK: {sus.match}</div>
+                              <div style={{ fontSize: '0.35rem', color: 'var(--text-dim)' }}>{sus.file}</div>
+                            </div>
                           </div>
-                          
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {[
-                              { name: 'TACTICAL APC #091', match: '96%', file: 'ARMORED-ACV', type: 'tank' },
-                              { name: 'RECON ROVER #073', match: '91%', file: 'PATROL-UNIT', type: 'rover' },
-                              { name: 'SENTINEL DRONE #104', match: '87%', file: 'UAV-ALPHA', type: 'drone' },
-                            ].map((sus, idx) => (
-                              <div key={idx} style={{ display: 'flex', gap: 6, background: 'rgba(0,243,255,0.04)', padding: 4, borderRadius: 3, border: '1px solid rgba(0,243,255,0.15)' }}>
-                                <svg width="32" height="32" viewBox="0 0 40 40">
-                                  <rect x="5" y="16" width="30" height="14" rx="2" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
-                                  <polygon points="12,16 28,16 23,8 17,8" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
-                                  <circle cx="12" cy="30" r="3.5" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
-                                  <circle cx="28" cy="30" r="3.5" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
-                                  <circle cx="20" cy="20" r="14" fill="none" stroke="#ef4444" strokeWidth="0.8" strokeDasharray="3 2" />
-                                </svg>
-                                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                                  <div style={{ fontSize: '0.42rem', color: '#fff', fontWeight: 'bold' }}>{sus.name}</div>
-                                  <div style={{ fontSize: '0.38rem', color: '#00f3ff' }}>AR LOCK: {sus.match}</div>
-                                  <div style={{ fontSize: '0.35rem', color: 'var(--text-dim)' }}>{sus.file}</div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                       {/* Top Overlay Bar: Multi-Post Escalation Network + Geolocation Patrol */}
                       {simActive && (
@@ -2048,8 +2039,6 @@ export default function App() {
                         </div>
                       )}
                     </div>
-                  );
-                })()}
 
                 {/* Detection canvas — TF.js draws real bboxes here */}
                 <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 5, pointerEvents: 'none' }} />

@@ -3,29 +3,45 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Video, Maximize2, X, AlertTriangle, Shield, Camera, CameraOff, Download, User, Eye, Play, Square, Volume2, VolumeX } from 'lucide-react';
 
-// ─── High-priority tactical suspect portraits — STRICTLY SERIOUS / NO SMILES ───
-const HUMAN_IMAGES = [
-  'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80', // Infiltrator at night (hooded, serious)
-  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80', // Stern, cold adult male face (no smile)
-  'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=600&auto=format&fit=crop&q=80', // Tactical sentry (serious military gear)
-  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&auto=format&fit=crop&q=80', // Serious security officer profile
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80', // Cold, serious operative
-  'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=600&auto=format&fit=crop&q=80', // Solemn bearded operative (no smile)
-  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&q=80', // S-001 thumbnail
-  'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=200&h=200&fit=crop&q=80', // S-002 thumbnail
-  'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=200&h=200&fit=crop&q=80', // S-003 thumbnail
-  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200&h=200&fit=crop&q=80', // S-004 thumbnail
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&q=80', // S-005 thumbnail
-  'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=200&h=200&fit=crop&q=80', // S-006 thumbnail
-];
+// ─── Pure Vector 3D Biometric AR Reticle Component (Zero External Photo Dependency) ───
+export function BiometricARAvatar({ id = 'S-001', color = '#ef4444', width = 32, height = 42 }) {
+  return (
+    <div style={{
+      width, height, borderRadius: 3, background: 'rgba(5, 12, 6, 0.95)',
+      border: `1px solid ${color}`, position: 'relative', overflow: 'hidden',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      boxShadow: `0 0 8px ${color}30`
+    }}>
+      {/* 3D Wireframe biometric head profile */}
+      <svg width={width - 4} height={height - 6} viewBox="0 0 32 40" fill="none">
+        <ellipse cx="16" cy="14" rx="8" ry="10" stroke={color} strokeWidth="1.2" strokeDasharray="3 1.5" />
+        <path d="M7 36 C7 28, 25 28, 25 36" stroke={color} strokeWidth="1.2" strokeDasharray="2 2" fill="none" />
+        <circle cx="12" cy="13" r="1.5" fill={color} />
+        <circle cx="20" cy="13" r="1.5" fill={color} />
+        <path d="M16 15 v4 m-2.5 2 h5" stroke={color} strokeWidth="1" />
+        {/* Holographic scanning horizontal line */}
+        <line x1="2" y1="18" x2="30" y2="18" stroke={color} strokeWidth="1.2" strokeOpacity="0.8">
+          <animate attributeName="y1" values="4;36;4" dur="2s" repeatCount="indefinite" />
+          <animate attributeName="y2" values="4;36;4" dur="2s" repeatCount="indefinite" />
+        </line>
+        {/* Corner alignment markers */}
+        <path d="M2 5 h3 M2 5 v3 M30 5 h-3 M30 5 v3 M2 35 h3 M2 35 v-3 M30 35 h-3 M30 35 v-3" stroke={color} strokeWidth="0.8" />
+      </svg>
+      {/* Sub-label */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, textAlign: 'center', fontSize: '6px', color: color, fontFamily: "'Share Tech Mono'", background: 'rgba(0,0,0,0.75)', fontWeight: 'bold' }}>
+        {id}
+      </div>
+    </div>
+  );
+}
 
 const SUSPECT_PROFILES = [
-  { id: 'S-001', label: 'ARMED INTRUDER', match: '96%', threat: 'CRITICAL', img: HUMAN_IMAGES[0] },
-  { id: 'S-002', label: 'PERIMETER BREACHER', match: '93%', threat: 'CRITICAL', img: HUMAN_IMAGES[1] },
-  { id: 'S-003', label: 'UNAUTHORIZED SENTRY', match: '88%', threat: 'HIGH', img: HUMAN_IMAGES[2] },
-  { id: 'S-004', label: 'WANTED RECON SCOUT', match: '82%', threat: 'HIGH', img: HUMAN_IMAGES[3] },
-  { id: 'S-005', label: 'UNIDENTIFIED INFILTRATOR', match: '78%', threat: 'WARNING', img: HUMAN_IMAGES[4] },
-  { id: 'S-006', label: 'CHECKPOINT EVADER', match: '74%', threat: 'WARNING', img: HUMAN_IMAGES[5] },
+  { id: 'S-001', label: 'ARMED INTRUDER', match: '96%', threat: 'CRITICAL', color: '#ef4444' },
+  { id: 'S-002', label: 'PERIMETER BREACHER', match: '93%', threat: 'CRITICAL', color: '#ef4444' },
+  { id: 'S-003', label: 'UNAUTHORIZED SENTRY', match: '88%', threat: 'HIGH', color: '#f59e0b' },
+  { id: 'S-004', label: 'WANTED RECON SCOUT', match: '82%', threat: 'HIGH', color: '#22c55e' },
+  { id: 'S-005', label: 'UNIDENTIFIED INFILTRATOR', match: '78%', threat: 'WARNING', color: '#a855f7' },
+  { id: 'S-006', label: 'CHECKPOINT EVADER', match: '74%', threat: 'WARNING', color: '#38bdf8' },
 ];
 
 const CAMERAS = [
@@ -69,7 +85,7 @@ const CAMERAS = [
 ];
 
 // ─── 3D AR/VR Vector Model Component for CCTV Feeds (Replaces coverpage photos) ───
-function CameraARModel({ camId }) {
+export function CameraARModel({ camId }) {
   if (camId === 'CAM-01') {
     return (
       <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#020804' }}>
@@ -538,7 +554,7 @@ export default function CCTVGrid({
   const [tick, setTick] = useState(0);
   const [failedVideos, setFailedVideos] = useState({});
   const [internalSim, setInternalSim] = useState(false);
-  const [arModeOnly, setArModeOnly] = useState(false);
+  const [arModeOnly, setArModeOnly] = useState(true);
   const isSimActive = typeof simActive === 'boolean' ? simActive : internalSim;
 
   const toggleSim = (e) => {
@@ -784,14 +800,11 @@ export default function CCTVGrid({
           <AlertTriangle size={12} color="#ef4444" />
           <span style={{ fontSize: '0.55rem', color: '#ef4444', fontFamily: "'Share Tech Mono'", letterSpacing: 2, marginRight: 8 }}>THREAT PROFILES DETECTED</span>
           {SUSPECT_PROFILES.map(p => (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '4px 8px' }}>
-              <img src={p.img} alt={p.label}
-                style={{ width: 28, height: 36, objectFit: 'cover', borderRadius: 3, filter: 'grayscale(30%) contrast(1.2)', border: '1px solid #ef4444' }}
-                onError={e => { e.target.style.display = 'none'; }}
-              />
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.6)', border: `1px solid ${p.color}50`, borderRadius: 6, padding: '4px 8px' }}>
+              <BiometricARAvatar id={p.id} color={p.color} width={26} height={34} />
               <div>
                 <div style={{ fontSize: '0.42rem', color: '#fff', fontWeight: 'bold', fontFamily: "'Share Tech Mono'" }}>{p.label}</div>
-                <div style={{ fontSize: '0.38rem', color: '#ef4444', fontFamily: "'Share Tech Mono'" }}>MATCH: {p.match}</div>
+                <div style={{ fontSize: '0.38rem', color: p.color, fontFamily: "'Share Tech Mono'" }}>MATCH: {p.match}</div>
                 <div style={{ fontSize: '0.35rem', color: 'rgba(255,255,255,0.4)' }}>ID: {p.id}</div>
               </div>
             </div>
@@ -833,41 +846,10 @@ export default function CCTVGrid({
                 </>
               )}
 
-              {/* 3D Human overlay images when person detected and video failed */}
-              {!isOffline && failedVideos[cam.id] && hasDetections && phase.detections.some(d => d.class === 'person') && (
-                <div style={{ position: 'absolute', inset: 0, zIndex: 0, background: 'linear-gradient(135deg, #0a110a, #060d06)' }}>
-                  {HUMAN_IMAGES.slice(0, Math.min(2, phase.detections.filter(d => d.class === 'person').length)).map((img, imgIdx) => (
-                    <img key={imgIdx} src={img} alt="detected person"
-                      style={{
-                        position: 'absolute',
-                        left: `${20 + imgIdx * 30}%`, top: '15%',
-                        width: '25%', height: '70%',
-                        objectFit: 'cover', opacity: 0.55,
-                        filter: 'grayscale(60%) contrast(1.3) brightness(0.7)',
-                        borderRadius: 4
-                      }}
-                      onError={e => { e.target.style.display = 'none'; }}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {isOffline && (
-                <div style={{ position: 'absolute', inset: 0, background: '#111', zIndex: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontFamily: "'Share Tech Mono'", fontSize: '1.2rem' }}>
-                  <CameraOff size={24} style={{ marginRight: 8 }} /> OFFLINE
-                </div>
-              )}
-
-              <canvas ref={el => canvasRefs.current[index] = el} className="cctv-noise"
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1 }} />
-
               {/* Face capture + suspect thumbnail for critical */}
               {isCritical && hasDetections && (
-                <div style={{ position: 'absolute', right: 6, top: 36, width: 66, background: 'rgba(0,0,0,0.88)', border: '1px solid #ef4444', zIndex: 10, borderRadius: 4, overflow: 'hidden', boxShadow: '0 0 10px rgba(239,68,68,0.4)' }}>
-                  <img src={SUSPECT_PROFILES[index % SUSPECT_PROFILES.length].img} alt="suspect"
-                    style={{ width: '100%', height: 54, objectFit: 'cover', filter: 'grayscale(20%) contrast(1.2)' }}
-                    onError={e => { e.target.style.display = 'none'; }}
-                  />
+                <div style={{ position: 'absolute', right: 6, top: 36, width: 66, background: 'rgba(0,0,0,0.88)', border: '1px solid #ef4444', zIndex: 10, borderRadius: 4, overflow: 'hidden', boxShadow: '0 0 10px rgba(239,68,68,0.4)', padding: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <BiometricARAvatar id={SUSPECT_PROFILES[index % SUSPECT_PROFILES.length].id} color="#ef4444" width={58} height={46} />
                   <div style={{ fontSize: '5.5px', color: '#ef4444', textAlign: 'center', padding: '2px 1px', fontFamily: "'Share Tech Mono'", fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {SUSPECT_PROFILES[index % SUSPECT_PROFILES.length].label}
                   </div>
@@ -1052,13 +1034,10 @@ export default function CCTVGrid({
                     <div style={{ fontSize: '0.48rem', color: '#ef4444', marginBottom: 8, fontFamily: "'Share Tech Mono'", letterSpacing: 1 }}>⚠ SUSPECT PROFILES</div>
                     {SUSPECT_PROFILES.map(p => (
                       <div key={p.id} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-                        <img src={p.img} alt={p.label}
-                          style={{ width: 36, height: 48, objectFit: 'cover', borderRadius: 3, filter: 'grayscale(20%) contrast(1.1)', border: '1px solid #ef4444' }}
-                          onError={e => { e.target.style.display = 'none'; }}
-                        />
+                        <BiometricARAvatar id={p.id} color={p.color} width={32} height={42} />
                         <div>
                           <div style={{ fontSize: '0.42rem', color: '#fff', fontWeight: 'bold', fontFamily: "'Share Tech Mono'" }}>{p.label}</div>
-                          <div style={{ fontSize: '0.38rem', color: '#ef4444', fontFamily: "'Share Tech Mono'" }}>MATCH: {p.match}</div>
+                          <div style={{ fontSize: '0.38rem', color: p.color, fontFamily: "'Share Tech Mono'" }}>MATCH: {p.match}</div>
                           <div style={{ fontSize: '0.35rem', color: 'rgba(255,255,255,0.4)', fontFamily: "'Share Tech Mono'" }}>{p.id}</div>
                         </div>
                       </div>
