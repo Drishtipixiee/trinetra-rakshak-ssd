@@ -40,6 +40,7 @@ import FlowSimulationDashboard from './components/FlowSimulationDashboard';
 import PatrolPanel from './components/PatrolPanel';
 import IncidentLogPanel from './components/IncidentLogPanel';
 import LiveFeedARBattleground from './components/LiveFeedARBattleground';
+import RealOpsMedia from './components/RealOpsMedia';
 
 // Heavy modules — lazy loaded for performance
 const OmniEyeGlobe   = lazy(() => import('./components/OmniEyeGlobe'));

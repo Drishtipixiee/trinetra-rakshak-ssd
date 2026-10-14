@@ -29,8 +29,8 @@ function ThreeScene({ running, selectedView, lidarDensity, hudPalette, selectedT
 
   useEffect(() => {
     if (!mountRef.current) return;
-    const W = mountRef.current.clientWidth || 800;
-    const H = mountRef.current.clientHeight || 450;
+    const W = Math.max(mountRef.current.clientWidth || 0, mountRef.current.parentElement?.clientWidth || 0, 800);
+    const H = Math.max(mountRef.current.clientHeight || 0, mountRef.current.parentElement?.clientHeight || 0, 480);
 
     // Palette Colors
     const paletteConfig = {
@@ -132,32 +132,6 @@ function ThreeScene({ running, selectedView, lidarDensity, hudPalette, selectedT
       edgeLines.position.copy(mesh.position);
       scene.add(edgeLines);
     });
-
-    // ── 3D LiDAR Point Cloud Dome ──
-    const numPoints = lidarDensity === '256-BEAM' ? 2400 : lidarDensity === '128-BEAM' ? 1200 : 600;
-    const lidarGeo = new THREE.BufferGeometry();
-    const lidarVerts = [];
-    for (let i = 0; i < numPoints; i++) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const rad = 6 + Math.random() * 18;
-      const lx = rad * Math.sin(phi) * Math.cos(theta);
-      const ly = Math.abs(rad * Math.cos(phi)) * 0.45 + 0.1;
-      const lz = rad * Math.sin(phi) * Math.sin(theta);
-      lidarVerts.push(lx, ly, lz);
-    }
-    lidarGeo.setAttribute('position', new THREE.Float32BufferAttribute(lidarVerts, 3));
-    const lidarPoints = new THREE.Points(
-      lidarGeo,
-      new THREE.PointsMaterial({
-        color: currentTheme.grid,
-        size: 0.12,
-        transparent: true,
-        opacity: 0.65,
-        blending: THREE.AdditiveBlending
-      })
-    );
-    scene.add(lidarPoints);
 
     // ── Human Patrol Units ──
     const units = [];
@@ -321,13 +295,6 @@ function ThreeScene({ running, selectedView, lidarDensity, hudPalette, selectedT
         vehicleGroup.position.z = Math.sin(elapsed * 0.35) * 5;
         vehicleGroup.rotation.y = -elapsed * 0.35 + Math.PI / 2;
 
-        // Drone hover & spotlight
-        droneGroup.position.y = 6.2 + Math.sin(elapsed * 1.6) * 0.45;
-        droneGroup.rotation.y = elapsed * 1.8;
-
-        // LiDAR Points rotation
-        lidarPoints.rotation.y = elapsed * 0.25;
-
         // Pulse lights
         dangerLight.intensity = 0.7 + Math.sin(elapsed * 3) * 0.4;
         pointLight1.intensity = 1.2 + Math.sin(elapsed * 1.5) * 0.4;
@@ -339,8 +306,8 @@ function ThreeScene({ running, selectedView, lidarDensity, hudPalette, selectedT
 
     const handleResize = () => {
       if (!mountRef.current) return;
-      const nW = mountRef.current.clientWidth;
-      const nH = mountRef.current.clientHeight;
+      const nW = Math.max(mountRef.current.clientWidth || 0, mountRef.current.parentElement?.clientWidth || 0, 800);
+      const nH = Math.max(mountRef.current.clientHeight || 0, mountRef.current.parentElement?.clientHeight || 0, 480);
       renderer.setSize(nW, nH);
       camera.aspect = nW / nH;
       camera.updateProjectionMatrix();
@@ -355,7 +322,6 @@ function ThreeScene({ running, selectedView, lidarDensity, hudPalette, selectedT
       groundMat.dispose();
       fenceGeo.dispose();
       fenceMat.dispose();
-      lidarGeo.dispose();
       if (mountRef.current && renderer.domElement.parentNode === mountRef.current) {
         mountRef.current.removeChild(renderer.domElement);
       }

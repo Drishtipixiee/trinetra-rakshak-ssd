@@ -94,6 +94,13 @@ class AIVoiceSystem {
     if (!text) return;
     setUserInteracted();
 
+    const now = Date.now();
+    if (text === this.lastSpokenText && (now - this.lastSpokenTime) < 4000) {
+      return; // Deduplicate to avoid repetitive speech freeze/lag
+    }
+    this.lastSpokenText = text;
+    this.lastSpokenTime = now;
+
     if (!this._canSpeak()) return;
 
     try {
@@ -108,7 +115,7 @@ class AIVoiceSystem {
       this.speaking = false;
       this._utterNow(text, priority);
     } else {
-      if (this.queue.length < 4) {
+      if (this.queue.length < 1) {
         this.queue.push({ text, priority });
       }
       if (!this.speaking) {
