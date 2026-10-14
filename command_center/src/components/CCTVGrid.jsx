@@ -5,20 +5,33 @@ import { Video, Maximize2, X, AlertTriangle, Shield, Camera, CameraOff, Download
 
 // ─── High-quality public domain human/surveillance images ───
 const HUMAN_IMAGES = [
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60&h=80&fit=crop&q=80', // male face
-  'https://images.unsplash.com/photo-1494790108755-2616b612b550?w=60&h=80&fit=crop&q=80', // female face
-  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=60&h=80&fit=crop&q=80', // another male
+  'https://images.unsplash.com/photo-1544717305-2782549b5136?w=500&auto=format&fit=crop&q=80', // Night guard
+  'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=500&auto=format&fit=crop&q=80', // Night intruder
+  'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=500&auto=format&fit=crop&q=80', // Tactical sentry
+  'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&auto=format&fit=crop&q=80', // Infiltrator
+  'https://images.unsplash.com/photo-1584441405886-bc91be61e56a?w=500&auto=format&fit=crop&q=80', // Checkpoint guard
+  'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=500&auto=format&fit=crop&q=80', // River scout
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&q=80', // male suspect 1
+  'https://images.unsplash.com/photo-1494790108755-2616b612b550?w=200&h=200&fit=crop&q=80', // female suspect 2
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&q=80', // male suspect 3
+  'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200&h=200&fit=crop&q=80', // male suspect 4
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&q=80', // female suspect 5
+  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&q=80', // male suspect 6
 ];
 
 const SUSPECT_PROFILES = [
-  { id: 'S-001', label: 'ARMED INTRUDER', match: '96%', threat: 'CRITICAL', img: HUMAN_IMAGES[0] },
-  { id: 'S-002', label: 'UNAUTHORIZED PERSONNEL', match: '88%', threat: 'HIGH', img: HUMAN_IMAGES[1] },
-  { id: 'S-003', label: 'UNIDENTIFIED MALE', match: '74%', threat: 'WARNING', img: HUMAN_IMAGES[2] },
+  { id: 'S-001', label: 'ARMED INTRUDER', match: '96%', threat: 'CRITICAL', img: HUMAN_IMAGES[1] },
+  { id: 'S-002', label: 'PERIMETER BREACHER', match: '93%', threat: 'CRITICAL', img: HUMAN_IMAGES[3] },
+  { id: 'S-003', label: 'UNAUTHORIZED SENTRY', match: '88%', threat: 'HIGH', img: HUMAN_IMAGES[6] },
+  { id: 'S-004', label: 'WANTED RECON SCOUT', match: '82%', threat: 'HIGH', img: HUMAN_IMAGES[8] },
+  { id: 'S-005', label: 'UNIDENTIFIED INFILTRATOR', match: '78%', threat: 'WARNING', img: HUMAN_IMAGES[9] },
+  { id: 'S-006', label: 'CHECKPOINT EVADER', match: '74%', threat: 'WARNING', img: HUMAN_IMAGES[11] },
 ];
 
 const CAMERAS = [
   {
     id: 'CAM-01', name: 'MAIN GATE -- SEC-7A', coords: "N28°38'12\" E77°13'04\"",
+    posterImg: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=700&auto=format&fit=crop&q=80',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-car-approaching-a-security-gate-at-night-42171-large.mp4',
     scenario: [
       { time: [0, 6], detections: [], status: 'CLEAR' },
@@ -29,6 +42,7 @@ const CAMERAS = [
   },
   {
     id: 'CAM-02', name: 'PERIMETER NORTH', coords: "N28°38'18\" E77°13'09\"",
+    posterImg: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=700&auto=format&fit=crop&q=80',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-security-camera-recording-a-robbery-41484-large.mp4',
     scenario: [
       { time: [0, 8], detections: [], status: 'SCANNING' },
@@ -39,6 +53,7 @@ const CAMERAS = [
   },
   {
     id: 'CAM-03', name: 'EAST WATCHTOWER', coords: "N28°38'15\" E77°13'15\"",
+    posterImg: 'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=700&auto=format&fit=crop&q=80',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4',
     scenario: [
       { time: [0, 20], detections: [], status: 'CLEAR' },
@@ -49,6 +64,7 @@ const CAMERAS = [
   },
   {
     id: 'CAM-04', name: 'COMMAND BUNKER', coords: "N28°38'10\" E77°13'00\"",
+    posterImg: 'https://images.unsplash.com/photo-1584441405886-bc91be61e56a?w=700&auto=format&fit=crop&q=80',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-guard-walking-in-the-snow-during-winter-39845-large.mp4',
     scenario: [
       { time: [0, 180], detections: [], status: 'SECURE -- NO MOVEMENT' },
@@ -527,6 +543,15 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
           return (
             <div key={cam.id} className={`cctv-feed ${isCritical ? 'critical' : hasDetections ? 'degraded' : ''}`}
               onClick={() => setExpandedCam(index)} style={{ position: 'relative' }}>
+              {/* Real Human Surveillance Photo backdrop */}
+              <img
+                src={cam.posterImg}
+                alt={cam.name}
+                style={{
+                  position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+                  zIndex: 0, opacity: isOffline ? 0 : 0.75, filter: camFilters[cam.id] || 'none'
+                }}
+              />
               <video autoPlay loop muted playsInline preload="metadata"
                 ref={el => videoRefs.current[index] = el}
                 onError={() => setFailedVideos(prev => ({ ...prev, [cam.id]: true }))}
@@ -564,12 +589,14 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
 
               {/* Face capture + suspect thumbnail for critical */}
               {isCritical && hasDetections && (
-                <div style={{ position: 'absolute', right: 6, top: 36, width: 62, background: 'rgba(0,0,0,0.85)', border: '1px solid #ef4444', zIndex: 10, borderRadius: 4, overflow: 'hidden' }}>
-                  <img src={SUSPECT_PROFILES[0].img} alt="suspect"
-                    style={{ width: '100%', height: 54, objectFit: 'cover', filter: 'grayscale(30%) contrast(1.2)' }}
+                <div style={{ position: 'absolute', right: 6, top: 36, width: 66, background: 'rgba(0,0,0,0.88)', border: '1px solid #ef4444', zIndex: 10, borderRadius: 4, overflow: 'hidden', boxShadow: '0 0 10px rgba(239,68,68,0.4)' }}>
+                  <img src={SUSPECT_PROFILES[index % SUSPECT_PROFILES.length].img} alt="suspect"
+                    style={{ width: '100%', height: 54, objectFit: 'cover', filter: 'grayscale(20%) contrast(1.2)' }}
                     onError={e => { e.target.style.display = 'none'; }}
                   />
-                  <div style={{ fontSize: '6px', color: '#ef4444', textAlign: 'center', padding: '2px 0', fontFamily: "'Share Tech Mono'", fontWeight: 'bold' }}>WANTED</div>
+                  <div style={{ fontSize: '5.5px', color: '#ef4444', textAlign: 'center', padding: '2px 1px', fontFamily: "'Share Tech Mono'", fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {SUSPECT_PROFILES[index % SUSPECT_PROFILES.length].label}
+                  </div>
                 </div>
               )}
 

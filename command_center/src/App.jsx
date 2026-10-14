@@ -633,6 +633,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('DASHBOARD');
   const [sidebarView, setSidebarView] = useState('patrol'); // left sidebar panel
   const [isOpsSidebarOpen, setIsOpsSidebarOpen] = useState(false); // Collapsible: hidden by default
+  const [isAiControlsOpen, setIsAiControlsOpen] = useState(false); // Collapsible: hidden by default
   const [sessionTime, setSessionTime] = useState(7200);
   const [logs, setLogs] = useState([{ id: 1, text: "[SYS] All subsystems initialized. Defense grid online.", type: "normal" }]);
   const logsEndRef = useRef(null);
@@ -1460,18 +1461,57 @@ export default function App() {
         </div>
       </div>
 
-      {/* ═══ 3-PANEL GRID (Left Sidebar Collapsible) ═══ */}
-      <div className={`main-grid ${!isOpsSidebarOpen ? 'sidebar-hidden' : ''}`}>
+      {/* ═══ 3-PANEL GRID (Collapsible Left & Right Sidebars) ═══ */}
+      <div className={`main-grid ${isOpsSidebarOpen ? 'left-open' : ''} ${isAiControlsOpen ? 'right-open' : ''}`}>
 
-        {/* Floating edge tab when sidebar is hidden */}
+        {/* Floating edge tab when tactical ops sidebar is hidden (>) */}
         {!isOpsSidebarOpen && (
           <button
-            className="sidebar-edge-tab"
+            className="sidebar-edge-tab sidebar-edge-tab-left"
             onClick={() => setIsOpsSidebarOpen(true)}
-            title="Open Patrol & Incident Logs"
+            title="Open Tactical Operations (>)"
           >
-            <Navigation size={10} />
-            <span>OPS PANEL ▶</span>
+            <span className="edge-tab-arrow">❯</span>
+            <span className="edge-tab-label">OPS</span>
+          </button>
+        )}
+
+        {/* Floating edge tab when tactical ops sidebar is open (<) */}
+        {isOpsSidebarOpen && (
+          <button
+            className="sidebar-edge-tab sidebar-edge-tab-left"
+            onClick={() => setIsOpsSidebarOpen(false)}
+            title="Close Tactical Operations (<)"
+            style={{ left: 240 }}
+          >
+            <span className="edge-tab-arrow">❮</span>
+          </button>
+        )}
+
+        {/* Floating edge tab when AI controls sidebar is hidden (<) */}
+        {!isAiControlsOpen && (
+          <button
+            className="sidebar-edge-tab sidebar-edge-tab-right"
+            onClick={() => setIsAiControlsOpen(true)}
+            title="Open AI Detection & Voice Controls (<)"
+          >
+            <span className="edge-tab-arrow">❮</span>
+            <span className="edge-tab-label">AI</span>
+            {(simActive || voiceEnabled) && (
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: simActive ? '#ef4444' : '#22c55e', marginTop: 4, animation: 'breathe 1.5s infinite' }} />
+            )}
+          </button>
+        )}
+
+        {/* Floating edge tab when AI controls sidebar is open (>) */}
+        {isAiControlsOpen && (
+          <button
+            className="sidebar-edge-tab sidebar-edge-tab-right"
+            onClick={() => setIsAiControlsOpen(false)}
+            title="Close AI Controls (>)"
+            style={{ right: 310 }}
+          >
+            <span className="edge-tab-arrow">❯</span>
           </button>
         )}
 
@@ -1479,93 +1519,83 @@ export default function App() {
         {isOpsSidebarOpen && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 'var(--sidebar-w)', opacity: 1 }}
+            animate={{ width: 240, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="left-sidebar"
           >
-            {/* Header with Close ✕ */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border-dim)', background: 'rgba(0,0,0,0.5)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.62rem', color: '#22c55e', fontFamily: "'Share Tech Mono'", fontWeight: 'bold', letterSpacing: 1.5 }}>
-                <Shield size={12} /> TACTICAL OPS
+            <div style={{ width: 240, height: '100%', display: 'flex', flexDirection: 'column' }}>
+              {/* Header with Close ❮ */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border-dim)', background: 'rgba(0,0,0,0.5)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.62rem', color: '#22c55e', fontFamily: "'Share Tech Mono'", fontWeight: 'bold', letterSpacing: 1.5 }}>
+                  <Shield size={12} /> TACTICAL OPS
+                </div>
+                <button
+                  onClick={() => setIsOpsSidebarOpen(false)}
+                  style={{
+                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
+                    color: 'var(--text-dim)', borderRadius: 4, width: 24, height: 22, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold'
+                  }}
+                  title="Hide Tactical Ops (<)"
+                >
+                  ❮
+                </button>
               </div>
-              <button
-                onClick={() => setIsOpsSidebarOpen(false)}
-                style={{
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
-                  color: 'var(--text-dim)', borderRadius: 4, width: 22, height: 22, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem'
-                }}
-                title="Hide sidebar"
-              >
-                ✕
-              </button>
-            </div>
 
-            {/* Sidebar nav */}
-            <div className="sidebar-nav">
-              {SIDEBAR_VIEWS.map(view => {
-                const Icon = view.icon;
-                return (
-                  <button key={view.id}
-                    className={`sidebar-nav-btn ${sidebarView === view.id ? 'active' : ''} ${view.id === 'incidents' ? 'danger-btn' : ''}`}
-                    onClick={() => setSidebarView(view.id)}
-                  >
-                    <Icon size={12} /> {view.label}
-                  </button>
-                );
-              })}
-            </div>
+              {/* Sidebar nav */}
+              <div className="sidebar-nav">
+                {SIDEBAR_VIEWS.map(view => {
+                  const Icon = view.icon;
+                  return (
+                    <button key={view.id}
+                      className={`sidebar-nav-btn ${sidebarView === view.id ? 'active' : ''} ${view.id === 'incidents' ? 'danger-btn' : ''}`}
+                      onClick={() => setSidebarView(view.id)}
+                    >
+                      <Icon size={12} /> {view.label}
+                    </button>
+                  );
+                })}
+              </div>
 
-            {/* Sidebar content panel */}
-            <div className="sidebar-content">
-              {sidebarView === 'patrol' && (
-                <PatrolPanel addLog={addLog} />
-              )}
-              {sidebarView === 'incidents' && (
-                <IncidentLogPanel dbLogs={dbLogs} />
-              )}
-              {sidebarView === 'personnel' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ fontSize: '0.6rem', color: 'var(--accent)', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
-                    DUTY ROSTER
+              {/* Sidebar content panel */}
+              <div className="sidebar-content">
+                {sidebarView === 'patrol' && (
+                  <PatrolPanel addLog={addLog} />
+                )}
+                {sidebarView === 'incidents' && (
+                  <IncidentLogPanel dbLogs={dbLogs} />
+                )}
+                {sidebarView === 'personnel' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--accent)', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
+                      DUTY ROSTER
+                    </div>
+                    <PersonnelRoster />
                   </div>
-                  <PersonnelRoster />
-                </div>
-              )}
-              {sidebarView === 'weather' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ fontSize: '0.6rem', color: '#f59e0b', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
-                    WEATHER INTEL
+                )}
+                {sidebarView === 'weather' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ fontSize: '0.6rem', color: '#f59e0b', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
+                      WEATHER INTEL
+                    </div>
+                    <WeatherWidget />
+                    <div className="sidebar-divider" />
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
+                      THREAT TIMELINE
+                    </div>
+                    <IncidentTimeline logs={logs} />
                   </div>
-                  <WeatherWidget />
-                  <div className="sidebar-divider" />
-                  <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
-                    THREAT TIMELINE
-                  </div>
-                  <IncidentTimeline logs={logs} />
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </motion.div>
         )}
 
         {/* ═══ MAIN VIEWPORT ═══ */}
         <div className="main-viewport">
-          {/* Tab bar */}
+          {/* Tab bar — Clean 1:1 view with zero clutter */}
           <div className="tab-bar">
-            {/* Ops Sidebar Toggle */}
-            <button
-              className={`ops-toggle-btn ${isOpsSidebarOpen ? 'active' : ''}`}
-              onClick={() => setIsOpsSidebarOpen(prev => !prev)}
-              title="Toggle Patrol, Incident Logs & Tactical Operations"
-            >
-              <Navigation size={11} />
-              <span>{isOpsSidebarOpen ? 'HIDE OPS' : 'PATROL & OPS'}</span>
-              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', animation: 'breathe 1.5s infinite' }} />
-            </button>
-            <div style={{ width: 1, height: 16, background: 'var(--border-dim)', margin: '0 4px', flexShrink: 0 }} />
-
             {TABS.map(tab => {
               const Icon = tab.icon;
               return (
@@ -2658,199 +2688,226 @@ export default function App() {
           </AnimatePresence>
         </div >
 
-        {/* ═══ CONTROL PANEL ═══ */}
-        < div className="control-panel" >
+        {/* ═══ RIGHT AI CONTROL PANEL (COLLAPSIBLE — OPENED ON DEMAND) ═══ */}
+        {isAiControlsOpen && (
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 310, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="control-panel"
+          >
+            <div style={{ width: 286, height: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {/* Header with Close ✕ */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', borderBottom: '1px solid var(--border-dim)', background: 'rgba(0,0,0,0.5)', borderRadius: 4, marginBottom: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.62rem', color: '#22c55e', fontFamily: "'Share Tech Mono'", fontWeight: 'bold', letterSpacing: 1.5 }}>
+                  <Brain size={12} /> AI OPS & CONTROLS
+                </div>
+                <button
+                  onClick={() => setIsAiControlsOpen(false)}
+                  style={{
+                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
+                    color: 'var(--text-dim)', borderRadius: 4, width: 24, height: 22, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold'
+                  }}
+                  title="Hide AI Controls (>)"
+                >
+                  ❯
+                </button>
+              </div>
 
-          {/* Simulation Control */}
-          <div style={{ display: 'flex', gap: 6 }}>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              className={`nav-btn ${simActive ? 'btn-danger' : ''}`}
-              style={{
-                flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                fontSize: '0.65rem',
-                borderColor: simActive ? 'var(--danger)' : 'var(--safe)',
-                color: simActive ? 'var(--danger)' : 'var(--safe)',
-                background: simActive ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)'
-              }}
-              onClick={() => {
-                if (simActive) {
-                  setSimActive(false);
-                  addLog("[SYS] ■ Border Sentry stopped.", "normal");
-                } else {
-                  setSimActive(true);
-                  setActiveTab('LIVE');
-                  addLog("[SYS] ▶ Border Sentry started.", "safe");
-                }
-              }}
-            >
-              {simActive ? <><Square size={12} /> STOP DETECTION</> : <><Play size={12} /> START AI DETECT</>}
-            </motion.button>
+              {/* Simulation Control */}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  className={`nav-btn ${simActive ? 'btn-danger' : ''}`}
+                  style={{
+                    flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    fontSize: '0.65rem',
+                    borderColor: simActive ? 'var(--danger)' : 'var(--safe)',
+                    color: simActive ? 'var(--danger)' : 'var(--safe)',
+                    background: simActive ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)'
+                  }}
+                  onClick={() => {
+                    if (simActive) {
+                      setSimActive(false);
+                      addLog("[SYS] ■ Border Sentry stopped.", "normal");
+                    } else {
+                      setSimActive(true);
+                      setActiveTab('LIVE');
+                      addLog("[SYS] ▶ Border Sentry started.", "safe");
+                    }
+                  }}
+                >
+                  {simActive ? <><Square size={12} /> STOP DETECTION</> : <><Play size={12} /> START AI DETECT</>}
+                </motion.button>
 
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              className={`nav-btn ${trackActive ? 'btn-danger' : ''}`}
-              style={{
-                flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                fontSize: '0.65rem',
-                borderColor: trackActive ? 'var(--danger)' : 'var(--safe)',
-                color: trackActive ? 'var(--danger)' : 'var(--safe)',
-                background: trackActive ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)'
-              }}
-              onClick={() => {
-                if (trackActive) {
-                  setTrackActive(false);
-                  addLog("[SYS] ■ Track Guard stopped.", "normal");
-                } else {
-                  setTrackActive(true);
-                  setActiveTab('TRACK-GUARD');
-                  addLog("[SYS] ▶ Track Guard started.", "safe");
-                }
-              }}
-            >
-              {trackActive ? <><Square size={12} /> STOP TRACK AI</> : <><Play size={12} /> TRACK AI DETECT</>}
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              className={`nav-btn ${activeTab === 'CCTV' ? 'btn-danger' : ''}`}
-              style={{
-                flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                fontSize: '0.65rem',
-                borderColor: activeTab === 'CCTV' ? 'var(--danger)' : 'var(--safe)',
-                color: activeTab === 'CCTV' ? 'var(--danger)' : 'var(--safe)',
-                background: activeTab === 'CCTV' ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)'
-              }}
-              onClick={() => {
-                if (activeTab === 'CCTV') {
-                  setActiveTab('DASHBOARD');
-                  addLog("[SYS] ■ CCTV Simulation stopped.", "normal");
-                } else {
-                  setActiveTab('CCTV');
-                  addLog("[SYS] ▶ CCTV Simulation started.", "safe");
-                }
-              }}
-            >
-              {activeTab === 'CCTV' ? <><Square size={12} /> STOP CCTV</> : <><Play size={12} /> CCTV SIM</>}
-            </motion.button>
-          </div>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  className={`nav-btn ${trackActive ? 'btn-danger' : ''}`}
+                  style={{
+                    flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    fontSize: '0.65rem',
+                    borderColor: trackActive ? 'var(--danger)' : 'var(--safe)',
+                    color: trackActive ? 'var(--danger)' : 'var(--safe)',
+                    background: trackActive ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)'
+                  }}
+                  onClick={() => {
+                    if (trackActive) {
+                      setTrackActive(false);
+                      addLog("[SYS] ■ Track Guard stopped.", "normal");
+                    } else {
+                      setTrackActive(true);
+                      setActiveTab('TRACK-GUARD');
+                      addLog("[SYS] ▶ Track Guard started.", "safe");
+                    }
+                  }}
+                >
+                  {trackActive ? <><Square size={12} /> STOP TRACK AI</> : <><Play size={12} /> TRACK AI DETECT</>}
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  className={`nav-btn ${activeTab === 'CCTV' ? 'btn-danger' : ''}`}
+                  style={{
+                    flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    fontSize: '0.65rem',
+                    borderColor: activeTab === 'CCTV' ? 'var(--danger)' : 'var(--safe)',
+                    color: activeTab === 'CCTV' ? 'var(--danger)' : 'var(--safe)',
+                    background: activeTab === 'CCTV' ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)'
+                  }}
+                  onClick={() => {
+                    if (activeTab === 'CCTV') {
+                      setActiveTab('DASHBOARD');
+                      addLog("[SYS] ■ CCTV Simulation stopped.", "normal");
+                    } else {
+                      setActiveTab('CCTV');
+                      addLog("[SYS] ▶ CCTV Simulation started.", "safe");
+                    }
+                  }}
+                >
+                  {activeTab === 'CCTV' ? <><Square size={12} /> STOP CCTV</> : <><Play size={12} /> CCTV SIM</>}
+                </motion.button>
+              </div>
 
-          {/* Threat Graph */}
-          <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 8, padding: '8px', border: '1px solid var(--border-dim)' }}>
-            <div className="section-label" style={{ marginBottom: 4 }}>
-              <Activity size={11} style={{ verticalAlign: 'middle' }} /> THREAT TIMELINE
+              {/* Threat Graph */}
+              <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 8, padding: '8px', border: '1px solid var(--border-dim)' }}>
+                <div className="section-label" style={{ marginBottom: 4 }}>
+                  <Activity size={11} style={{ verticalAlign: 'middle' }} /> THREAT TIMELINE
+                </div>
+                <div style={{ height: 72 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={threatHistory}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(34,197,94,0.05)" />
+                      <XAxis dataKey="time" stroke="var(--accent)" fontSize={7} tick={{ fill: 'var(--text-dim)' }} />
+                      <YAxis domain={[0, 100]} stroke="var(--accent)" fontSize={7} tick={{ fill: 'var(--text-dim)' }} width={22} />
+                      <Line type="monotone" dataKey="val" stroke={isAlert ? 'var(--danger)' : 'var(--accent)'} strokeWidth={1.5} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="sidebar-divider" />
+              <SystemVitals />
+              <div className="sidebar-divider" />
+              <QuickActions addLog={addLog} playPing={playHighPitchAlarm} />
+              <div className="sidebar-divider" />
+
+              {/* Controls row */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <NightVisionToggle isNightMode={isNightMode} onToggle={() => setIsNightMode(!isNightMode)} />
+
+                <button
+                  className={`nav-btn ${voiceEnabled ? '' : 'btn-danger'}`}
+                  style={{ width: '100%', fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, borderColor: voiceEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.15)', color: voiceEnabled ? 'var(--accent)' : 'var(--text-dim)' }}
+                  onClick={() => {
+                    const newState = !voiceEnabled;
+                    setVoiceEnabled(newState);
+                    addLog(`[SYS] AI Voice ${newState ? 'ENABLED' : 'MUTED'}`, 'normal');
+                  }}>
+                  {voiceEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
+                  {voiceEnabled ? 'AI VOICE: ON' : 'AI VOICE: OFF'}
+                </button>
+
+                <button className="nav-btn btn-danger" style={{ width: '100%', fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                  onClick={() => {
+                    setDetectionData(prev => ({ ...prev, threatLevel: 'CRITICAL', riskScore: 98, primaryClass: 'TEST_HOSTILE', personCount: 1, label: 'TEST' }));
+                    addLog('[SYS] ⚠ TEST BREACH initiated. Alert state active.', 'critical');
+                    playSiren(2000);
+                    if (voiceRef.current && voiceEnabled) voiceRef.current.speak('Alert. Test breach protocol activated. All units standby.', 'critical');
+                  }}>
+                  <AlertTriangle size={12} /> TEST BREACH
+                </button>
+
+                {/* Mission Simulation Controls */}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <motion.button whileTap={{ scale: 0.95 }}
+                    className={`nav-btn ${simActive ? 'btn-danger' : ''}`}
+                    style={{
+                      flex: 1, padding: '6px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: '0.55rem',
+                      borderColor: simActive ? 'var(--danger)' : 'var(--safe)',
+                      color: simActive ? 'var(--danger)' : 'var(--safe)',
+                      background: simActive ? 'rgba(239,68,68,0.07)' : 'rgba(34,197,94,0.07)'
+                    }}
+                    onClick={() => {
+                      if (simActive) { setSimActive(false); addLog('[SYS] ■ Border Sentry stopped.', 'normal'); }
+                      else { setSimActive(true); setActiveTab('LIVE'); addLog('[SYS] ▶ Border Sentry started.', 'safe'); }
+                    }}
+                  >
+                    {simActive ? <><Square size={10} /> STOP</> : <><Play size={10} /> SENTRY</>}
+                  </motion.button>
+                  <motion.button whileTap={{ scale: 0.95 }}
+                    className={`nav-btn ${trackActive ? 'btn-danger' : ''}`}
+                    style={{
+                      flex: 1, padding: '6px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: '0.55rem',
+                      borderColor: trackActive ? 'var(--danger)' : 'var(--safe)',
+                      color: trackActive ? 'var(--danger)' : 'var(--safe)',
+                      background: trackActive ? 'rgba(239,68,68,0.07)' : 'rgba(34,197,94,0.07)'
+                    }}
+                    onClick={() => {
+                      if (trackActive) { setTrackActive(false); addLog('[SYS] ■ Track Guard stopped.', 'normal'); }
+                      else { setTrackActive(true); setActiveTab('TRACK-GUARD'); addLog('[SYS] ▶ Track Guard started.', 'safe'); }
+                    }}
+                  >
+                    {trackActive ? <><Square size={10} /> STOP</> : <><Train size={10} /> TRACK</>}
+                  </motion.button>
+                  <motion.button whileTap={{ scale: 0.95 }}
+                    className={`nav-btn ${activeTab === 'CCTV' ? 'btn-danger' : ''}`}
+                    style={{
+                      flex: 1, padding: '6px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: '0.55rem',
+                      borderColor: activeTab === 'CCTV' ? 'var(--danger)' : 'var(--safe)',
+                      color: activeTab === 'CCTV' ? 'var(--danger)' : 'var(--safe)',
+                      background: activeTab === 'CCTV' ? 'rgba(239,68,68,0.07)' : 'rgba(34,197,94,0.07)'
+                    }}
+                    onClick={() => {
+                      if (activeTab === 'CCTV') { setActiveTab('DASHBOARD'); addLog('[SYS] ■ CCTV stopped.', 'normal'); }
+                      else { setActiveTab('CCTV'); addLog('[SYS] ▶ CCTV started.', 'safe'); }
+                    }}
+                  >
+                    {activeTab === 'CCTV' ? <><Square size={10} /> STOP</> : <><Camera size={10} /> CCTV</>}
+                  </motion.button>
+                </div>
+              </div>
+
+              <div className="sidebar-divider" />
+
+              {/* Live Console Log — no TypewriterText for performance */}
+              <div style={{ flex: 1, minHeight: 100, overflowY: 'auto', paddingRight: 2, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                <div style={{ fontSize: '0.52rem', color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", letterSpacing: 2, marginBottom: 4 }}>SYSTEM LOG</div>
+                <div className="console-font" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <AnimatePresence initial={false}>
+                    {logs.slice(-8).map(log => (
+                      <motion.div key={log.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
+                        className={`log-entry ${log.type === 'critical' ? 'critical' : log.type === 'warning' ? 'warning' : ''}`}>
+                        {log.text}
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                  <div ref={logsEndRef} />
+                </div>
+              </div>
             </div>
-            <div style={{ height: 72 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={threatHistory}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(34,197,94,0.05)" />
-                  <XAxis dataKey="time" stroke="var(--accent)" fontSize={7} tick={{ fill: 'var(--text-dim)' }} />
-                  <YAxis domain={[0, 100]} stroke="var(--accent)" fontSize={7} tick={{ fill: 'var(--text-dim)' }} width={22} />
-                  <Line type="monotone" dataKey="val" stroke={isAlert ? 'var(--danger)' : 'var(--accent)'} strokeWidth={1.5} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="sidebar-divider" />
-          <SystemVitals />
-          <div className="sidebar-divider" />
-          <QuickActions addLog={addLog} playPing={playHighPitchAlarm} />
-          <div className="sidebar-divider" />
-
-          {/* Controls row */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <NightVisionToggle isNightMode={isNightMode} onToggle={() => setIsNightMode(!isNightMode)} />
-
-            <button
-              className={`nav-btn ${voiceEnabled ? '' : 'btn-danger'}`}
-              style={{ width: '100%', fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, borderColor: voiceEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.15)', color: voiceEnabled ? 'var(--accent)' : 'var(--text-dim)' }}
-              onClick={() => {
-                const newState = !voiceEnabled;
-                setVoiceEnabled(newState);
-                addLog(`[SYS] AI Voice ${newState ? 'ENABLED' : 'MUTED'}`, 'normal');
-              }}>
-              {voiceEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
-              {voiceEnabled ? 'AI VOICE: ON' : 'AI VOICE: OFF'}
-            </button>
-
-            <button className="nav-btn btn-danger" style={{ width: '100%', fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
-              onClick={() => {
-                setDetectionData(prev => ({ ...prev, threatLevel: 'CRITICAL', riskScore: 98, primaryClass: 'TEST_HOSTILE', personCount: 1, label: 'TEST' }));
-                addLog('[SYS] ⚠ TEST BREACH initiated. Alert state active.', 'critical');
-                playSiren(2000);
-                if (voiceRef.current && voiceEnabled) voiceRef.current.speak('Alert. Test breach protocol activated. All units standby.', 'critical');
-              }}>
-              <AlertTriangle size={12} /> TEST BREACH
-            </button>
-
-            {/* Mission Simulation Controls */}
-            <div style={{ display: 'flex', gap: 4 }}>
-              <motion.button whileTap={{ scale: 0.95 }}
-                className={`nav-btn ${simActive ? 'btn-danger' : ''}`}
-                style={{
-                  flex: 1, padding: '6px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: '0.55rem',
-                  borderColor: simActive ? 'var(--danger)' : 'var(--safe)',
-                  color: simActive ? 'var(--danger)' : 'var(--safe)',
-                  background: simActive ? 'rgba(239,68,68,0.07)' : 'rgba(34,197,94,0.07)'
-                }}
-                onClick={() => {
-                  if (simActive) { setSimActive(false); addLog('[SYS] ■ Border Sentry stopped.', 'normal'); }
-                  else { setSimActive(true); setActiveTab('LIVE'); addLog('[SYS] ▶ Border Sentry started.', 'safe'); }
-                }}
-              >
-                {simActive ? <><Square size={10} /> STOP</> : <><Play size={10} /> SENTRY</>}
-              </motion.button>
-              <motion.button whileTap={{ scale: 0.95 }}
-                className={`nav-btn ${trackActive ? 'btn-danger' : ''}`}
-                style={{
-                  flex: 1, padding: '6px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: '0.55rem',
-                  borderColor: trackActive ? 'var(--danger)' : 'var(--safe)',
-                  color: trackActive ? 'var(--danger)' : 'var(--safe)',
-                  background: trackActive ? 'rgba(239,68,68,0.07)' : 'rgba(34,197,94,0.07)'
-                }}
-                onClick={() => {
-                  if (trackActive) { setTrackActive(false); addLog('[SYS] ■ Track Guard stopped.', 'normal'); }
-                  else { setTrackActive(true); setActiveTab('TRACK-GUARD'); addLog('[SYS] ▶ Track Guard started.', 'safe'); }
-                }}
-              >
-                {trackActive ? <><Square size={10} /> STOP</> : <><Train size={10} /> TRACK</>}
-              </motion.button>
-              <motion.button whileTap={{ scale: 0.95 }}
-                className={`nav-btn ${activeTab === 'CCTV' ? 'btn-danger' : ''}`}
-                style={{
-                  flex: 1, padding: '6px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: '0.55rem',
-                  borderColor: activeTab === 'CCTV' ? 'var(--danger)' : 'var(--safe)',
-                  color: activeTab === 'CCTV' ? 'var(--danger)' : 'var(--safe)',
-                  background: activeTab === 'CCTV' ? 'rgba(239,68,68,0.07)' : 'rgba(34,197,94,0.07)'
-                }}
-                onClick={() => {
-                  if (activeTab === 'CCTV') { setActiveTab('DASHBOARD'); addLog('[SYS] ■ CCTV stopped.', 'normal'); }
-                  else { setActiveTab('CCTV'); addLog('[SYS] ▶ CCTV started.', 'safe'); }
-                }}
-              >
-                {activeTab === 'CCTV' ? <><Square size={10} /> STOP</> : <><Camera size={10} /> CCTV</>}
-              </motion.button>
-            </div>
-          </div>
-
-          <div className="sidebar-divider" />
-
-          {/* Live Console Log — no TypewriterText for performance */}
-          <div style={{ flex: 1, minHeight: 100, overflowY: 'auto', paddingRight: 2, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-            <div style={{ fontSize: '0.52rem', color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", letterSpacing: 2, marginBottom: 4 }}>SYSTEM LOG</div>
-            <div className="console-font" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <AnimatePresence initial={false}>
-                {logs.slice(-8).map(log => (
-                  <motion.div key={log.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
-                    className={`log-entry ${log.type === 'critical' ? 'critical' : log.type === 'warning' ? 'warning' : ''}`}>
-                    {log.text}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              <div ref={logsEndRef} />
-            </div>
-          </div>
-        </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );
