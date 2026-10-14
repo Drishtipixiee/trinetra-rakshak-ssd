@@ -1,48 +1,55 @@
 /* eslint-disable react/prop-types */
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Activity, AlertTriangle, Fingerprint, Lock,
-  Map as MapIcon, Video, Target, Radio, Scan, Train, Download, Terminal,
-  BarChart3, Eye, Users, Play, Square, Volume2, VolumeX, LayoutDashboard, Cpu, Wifi, MapPin, Clock, Loader2 as Loader2Icon, Satellite, Brain,
-  CloudLightning, Navigation, Signal, GitBranch, Zap, Globe, Camera
+  Map as MapIcon, Video, Target, Radio, Scan, Train,
+  BarChart3, Eye, Users, Play, Square, Volume2, VolumeX,
+  LayoutDashboard, Cpu, MapPin, Clock, Loader2 as Loader2Icon,
+  Navigation, Signal, GitBranch, Globe, Camera, Database,
+  Crosshair, Layers, Zap, Brain, FileText
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { logThreatEvent } from './lib/supabase';
-import { loadModel, detectFrame, drawDetections, estimateFuzzyInputs, isModelLoaded, getModelInfo } from './lib/cvEngine';
+import { loadModel, detectFrame, drawDetections, estimateFuzzyInputs } from './lib/cvEngine';
 import { useWeatherEngine, getWeatherBrakingMultiplier } from './lib/useWeatherEngine';
 
-// AI Systems
-import AIVoiceSystem, { playSiren, playKlaxon, playDetectionBeep, playSuccessChime, playHighPitchAlarm } from './components/AIVoiceSystem';
+// AI Voice — with fixed guards
+import AIVoiceSystem, {
+  playSiren, playKlaxon, playDetectionBeep, playSuccessChime, playHighPitchAlarm,
+  setUserInteracted, setGlobalAuthState
+} from './components/AIVoiceSystem';
 
-// Components
+// Core Components (always loaded)
 import LiveClock from './components/LiveClock';
 import SystemVitals from './components/SystemVitals';
 import CCTVGrid from './components/CCTVGrid';
-import IncidentTimeline from './components/IncidentTimeline';
 import NotificationToast from './components/NotificationToast';
 import PersonnelRoster from './components/PersonnelRoster';
 import QuickActions from './components/QuickActions';
 import WeatherWidget from './components/WeatherWidget';
-import AnalyticsDashboard from './components/AnalyticsDashboard';
 import NightVisionToggle from './components/NightVisionToggle';
 import WalkieTalkie from './components/WalkieTalkie';
 import MobileAlert from './components/MobileAlert';
 import AIThreatAnalyst from './components/AIThreatAnalyst';
-import FlowSimulationDashboard from './components/FlowSimulationDashboard';
 import GeoEyePanel from './components/GeoEyePanel';
 import AcousticMonitor from './components/AcousticMonitor';
+import CleanDashboard from './components/CleanDashboard';
+import IncidentTimeline from './components/IncidentTimeline';
+import FlowSimulationDashboard from './components/FlowSimulationDashboard';
 import RealOpsMedia from './components/RealOpsMedia';
 
-// ── OSIRIS Modules (new) ──
-import OmniEyeGlobe from './components/OmniEyeGlobe';
-import CamForge from './components/CamForge';
-import ThreatStream from './components/ThreatStream';
-import RealWorldBridge from './components/RealWorldBridge';
+// New sidebar panels
+import PatrolPanel from './components/PatrolPanel';
+import IncidentLogPanel from './components/IncidentLogPanel';
 
-// ── New Clean UI & AR/VR ──
-import CleanDashboard from './components/CleanDashboard';
-import ARVRSimulation from './components/ARVRSimulation';
+// Heavy modules — lazy loaded for performance
+const OmniEyeGlobe   = lazy(() => import('./components/OmniEyeGlobe'));
+const CamForge       = lazy(() => import('./components/CamForge'));
+const ThreatStream   = lazy(() => import('./components/ThreatStream'));
+const RealWorldBridge= lazy(() => import('./components/RealWorldBridge'));
+const ARVRSimulation = lazy(() => import('./components/ARVRSimulation'));
+const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard'));
 
 // ═══════════════════════════════════════════════════
 //  CONFIGURATION & CONSTANTS
@@ -552,20 +559,27 @@ const LoginOverlay = ({ onLogin }) => {
   );
 };
 
-// ─── Tabs ───
+// ─── Viewport Tabs (center panel only — sidebar handles patrol/incidents) ───
 const TABS = [
-  { id: 'DASHBOARD', icon: LayoutDashboard, label: 'DASHBOARD' },
-  { id: 'LIVE', icon: Video, label: 'LIVE FEED' },
-  { id: 'CCTV', icon: Camera, label: 'CCTV' },
-  { id: 'AR-VR', icon: Eye, label: '🥽 AR/VR 3D' },
-  { id: 'GEO-EYE', icon: MapIcon, label: 'GEO-EYE' },
-  { id: 'TRACK-GUARD', icon: Train, label: 'TRACK' },
-  { id: 'SIMULATION', icon: Play, label: 'SIMULATIONS' },
-  { id: 'ANALYTICS', icon: BarChart3, label: 'ANALYTICS' },
-  // ── OSIRIS Modules ──
-  { id: 'OMNI-EYE', icon: Globe, label: '🌍 OMNI-EYE', osiris: true },
-  { id: 'CAMFORGE', icon: Cpu, label: '📐 CAMFORGE', osiris: true },
-  { id: 'REAL-WORLD', icon: Signal, label: '🌐 REAL-WORLD', osiris: true, realWorld: true },
+  { id: 'DASHBOARD',   icon: LayoutDashboard, label: 'DASHBOARD' },
+  { id: 'LIVE',        icon: Video,       label: 'LIVE FEED' },
+  { id: 'CCTV',        icon: Camera,      label: 'CCTV' },
+  { id: 'AR-VR',       icon: Eye,         label: 'AR/VR 3D' },
+  { id: 'GEO-EYE',     icon: MapIcon,     label: 'GEO-EYE' },
+  { id: 'TRACK-GUARD', icon: Train,       label: 'TRACK' },
+  { id: 'SIMULATION',  icon: Play,        label: 'SIMS' },
+  { id: 'ANALYTICS',   icon: BarChart3,   label: 'ANALYTICS' },
+  { id: 'OMNI-EYE',    icon: Globe,       label: 'OMNI-EYE' },
+  { id: 'CAMFORGE',    icon: Cpu,         label: 'CAMFORGE' },
+  { id: 'REAL-WORLD',  icon: Signal,      label: 'REAL-WORLD' },
+];
+
+// ─── Left Sidebar Nav Items ───
+const SIDEBAR_VIEWS = [
+  { id: 'patrol',   icon: Navigation,  label: 'Patrolling',    color: '#22c55e' },
+  { id: 'incidents',icon: AlertTriangle,label: 'Incident Logs', color: '#ef4444' },
+  { id: 'personnel',icon: Users,       label: 'Personnel',      color: '#38bdf8' },
+  { id: 'weather',  icon: Layers,      label: 'Weather / Intel',color: '#f59e0b' },
 ];
 
 // ════════════════════════════════════════
@@ -590,11 +604,10 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [apiOffline, setApiOffline] = useState(false);
   const [activeTab, setActiveTab] = useState('DASHBOARD');
+  const [sidebarView, setSidebarView] = useState('patrol'); // left sidebar panel
   const [sessionTime, setSessionTime] = useState(7200);
   const [logs, setLogs] = useState([{ id: 1, text: "[SYS] All subsystems initialized. Defense grid online.", type: "normal" }]);
   const logsEndRef = useRef(null);
-
-
 
   // ─── Live Weather Engine (real Open-Meteo API) ───
   const { weather } = useWeatherEngine(300000);
@@ -604,7 +617,7 @@ export default function App() {
   const [walkieOpen, setWalkieOpen] = useState(false);
   const [simActive, setSimActive] = useState(false);
   const [trackActive, setTrackActive] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(false); // START DISABLED — user must click AI VOICE ON
   const [analystOpen, setAnalystOpen] = useState(false);
   const [threatStreamOpen, setThreatStreamOpen] = useState(false);
   const [realWorldOpen, setRealWorldOpen] = useState(false);
@@ -774,8 +787,25 @@ export default function App() {
     } catch (err) { }
   };
 
-  // AI Voice — strict guard: active only after authenticated login
+  // AI Voice — strict guard: active only after authenticated login + user interaction
   const voiceRef = useRef(null);
+
+  // Register user interaction once — gates all audio
+  useEffect(() => {
+    const handler = () => setUserInteracted();
+    document.addEventListener('click', handler, { once: true });
+    document.addEventListener('keydown', handler, { once: true });
+    return () => {
+      document.removeEventListener('click', handler);
+      document.removeEventListener('keydown', handler);
+    };
+  }, []);
+
+  // Sync auth state to voice system global
+  useEffect(() => {
+    setGlobalAuthState(isAuthenticated);
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (!isAuthenticated) {
       if (voiceRef.current) voiceRef.current.destroy();
@@ -783,11 +813,21 @@ export default function App() {
       return;
     }
     voiceRef.current = new AIVoiceSystem();
+    // Voice starts disabled — user must explicitly enable
+    if (voiceEnabled) voiceRef.current.enable();
     return () => {
       if (voiceRef.current) voiceRef.current.destroy();
       if (window.speechSynthesis) window.speechSynthesis.cancel();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
+
+  // Sync voice enable/disable to voice system instance
+  useEffect(() => {
+    if (!voiceRef.current) return;
+    if (voiceEnabled) voiceRef.current.enable();
+    else voiceRef.current.disable();
+  }, [voiceEnabled]);
 
   // ── REAL VIDEO + WEBCAM REFS ──────────────────────────────────────
   const videoRef = useRef(null);
@@ -1298,10 +1338,10 @@ export default function App() {
 
   // ─── Pre-auth ───
   if (!isAuthenticated) {
-    return <LoginOverlay onLogin={() => {
+    return <LoginOverlay onLogin={(officerName) => {
       setIsAuthenticated(true);
-      addLog("[SYS] ✓ Officer Drishti Mishra authenticated — Sector 7 access granted.", "safe");
-      addLog("[SYS] Software simulation engine ready. Press START to begin live scenario.", "normal");
+      addLog(`[SYS] ✓ Officer ${officerName} authenticated — Sector 7 access granted.`, 'safe');
+      addLog('[SYS] All defence modules online. Ready for operations.', 'normal');
     }} />;
   }
 
@@ -1313,18 +1353,23 @@ export default function App() {
     <div className={`hud-container ${isAlert ? 'alert-mode' : ''}`}>
       <div className="digital-rain-bg" />
 
-      {/* Floating elements */}
+      {/* Floating overlays */}
       <NotificationToast logs={logs} />
       <MobileAlert threatLevel={detectionData.threatLevel} riskScore={detectionData.riskScore} threatClass={detectionData.primaryClass} />
       <WalkieTalkie isOpen={walkieOpen} onToggle={() => setWalkieOpen(!walkieOpen)} threatLevel={detectionData.threatLevel} detectedClass={detectionData.primaryClass} />
       <AIThreatAnalyst isOpen={analystOpen} onToggle={() => setAnalystOpen(!analystOpen)} detectionData={detectionData} />
-      <ThreatStream isOpen={threatStreamOpen} onToggle={() => setThreatStreamOpen(!threatStreamOpen)} detectionData={detectionData} dbLogs={dbLogs} />
-      <AnimatePresence>
-        {realWorldOpen && (
-          <RealWorldBridge isOpen={realWorldOpen} onClose={() => { setRealWorldOpen(false); setActiveTab('DASHBOARD'); }} />
-        )}
-      </AnimatePresence>
+      <Suspense fallback={null}>
+        <AnimatePresence>
+          {threatStreamOpen && <ThreatStream isOpen={threatStreamOpen} onToggle={() => setThreatStreamOpen(!threatStreamOpen)} detectionData={detectionData} dbLogs={dbLogs} />}
+        </AnimatePresence>
+        <AnimatePresence>
+          {realWorldOpen && (
+            <RealWorldBridge isOpen={realWorldOpen} onClose={() => { setRealWorldOpen(false); setActiveTab('DASHBOARD'); }} />
+          )}
+        </AnimatePresence>
+      </Suspense>
 
+      {/* SMS notification toast */}
       <AnimatePresence>
         {smsVisible && (
           <motion.div
@@ -1333,18 +1378,19 @@ export default function App() {
             exit={{ opacity: 0, y: -50, scale: 0.9 }}
             style={{
               position: 'fixed', top: '10px', right: '20px', zIndex: 99999,
-              background: '#fff', color: '#000', padding: '12px 18px',
-              borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+              background: '#0d1f0e', color: '#ddeedd', padding: '12px 18px',
+              borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.6)',
               display: 'flex', alignItems: 'center', gap: '12px',
-              fontFamily: 'sans-serif', minWidth: '300px'
+              fontFamily: 'Inter, sans-serif', minWidth: '280px',
+              border: '1px solid rgba(34,197,94,0.35)'
             }}
           >
-            <div style={{ background: '#22c55e', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-              💬
+            <div style={{ background: 'rgba(34,197,94,0.2)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#22c55e', border: '1px solid rgba(34,197,94,0.4)', flexShrink: 0 }}>
+              <AlertTriangle size={16} />
             </div>
             <div>
-              <div style={{ fontSize: '12px', color: '#666', fontWeight: 'bold' }}>Messages • Now</div>
-              <div style={{ fontSize: '14px', fontWeight: '600', marginTop: '2px' }}>{smsText}</div>
+              <div style={{ fontSize: '0.5rem', color: 'rgba(34,197,94,0.7)', fontWeight: 'bold', fontFamily: "'Share Tech Mono'", letterSpacing: 2, marginBottom: 2 }}>TRINETRA ALERT</div>
+              <div style={{ fontSize: '0.7rem', fontWeight: '500', color: '#ddeedd' }}>{smsText}</div>
             </div>
           </motion.div>
         )}
@@ -1355,27 +1401,27 @@ export default function App() {
         CONFIDENTIAL — MINISTRY OF DEFENCE — GOVT OF INDIA — AUTHORIZED PERSONNEL ONLY
       </div>
 
-      {/* Header */}
+      {/* ═══ TOP HEADER ═══ */}
       <div className="top-header">
         <div className="header-left">
           <div className="header-emblem">🛡️</div>
           <div className="header-title-group">
-            <div className="header-title"><Shield size={16} /> TRINETRA RAKSHAK</div>
+            <div className="header-title"><Shield size={15} /> TRINETRA RAKSHAK</div>
             <div className="header-subtitle">INTEGRATED COMMAND & CONTROL — SECTOR 7</div>
           </div>
           {apiOffline && (
-            <div style={{ marginLeft: 16, background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444', color: '#ef4444', padding: '2px 8px', borderRadius: 4, fontSize: '0.6rem', fontFamily: "'Share Tech Mono'" }}>
-              ⚠ API OFFLINE — LOCAL MODE
+            <div style={{ marginLeft: 12, background: 'var(--danger-dim)', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '2px 8px', borderRadius: 4, fontSize: '0.55rem', fontFamily: "'Share Tech Mono'" }}>
+              ⚠ API OFFLINE
             </div>
           )}
-          <div style={{ marginLeft: 16, background: 'rgba(56,189,248,0.1)', border: '1px solid #38bdf8', color: '#38bdf8', padding: '2px 8px', borderRadius: 4, fontSize: '0.6rem', fontFamily: "'Share Tech Mono'" }}>
-            Session: {Math.floor(sessionTime / 3600).toString().padStart(2, '0')}:{(Math.floor(sessionTime / 60) % 60).toString().padStart(2, '0')}:{(sessionTime % 60).toString().padStart(2, '0')} remaining
+          <div style={{ marginLeft: 12, background: 'rgba(34,197,94,0.07)', border: '1px solid var(--border-dim)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 4, fontSize: '0.55rem', fontFamily: "'Share Tech Mono'" }}>
+            ⏱ {Math.floor(sessionTime / 3600).toString().padStart(2, '0')}:{(Math.floor(sessionTime / 60) % 60).toString().padStart(2, '0')}:{(sessionTime % 60).toString().padStart(2, '0')} remaining
           </div>
         </div>
         <div className="header-right">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div className="status-pulse-ring" style={{ backgroundColor: isAlert ? 'var(--danger)' : 'var(--safe)', color: isAlert ? 'var(--danger)' : 'var(--safe)' }} />
-            <span style={{ fontFamily: "'Share Tech Mono'", fontSize: '0.65rem', color: isAlert ? 'var(--danger)' : 'var(--safe)', letterSpacing: 1 }}>
+            <span style={{ fontFamily: "'Share Tech Mono'", fontSize: '0.6rem', color: isAlert ? 'var(--danger)' : 'var(--safe)', letterSpacing: 1 }}>
               {isAlert ? 'THREAT DETECTED' : 'ALL CLEAR'}
             </span>
           </div>
@@ -1383,8 +1429,58 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── 2-Column Grid ── */}
+      {/* ═══ 3-PANEL GRID ═══ */}
       <div className="main-grid">
+
+        {/* ═══ LEFT SIDEBAR ═══ */}
+        <div className="left-sidebar">
+
+          {/* Sidebar nav */}
+          <div className="sidebar-nav">
+            {SIDEBAR_VIEWS.map(view => {
+              const Icon = view.icon;
+              return (
+                <button key={view.id}
+                  className={`sidebar-nav-btn ${sidebarView === view.id ? 'active' : ''} ${view.id === 'incidents' ? 'danger-btn' : ''}`}
+                  onClick={() => setSidebarView(view.id)}
+                >
+                  <Icon size={12} /> {view.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Sidebar content panel */}
+          <div className="sidebar-content">
+            {sidebarView === 'patrol' && (
+              <PatrolPanel />
+            )}
+            {sidebarView === 'incidents' && (
+              <IncidentLogPanel dbLogs={dbLogs} />
+            )}
+            {sidebarView === 'personnel' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: '0.6rem', color: 'var(--accent)', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
+                  DUTY ROSTER
+                </div>
+                <PersonnelRoster />
+              </div>
+            )}
+            {sidebarView === 'weather' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: '0.6rem', color: '#f59e0b', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
+                  WEATHER INTEL
+                </div>
+                <WeatherWidget />
+                <div className="sidebar-divider" />
+                <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
+                  THREAT TIMELINE
+                </div>
+                <IncidentTimeline logs={logs} />
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* ═══ MAIN VIEWPORT ═══ */}
         <div className="main-viewport">
@@ -1396,13 +1492,8 @@ export default function App() {
                 <button key={tab.id}
                   className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
                   onClick={() => setActiveTab(tab.id)}
-                  style={tab.osiris ? {
-                    borderColor: activeTab === tab.id ? '#ffd700' : 'rgba(255,215,0,0.2)',
-                    color: activeTab === tab.id ? '#ffd700' : 'rgba(255,215,0,0.5)',
-                    background: activeTab === tab.id ? 'rgba(255,215,0,0.08)' : 'transparent',
-                  } : {}}
                 >
-                  <Icon size={12} /> {tab.label}
+                  <Icon size={11} /> {tab.label}
                 </button>
               );
             })}
@@ -2526,21 +2617,21 @@ export default function App() {
           </div>
 
           {/* Threat Graph */}
-          < div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '8px', border: '1px solid var(--glass-border)' }}>
+          <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 8, padding: '8px', border: '1px solid var(--border-dim)' }}>
             <div className="section-label" style={{ marginBottom: 4 }}>
               <Activity size={11} style={{ verticalAlign: 'middle' }} /> THREAT TIMELINE
             </div>
-            <div style={{ height: 80 }}>
+            <div style={{ height: 72 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={threatHistory}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(34,197,94,0.06)" />
-                  <XAxis dataKey="time" stroke="var(--accent)" fontSize={8} tick={{ fill: 'var(--text-dim)' }} />
-                  <YAxis domain={[0, 100]} stroke="var(--accent)" fontSize={8} tick={{ fill: 'var(--text-dim)' }} width={25} />
-                  <Line type="monotone" dataKey="val" stroke={isAlert ? "var(--danger)" : "var(--accent)"} strokeWidth={1.5} dot={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(34,197,94,0.05)" />
+                  <XAxis dataKey="time" stroke="var(--accent)" fontSize={7} tick={{ fill: 'var(--text-dim)' }} />
+                  <YAxis domain={[0, 100]} stroke="var(--accent)" fontSize={7} tick={{ fill: 'var(--text-dim)' }} width={22} />
+                  <Line type="monotone" dataKey="val" stroke={isAlert ? 'var(--danger)' : 'var(--accent)'} strokeWidth={1.5} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
-          </div >
+          </div>
 
           <div className="sidebar-divider" />
           <SystemVitals />
@@ -2548,52 +2639,101 @@ export default function App() {
           <QuickActions addLog={addLog} playPing={playHighPitchAlarm} />
           <div className="sidebar-divider" />
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {/* Controls row */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <NightVisionToggle isNightMode={isNightMode} onToggle={() => setIsNightMode(!isNightMode)} />
+
             <button
               className={`nav-btn ${voiceEnabled ? '' : 'btn-danger'}`}
-              style={{ width: '100%', fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, borderColor: voiceEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.2)', color: voiceEnabled ? 'var(--accent)' : 'var(--text-dim)' }}
+              style={{ width: '100%', fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, borderColor: voiceEnabled ? 'var(--accent)' : 'rgba(255,255,255,0.15)', color: voiceEnabled ? 'var(--accent)' : 'var(--text-dim)' }}
               onClick={() => {
                 const newState = !voiceEnabled;
                 setVoiceEnabled(newState);
-                if (voiceRef.current) voiceRef.current.enabled = newState;
                 addLog(`[SYS] AI Voice ${newState ? 'ENABLED' : 'MUTED'}`, 'normal');
               }}>
               {voiceEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
               {voiceEnabled ? 'AI VOICE: ON' : 'AI VOICE: OFF'}
             </button>
+
             <button className="nav-btn btn-danger" style={{ width: '100%', fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
               onClick={() => {
                 setDetectionData(prev => ({ ...prev, threatLevel: 'CRITICAL', riskScore: 98, primaryClass: 'TEST_HOSTILE', personCount: 1, label: 'TEST' }));
-                addLog("[SYS] ⚠ TEST BREACH initiated. Alert state active.", "critical");
+                addLog('[SYS] ⚠ TEST BREACH initiated. Alert state active.', 'critical');
                 playSiren(2000);
                 if (voiceRef.current && voiceEnabled) voiceRef.current.speak('Alert. Test breach protocol activated. All units standby.', 'critical');
               }}>
               <AlertTriangle size={12} /> TEST BREACH
             </button>
-          </div>
-          <div className="sidebar-divider" />
-          <PersonnelRoster />
-          <div className="sidebar-divider" />
-          <WeatherWidget />
-          <div className="sidebar-divider" />
-          <IncidentTimeline logs={logs} />
 
-          <div style={{ flex: 1, minHeight: 120, overflowY: 'auto', paddingRight: 4, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+            {/* Mission Simulation Controls */}
+            <div style={{ display: 'flex', gap: 4 }}>
+              <motion.button whileTap={{ scale: 0.95 }}
+                className={`nav-btn ${simActive ? 'btn-danger' : ''}`}
+                style={{
+                  flex: 1, padding: '6px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: '0.55rem',
+                  borderColor: simActive ? 'var(--danger)' : 'var(--safe)',
+                  color: simActive ? 'var(--danger)' : 'var(--safe)',
+                  background: simActive ? 'rgba(239,68,68,0.07)' : 'rgba(34,197,94,0.07)'
+                }}
+                onClick={() => {
+                  if (simActive) { setSimActive(false); addLog('[SYS] ■ Border Sentry stopped.', 'normal'); }
+                  else { setSimActive(true); setActiveTab('LIVE'); addLog('[SYS] ▶ Border Sentry started.', 'safe'); }
+                }}
+              >
+                {simActive ? <><Square size={10} /> STOP</> : <><Play size={10} /> SENTRY</>}
+              </motion.button>
+              <motion.button whileTap={{ scale: 0.95 }}
+                className={`nav-btn ${trackActive ? 'btn-danger' : ''}`}
+                style={{
+                  flex: 1, padding: '6px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: '0.55rem',
+                  borderColor: trackActive ? 'var(--danger)' : 'var(--safe)',
+                  color: trackActive ? 'var(--danger)' : 'var(--safe)',
+                  background: trackActive ? 'rgba(239,68,68,0.07)' : 'rgba(34,197,94,0.07)'
+                }}
+                onClick={() => {
+                  if (trackActive) { setTrackActive(false); addLog('[SYS] ■ Track Guard stopped.', 'normal'); }
+                  else { setTrackActive(true); setActiveTab('TRACK-GUARD'); addLog('[SYS] ▶ Track Guard started.', 'safe'); }
+                }}
+              >
+                {trackActive ? <><Square size={10} /> STOP</> : <><Train size={10} /> TRACK</>}
+              </motion.button>
+              <motion.button whileTap={{ scale: 0.95 }}
+                className={`nav-btn ${activeTab === 'CCTV' ? 'btn-danger' : ''}`}
+                style={{
+                  flex: 1, padding: '6px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: '0.55rem',
+                  borderColor: activeTab === 'CCTV' ? 'var(--danger)' : 'var(--safe)',
+                  color: activeTab === 'CCTV' ? 'var(--danger)' : 'var(--safe)',
+                  background: activeTab === 'CCTV' ? 'rgba(239,68,68,0.07)' : 'rgba(34,197,94,0.07)'
+                }}
+                onClick={() => {
+                  if (activeTab === 'CCTV') { setActiveTab('DASHBOARD'); addLog('[SYS] ■ CCTV stopped.', 'normal'); }
+                  else { setActiveTab('CCTV'); addLog('[SYS] ▶ CCTV started.', 'safe'); }
+                }}
+              >
+                {activeTab === 'CCTV' ? <><Square size={10} /> STOP</> : <><Camera size={10} /> CCTV</>}
+              </motion.button>
+            </div>
+          </div>
+
+          <div className="sidebar-divider" />
+
+          {/* Live Console Log — no TypewriterText for performance */}
+          <div style={{ flex: 1, minHeight: 100, overflowY: 'auto', paddingRight: 2, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+            <div style={{ fontSize: '0.52rem', color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", letterSpacing: 2, marginBottom: 4 }}>SYSTEM LOG</div>
             <div className="console-font" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <AnimatePresence initial={false}>
-                {logs.slice(-10).map(log => (
-                  <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                {logs.slice(-8).map(log => (
+                  <motion.div key={log.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
                     className={`log-entry ${log.type === 'critical' ? 'critical' : log.type === 'warning' ? 'warning' : ''}`}>
-                    <TypewriterText text={log.text} />
+                    {log.text}
                   </motion.div>
                 ))}
               </AnimatePresence>
               <div ref={logsEndRef} />
             </div>
           </div>
-        </div >
-      </div >
-    </div >
+        </div>
+      </div>
+    </div>
   );
 }
