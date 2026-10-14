@@ -35,13 +35,22 @@ export function BiometricARAvatar({ id = 'S-001', color = '#ef4444', width = 32,
   );
 }
 
+const HUMAN_IMAGES = [
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
+];
+
 const SUSPECT_PROFILES = [
-  { id: 'S-001', label: 'ARMED INTRUDER', match: '96%', threat: 'CRITICAL', color: '#ef4444' },
-  { id: 'S-002', label: 'PERIMETER BREACHER', match: '93%', threat: 'CRITICAL', color: '#ef4444' },
-  { id: 'S-003', label: 'UNAUTHORIZED SENTRY', match: '88%', threat: 'HIGH', color: '#f59e0b' },
-  { id: 'S-004', label: 'WANTED RECON SCOUT', match: '82%', threat: 'HIGH', color: '#22c55e' },
-  { id: 'S-005', label: 'UNIDENTIFIED INFILTRATOR', match: '78%', threat: 'WARNING', color: '#a855f7' },
-  { id: 'S-006', label: 'CHECKPOINT EVADER', match: '74%', threat: 'WARNING', color: '#38bdf8' },
+  { id: 'S-001', label: 'ARMED INTRUDER', match: '96%', threat: 'CRITICAL', color: '#ef4444', img: HUMAN_IMAGES[1] },
+  { id: 'S-002', label: 'PERIMETER BREACHER', match: '93%', threat: 'CRITICAL', color: '#ef4444', img: HUMAN_IMAGES[3] },
+  { id: 'S-003', label: 'UNAUTHORIZED SENTRY', match: '88%', threat: 'HIGH', color: '#f59e0b', img: HUMAN_IMAGES[0] },
+  { id: 'S-004', label: 'WANTED RECON SCOUT', match: '82%', threat: 'HIGH', color: '#22c55e', img: HUMAN_IMAGES[2] },
+  { id: 'S-005', label: 'UNIDENTIFIED INFILTRATOR', match: '78%', threat: 'WARNING', color: '#a855f7', img: HUMAN_IMAGES[3] },
+  { id: 'S-006', label: 'CHECKPOINT EVADER', match: '74%', threat: 'WARNING', color: '#38bdf8', img: HUMAN_IMAGES[5] },
 ];
 
 const CAMERAS = [
@@ -801,7 +810,7 @@ export default function CCTVGrid({
           <span style={{ fontSize: '0.55rem', color: '#ef4444', fontFamily: "'Share Tech Mono'", letterSpacing: 2, marginRight: 8 }}>THREAT PROFILES DETECTED</span>
           {SUSPECT_PROFILES.map(p => (
             <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.6)', border: `1px solid ${p.color}50`, borderRadius: 6, padding: '4px 8px' }}>
-              <BiometricARAvatar id={p.id} color={p.color} width={26} height={34} />
+              <img src={p.img} alt={p.label} style={{ width: 28, height: 36, objectFit: 'cover', borderRadius: 3, border: `1px solid ${p.color}` }} onError={e => { e.currentTarget.style.display = 'none'; }} />
               <div>
                 <div style={{ fontSize: '0.42rem', color: '#fff', fontWeight: 'bold', fontFamily: "'Share Tech Mono'" }}>{p.label}</div>
                 <div style={{ fontSize: '0.38rem', color: p.color, fontFamily: "'Share Tech Mono'" }}>MATCH: {p.match}</div>
@@ -846,10 +855,22 @@ export default function CCTVGrid({
                 </>
               )}
 
+              {/* Human portraits stay in detection cards, never as full-frame cover photos. */}
+              {!isOffline && hasDetections && phase.detections.some(d => d.class === 'person') && (
+                <div style={{ position: 'absolute', right: 6, top: isCritical ? 140 : 36, zIndex: 9, display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'none' }}>
+                  {phase.detections.filter(d => d.class === 'person').slice(0, 2).map((det, personIdx) => (
+                    <div key={`${cam.id}-person-${personIdx}`} style={{ width: 58, background: 'rgba(0,0,0,0.88)', border: `1px solid ${det.risk > 70 ? '#ef4444' : '#22c55e'}`, borderRadius: 4, padding: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <img src={HUMAN_IMAGES[(index + personIdx) % HUMAN_IMAGES.length]} alt="Person detected" style={{ width: 50, height: 46, objectFit: 'cover', borderRadius: 2 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+                      <span style={{ color: det.risk > 70 ? '#ef4444' : '#22c55e', fontSize: '5.5px', fontFamily: "'Share Tech Mono'", textAlign: 'center' }}>PERSON {det.conf}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Face capture + suspect thumbnail for critical */}
               {isCritical && hasDetections && (
                 <div style={{ position: 'absolute', right: 6, top: 36, width: 66, background: 'rgba(0,0,0,0.88)', border: '1px solid #ef4444', zIndex: 10, borderRadius: 4, overflow: 'hidden', boxShadow: '0 0 10px rgba(239,68,68,0.4)', padding: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <BiometricARAvatar id={SUSPECT_PROFILES[index % SUSPECT_PROFILES.length].id} color="#ef4444" width={58} height={46} />
+                  <img src={SUSPECT_PROFILES[index % SUSPECT_PROFILES.length].img} alt="Detected person" style={{ width: 58, height: 46, objectFit: 'cover', borderRadius: 2 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
                   <div style={{ fontSize: '5.5px', color: '#ef4444', textAlign: 'center', padding: '2px 1px', fontFamily: "'Share Tech Mono'", fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {SUSPECT_PROFILES[index % SUSPECT_PROFILES.length].label}
                   </div>
@@ -1034,7 +1055,7 @@ export default function CCTVGrid({
                     <div style={{ fontSize: '0.48rem', color: '#ef4444', marginBottom: 8, fontFamily: "'Share Tech Mono'", letterSpacing: 1 }}>⚠ SUSPECT PROFILES</div>
                     {SUSPECT_PROFILES.map(p => (
                       <div key={p.id} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-                        <BiometricARAvatar id={p.id} color={p.color} width={32} height={42} />
+                        <img src={p.img} alt={p.label} style={{ width: 36, height: 48, objectFit: 'cover', borderRadius: 3, border: `1px solid ${p.color}` }} onError={e => { e.currentTarget.style.display = 'none'; }} />
                         <div>
                           <div style={{ fontSize: '0.42rem', color: '#fff', fontWeight: 'bold', fontFamily: "'Share Tech Mono'" }}>{p.label}</div>
                           <div style={{ fontSize: '0.38rem', color: p.color, fontFamily: "'Share Tech Mono'" }}>MATCH: {p.match}</div>

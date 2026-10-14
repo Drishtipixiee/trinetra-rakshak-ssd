@@ -1918,7 +1918,7 @@ export default function App() {
                     }}>
                       <div style={{ fontSize: '0.45rem', color: '#00f3ff', borderBottom: '1px solid rgba(0,243,255,0.3)', paddingBottom: 4, marginBottom: 6, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>
                         <div className="rec-dot" style={{ width: 4, height: 4, background: '#00f3ff', borderRadius: '50%', animation: 'pulse 1s infinite' }} />
-                        AR/VR VEHICLE TARGET LOCK
+                        AI HUMAN SUSPECT PROFILES
                       </div>
                       
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1940,13 +1940,7 @@ export default function App() {
                               transition: 'all 0.2s ease',
                             }}
                           >
-                            <svg width="32" height="32" viewBox="0 0 40 40">
-                              <rect x="5" y="16" width="30" height="14" rx="2" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
-                              <polygon points="12,16 28,16 23,8 17,8" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
-                              <circle cx="12" cy="30" r="3.5" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
-                              <circle cx="28" cy="30" r="3.5" fill="none" stroke="#00f3ff" strokeWidth="1.2" />
-                              <circle cx="20" cy="20" r="14" fill="none" stroke={activeTargetLock === sus.id ? '#00f3ff' : '#ef4444'} strokeWidth="0.8" strokeDasharray="3 2" />
-                            </svg>
+                            <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&auto=format&fit=crop&q=80" alt="Suspect portrait" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 3, border: '1px solid #00f3ff' }} onError={e => { e.currentTarget.style.display = 'none'; }} />
                             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                               <div style={{ fontSize: '0.42rem', color: '#fff', fontWeight: 'bold' }}>{sus.name}</div>
                               <div style={{ fontSize: '0.38rem', color: '#00f3ff' }}>AR LOCK: {sus.match}</div>
