@@ -1,37 +1,36 @@
 /* eslint-disable react/prop-types */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Video, Maximize2, X, AlertTriangle, Shield, Camera, CameraOff, Download, User, Eye } from 'lucide-react';
+import { Video, Maximize2, X, AlertTriangle, Shield, Camera, CameraOff, Download, User, Eye, Play, Square, Volume2, VolumeX } from 'lucide-react';
 
-// ─── Real human surveillance & suspect portraits matching Image 2 ───
+// ─── High-priority tactical suspect portraits — STRICTLY SERIOUS / NO SMILES ───
 const HUMAN_IMAGES = [
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80', // Male suspect 1 (Image 2 S-003)
-  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80', // Armed intruder suspect
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=80', // Male suspect 2 (Image 2 S-004)
-  'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80', // Infiltrator suspect
-  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&auto=format&fit=crop&q=80', // Checkpoint evader
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80', // Female suspect
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&q=80', // S-003 thumbnail (Image 2)
-  'https://images.unsplash.com/photo-1494790108755-2616b612b550?w=200&h=200&fit=crop&q=80', // S-002 thumbnail
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&q=80', // S-004 thumbnail (Image 2)
-  'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200&h=200&fit=crop&q=80', // S-005 thumbnail
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&q=80', // S-006 thumbnail
+  'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80', // Infiltrator at night (hooded, serious)
+  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80', // Stern, cold adult male face (no smile)
+  'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=600&auto=format&fit=crop&q=80', // Tactical sentry (serious military gear)
+  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&auto=format&fit=crop&q=80', // Serious security officer profile
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80', // Cold, serious operative
+  'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=600&auto=format&fit=crop&q=80', // Solemn bearded operative (no smile)
   'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&q=80', // S-001 thumbnail
+  'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=200&h=200&fit=crop&q=80', // S-002 thumbnail
+  'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=200&h=200&fit=crop&q=80', // S-003 thumbnail
+  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200&h=200&fit=crop&q=80', // S-004 thumbnail
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&q=80', // S-005 thumbnail
+  'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=200&h=200&fit=crop&q=80', // S-006 thumbnail
 ];
 
 const SUSPECT_PROFILES = [
-  { id: 'S-001', label: 'ARMED INTRUDER', match: '96%', threat: 'CRITICAL', img: HUMAN_IMAGES[1] },
-  { id: 'S-002', label: 'PERIMETER BREACHER', match: '93%', threat: 'CRITICAL', img: HUMAN_IMAGES[3] },
-  { id: 'S-003', label: 'UNAUTHORIZED SENTRY', match: '88%', threat: 'HIGH', img: HUMAN_IMAGES[6] },
-  { id: 'S-004', label: 'WANTED RECON SCOUT', match: '82%', threat: 'HIGH', img: HUMAN_IMAGES[8] },
-  { id: 'S-005', label: 'UNIDENTIFIED INFILTRATOR', match: '78%', threat: 'WARNING', img: HUMAN_IMAGES[9] },
-  { id: 'S-006', label: 'CHECKPOINT EVADER', match: '74%', threat: 'WARNING', img: HUMAN_IMAGES[10] },
+  { id: 'S-001', label: 'ARMED INTRUDER', match: '96%', threat: 'CRITICAL', img: HUMAN_IMAGES[0] },
+  { id: 'S-002', label: 'PERIMETER BREACHER', match: '93%', threat: 'CRITICAL', img: HUMAN_IMAGES[1] },
+  { id: 'S-003', label: 'UNAUTHORIZED SENTRY', match: '88%', threat: 'HIGH', img: HUMAN_IMAGES[2] },
+  { id: 'S-004', label: 'WANTED RECON SCOUT', match: '82%', threat: 'HIGH', img: HUMAN_IMAGES[3] },
+  { id: 'S-005', label: 'UNIDENTIFIED INFILTRATOR', match: '78%', threat: 'WARNING', img: HUMAN_IMAGES[4] },
+  { id: 'S-006', label: 'CHECKPOINT EVADER', match: '74%', threat: 'WARNING', img: HUMAN_IMAGES[5] },
 ];
 
 const CAMERAS = [
   {
     id: 'CAM-01', name: 'MAIN GATE -- SEC-7A', coords: "N28°38'12\" E77°13'04\"",
-    posterImg: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=700&auto=format&fit=crop&q=80',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-car-approaching-a-security-gate-at-night-42171-large.mp4',
     scenario: [
       { time: [0, 6], detections: [], status: 'CLEAR' },
@@ -42,7 +41,6 @@ const CAMERAS = [
   },
   {
     id: 'CAM-02', name: 'PERIMETER NORTH', coords: "N28°38'18\" E77°13'09\"",
-    posterImg: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=700&auto=format&fit=crop&q=80',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-security-camera-recording-a-robbery-41484-large.mp4',
     scenario: [
       { time: [0, 8], detections: [], status: 'SCANNING' },
@@ -53,7 +51,6 @@ const CAMERAS = [
   },
   {
     id: 'CAM-03', name: 'EAST WATCHTOWER', coords: "N28°38'15\" E77°13'15\"",
-    posterImg: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=700&auto=format&fit=crop&q=80',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4',
     scenario: [
       { time: [0, 20], detections: [], status: 'CLEAR' },
@@ -64,13 +61,180 @@ const CAMERAS = [
   },
   {
     id: 'CAM-04', name: 'COMMAND BUNKER', coords: "N28°38'10\" E77°13'00\"",
-    posterImg: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=700&auto=format&fit=crop&q=80',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-guard-walking-in-the-snow-during-winter-39845-large.mp4',
     scenario: [
       { time: [0, 180], detections: [], status: 'SECURE -- NO MOVEMENT' },
     ]
   },
 ];
+
+// ─── 3D AR/VR Vector Model Component for CCTV Feeds (Replaces coverpage photos) ───
+function CameraARModel({ camId }) {
+  if (camId === 'CAM-01') {
+    return (
+      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#020804' }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: 'linear-gradient(rgba(34,197,94,0.14) 1px, transparent 1px), linear-gradient(90deg, rgba(34,197,94,0.14) 1px, transparent 1px)',
+          backgroundSize: '20px 20px',
+          transform: 'perspective(180px) rotateX(35deg)',
+          transformOrigin: 'bottom center',
+          opacity: 0.85
+        }} />
+        <svg width="100%" height="100%" viewBox="0 0 320 180" style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+          <polygon points="120,75 200,75 290,180 30,180" fill="rgba(34,197,94,0.03)" stroke="rgba(34,197,94,0.2)" strokeWidth="0.8" />
+          <line x1="160" y1="75" x2="160" y2="180" stroke="rgba(34,197,94,0.35)" strokeWidth="1" strokeDasharray="6 4" />
+          <rect x="75" y="80" width="12" height="55" fill="rgba(34,197,94,0.1)" stroke="#22c55e" strokeWidth="1.2" />
+          <rect x="233" y="80" width="12" height="55" fill="rgba(34,197,94,0.1)" stroke="#22c55e" strokeWidth="1.2" />
+          <line x1="87" y1="95" x2="233" y2="95" stroke="#ef4444" strokeWidth="3" strokeDasharray="14 8" />
+          <line x1="87" y1="95" x2="233" y2="95" stroke="#fff" strokeWidth="0.8" />
+          <polygon points="38,82 66,82 72,74 44,74" fill="rgba(34,197,94,0.08)" stroke="#22c55e" strokeWidth="1" />
+          <polygon points="38,82 38,135 66,135 66,82" fill="rgba(34,197,94,0.05)" stroke="#22c55e" strokeWidth="1" />
+          <polygon points="66,82 72,74 72,127 66,135" fill="rgba(34,197,94,0.04)" stroke="#22c55e" strokeWidth="1" />
+          <rect x="44" y="90" width="14" height="18" fill="none" stroke="rgba(56,189,248,0.7)" strokeWidth="0.8" />
+          <rect x="135" y="70" width="50" height="45" fill="none" stroke="rgba(34,197,94,0.6)" strokeWidth="1" strokeDasharray="4 3" />
+          <text x="138" y="66" fill="#22c55e" fontSize="7" fontFamily="monospace" fontWeight="bold">3D GATE MESH: SEC-7A</text>
+          <text x="12" y="18" fill="#38bdf8" fontSize="7.5" fontFamily="monospace">AR/VR SPATIAL BARRIER // RANGE: 42m</text>
+        </svg>
+        <div style={{
+          position: 'absolute', top: 12, right: 12, width: 60, height: 60,
+          borderRadius: '50%', border: '1px dashed rgba(34,197,94,0.3)', pointerEvents: 'none'
+        }}>
+          <div style={{
+            position: 'absolute', inset: 0, borderRadius: '50%',
+            background: 'conic-gradient(from 0deg, rgba(34,197,94,0.35) 0deg, transparent 55deg, transparent 360deg)',
+            animation: 'spin 3s linear infinite'
+          }} />
+          <div style={{ position: 'absolute', top: '50%', left: '50%', width: 4, height: 4, transform: 'translate(-50%, -50%)', background: '#22c55e', borderRadius: '50%' }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (camId === 'CAM-02') {
+    return (
+      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#020603' }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: 'linear-gradient(rgba(239,68,68,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(239,68,68,0.15) 1px, transparent 1px)',
+          backgroundSize: '18px 18px',
+          transform: 'perspective(180px) rotateX(35deg)',
+          transformOrigin: 'bottom center',
+          opacity: 0.85
+        }} />
+        <svg width="100%" height="100%" viewBox="0 0 320 180" style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+          {[40, 90, 140, 190, 240, 280].map((x, i) => (
+            <g key={i}>
+              <line x1={x} y1="45" x2={x} y2="155" stroke="rgba(239,68,68,0.8)" strokeWidth="1.5" />
+              <line x1={x} y1="45" x2={x + 10} y2="35" stroke="rgba(239,68,68,0.7)" strokeWidth="1" />
+            </g>
+          ))}
+          <line x1="20" y1="60" x2="300" y2="60" stroke="rgba(239,68,68,0.5)" strokeWidth="0.8" />
+          <line x1="20" y1="85" x2="300" y2="85" stroke="rgba(239,68,68,0.5)" strokeWidth="0.8" />
+          <line x1="20" y1="110" x2="300" y2="110" stroke="rgba(239,68,68,0.5)" strokeWidth="0.8" />
+          <line x1="20" y1="135" x2="300" y2="135" stroke="rgba(239,68,68,0.5)" strokeWidth="0.8" />
+          {Array.from({ length: 12 }).map((_, i) => (
+            <circle key={i} cx={35 + i * 22} cy="42" r="9" fill="none" stroke="rgba(239,68,68,0.6)" strokeWidth="0.8" strokeDasharray="3 2" />
+          ))}
+          <polygon points="175,65 210,65 218,55 183,55" fill="rgba(239,68,68,0.15)" stroke="#ef4444" strokeWidth="1" />
+          <polygon points="175,65 175,135 210,135 210,65" fill="rgba(239,68,68,0.08)" stroke="#ef4444" strokeWidth="1" />
+          <polygon points="210,65 218,55 218,125 210,135" fill="rgba(239,68,68,0.12)" stroke="#ef4444" strokeWidth="1" />
+          <line x1="10" y1="120" x2="310" y2="120" stroke="#ef4444" strokeWidth="1.2" strokeDasharray="8 4" />
+          <circle cx="192" cy="120" r="4" fill="#ef4444" />
+          <circle cx="192" cy="120" r="12" fill="none" stroke="rgba(239,68,68,0.4)" strokeWidth="0.8" />
+          <text x="175" y="50" fill="#ef4444" fontSize="7" fontFamily="monospace" fontWeight="bold">!! TARGET LOCK [S-001]</text>
+          <text x="12" y="18" fill="#ef4444" fontSize="7.5" fontFamily="monospace">AR PERIMETER TRIPWIRE // NORTH SEC-7B</text>
+        </svg>
+        <div style={{
+          position: 'absolute', top: 12, right: 12, width: 60, height: 60,
+          borderRadius: '50%', border: '1px dashed rgba(239,68,68,0.4)', pointerEvents: 'none'
+        }}>
+          <div style={{
+            position: 'absolute', inset: 0, borderRadius: '50%',
+            background: 'conic-gradient(from 0deg, rgba(239,68,68,0.3) 0deg, transparent 60deg, transparent 360deg)',
+            animation: 'spin 2.5s linear infinite'
+          }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (camId === 'CAM-03') {
+    return (
+      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#020704' }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: 'linear-gradient(rgba(56,189,248,0.14) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.14) 1px, transparent 1px)',
+          backgroundSize: '20px 20px',
+          transform: 'perspective(180px) rotateX(35deg)',
+          transformOrigin: 'bottom center',
+          opacity: 0.85
+        }} />
+        <svg width="100%" height="100%" viewBox="0 0 320 180" style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+          <line x1="120" y1="165" x2="145" y2="45" stroke="#38bdf8" strokeWidth="1.5" />
+          <line x1="200" y1="165" x2="175" y2="45" stroke="#38bdf8" strokeWidth="1.5" />
+          <line x1="140" y1="165" x2="152" y2="45" stroke="rgba(56,189,248,0.5)" strokeWidth="0.8" />
+          <line x1="180" y1="165" x2="168" y2="45" stroke="rgba(56,189,248,0.5)" strokeWidth="0.8" />
+          {[65, 88, 112, 138].map((y, i) => (
+            <line key={i} x1={145 - i * 6} y1={y} x2={175 + i * 6} y2={y} stroke="#38bdf8" strokeWidth="0.8" />
+          ))}
+          <polygon points="140,45 180,45 186,30 134,30" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" strokeWidth="1.2" />
+          <rect x="142" y="32" width="36" height="10" fill="none" stroke="#22c55e" strokeWidth="0.8" />
+          <polygon points="160,30 50,165 110,165" fill="rgba(56,189,248,0.06)" stroke="rgba(56,189,248,0.2)" strokeWidth="0.5" strokeDasharray="4 2" />
+          <circle cx="160" cy="95" r="30" fill="none" stroke="rgba(56,189,248,0.3)" strokeWidth="0.5" />
+          <circle cx="160" cy="95" r="55" fill="none" stroke="rgba(56,189,248,0.2)" strokeWidth="0.5" strokeDasharray="3 3" />
+          <circle cx="160" cy="95" r="80" fill="none" stroke="rgba(56,189,248,0.15)" strokeWidth="0.5" />
+          <text x="12" y="18" fill="#38bdf8" fontSize="7.5" fontFamily="monospace">AR WATCHTOWER RADAR // KM-14 RIVER SECTOR</text>
+        </svg>
+        <div style={{
+          position: 'absolute', top: 12, right: 12, width: 60, height: 60,
+          borderRadius: '50%', border: '1px dashed rgba(56,189,248,0.3)', pointerEvents: 'none'
+        }}>
+          <div style={{
+            position: 'absolute', inset: 0, borderRadius: '50%',
+            background: 'conic-gradient(from 0deg, rgba(56,189,248,0.3) 0deg, transparent 60deg, transparent 360deg)',
+            animation: 'spin 3.5s linear infinite'
+          }} />
+        </div>
+      </div>
+    );
+  }
+
+  // CAM-04: Command Bunker
+  return (
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#030805' }}>
+      <div style={{
+        position: 'absolute', inset: 0,
+        backgroundImage: 'linear-gradient(rgba(34,197,94,0.14) 1px, transparent 1px), linear-gradient(90deg, rgba(34,197,94,0.14) 1px, transparent 1px)',
+        backgroundSize: '20px 20px',
+        transform: 'perspective(180px) rotateX(35deg)',
+        transformOrigin: 'bottom center',
+        opacity: 0.85
+      }} />
+      <svg width="100%" height="100%" viewBox="0 0 320 180" style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+        <polygon points="100,85 220,85 235,70 115,70" fill="rgba(34,197,94,0.12)" stroke="#22c55e" strokeWidth="1.2" />
+        <polygon points="100,85 100,140 220,140 220,85" fill="rgba(34,197,94,0.06)" stroke="#22c55e" strokeWidth="1.2" />
+        <polygon points="220,85 235,70 235,125 220,140" fill="rgba(34,197,94,0.08)" stroke="#22c55e" strokeWidth="1.2" />
+        <rect x="145" y="98" width="30" height="42" fill="none" stroke="rgba(34,197,94,0.8)" strokeWidth="1" />
+        <rect x="120" y="90" width="80" height="4" fill="rgba(34,197,94,0.3)" stroke="#22c55e" strokeWidth="0.8" />
+        {[[60, 110], [80, 130], [240, 105], [260, 125], [160, 60], [180, 50], [90, 60]].map(([px, py], i) => (
+          <circle key={i} cx={px} cy={py} r="2" fill="#22c55e" />
+        ))}
+        <text x="12" y="18" fill="#22c55e" fontSize="7.5" fontFamily="monospace">AR COMMAND BUNKER // SECTOR 12 HIGHWAY</text>
+      </svg>
+      <div style={{
+        position: 'absolute', top: 12, right: 12, width: 60, height: 60,
+        borderRadius: '50%', border: '1px dashed rgba(34,197,94,0.3)', pointerEvents: 'none'
+      }}>
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: '50%',
+          background: 'conic-gradient(from 0deg, rgba(34,197,94,0.3) 0deg, transparent 55deg, transparent 360deg)',
+          animation: 'spin 3s linear infinite'
+        }} />
+      </div>
+    </div>
+  );
+}
 
 // ─── Draw 3D-like human figures on canvas ───
 function draw3DHuman(ctx, x, y, w, h, color, rgbStr, risk, tick, idx) {
@@ -358,10 +522,47 @@ function drawCameraDetections(canvas, phase, tick) {
   ctx.fillText(new Date().toISOString().slice(11, 19) + ' UTC', W - 84, H - 6);
 }
 
-export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDetectionData, setSmsText, setSmsVisible, playDetectionBeep }) {
+export default function CCTVGrid({
+  active = false,
+  voiceRef,
+  voiceEnabled,
+  setDetectionData,
+  setSmsText,
+  setSmsVisible,
+  playDetectionBeep,
+  simActive = false,
+  setSimActive,
+  setVoiceEnabled
+}) {
   const [expandedCam, setExpandedCam] = useState(null);
   const [tick, setTick] = useState(0);
   const [failedVideos, setFailedVideos] = useState({});
+  const [internalSim, setInternalSim] = useState(false);
+  const [arModeOnly, setArModeOnly] = useState(false);
+  const isSimActive = typeof simActive === 'boolean' ? simActive : internalSim;
+
+  const toggleSim = (e) => {
+    e?.stopPropagation();
+    if (setSimActive) setSimActive(!isSimActive);
+    else setInternalSim(!internalSim);
+  };
+
+  const toggleVoice = (e) => {
+    e?.stopPropagation();
+    if (setVoiceEnabled) {
+      const next = !voiceEnabled;
+      setVoiceEnabled(next);
+      if (voiceRef?.current) {
+        if (next) {
+          voiceRef.current.enable();
+          voiceRef.current.speak('AI voice online. Surveillance audio enabled.', 'normal');
+        } else {
+          voiceRef.current.disable();
+        }
+      }
+    }
+  };
+
   const canvasRefs = useRef([]);
   const videoRefs = useRef([]);
   const modalCanvasRef = useRef(null);
@@ -500,21 +701,92 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
     <motion.div key="cctv" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 6, gap: 6, background: '#000' }}>
 
-      {/* SUSPECT PROFILES HEADER STRIP — shows when threats detected */}
+      {/* ── TACTICAL CONTROL BAR (STOP SIMULATION & STOP AI VOICE) ── */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '6px 10px', background: 'rgba(8,16,10,0.92)',
+        border: '1px solid rgba(34,197,94,0.3)', borderRadius: 6, flexWrap: 'wrap', gap: 6,
+        boxShadow: '0 2px 10px rgba(0,0,0,0.6)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Video size={13} color="#22c55e" />
+          <span style={{ fontSize: '0.62rem', color: '#22c55e', fontFamily: "'Share Tech Mono'", fontWeight: 'bold', letterSpacing: 1.5 }}>
+            TACTICAL CCTV MATRIX — 6 CHANNELS
+          </span>
+          <span style={{
+            fontSize: '0.45rem',
+            background: isSimActive ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.15)',
+            border: `1px solid ${isSimActive ? '#ef4444' : '#22c55e'}40`,
+            color: isSimActive ? '#ef4444' : '#22c55e',
+            padding: '2px 6px', borderRadius: 3, fontFamily: "'Share Tech Mono'"
+          }}>
+            {isSimActive ? '● SIMULATION RUNNING' : '○ IDLE (3D AR/VR READY)'}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* Toggle between 3D AR/VR Wireframe and Video */}
+          <button
+            onClick={() => setArModeOnly(prev => !prev)}
+            style={{
+              background: arModeOnly ? 'rgba(56,189,248,0.25)' : 'rgba(34,197,94,0.15)',
+              border: `1px solid ${arModeOnly ? '#38bdf8' : '#22c55e'}`,
+              color: arModeOnly ? '#38bdf8' : '#22c55e',
+              padding: '3px 9px', borderRadius: 4, fontFamily: "'Share Tech Mono'",
+              fontSize: '0.55rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
+            }}
+            title="Toggle AR/VR 3D Wireframe HUD View"
+          >
+            {arModeOnly ? '🥽 3D AR/VR WIREFRAME: ON' : '🎥 SURVEILLANCE STREAM'}
+          </button>
+
+          {/* STOP / RUN SIMULATION BUTTON */}
+          <button
+            onClick={toggleSim}
+            style={{
+              background: isSimActive ? 'rgba(239,68,68,0.25)' : 'rgba(34,197,94,0.15)',
+              border: `1px solid ${isSimActive ? '#ef4444' : '#22c55e'}`,
+              color: isSimActive ? '#ef4444' : '#22c55e',
+              padding: '3px 9px', borderRadius: 4, fontFamily: "'Share Tech Mono'",
+              fontSize: '0.55rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
+            }}
+            title="Stop or Start Defense Simulation"
+          >
+            {isSimActive ? <><Square size={10} /> STOP SIMULATION</> : <><Play size={10} /> START SIMULATION</>}
+          </button>
+
+          {/* STOP / MUTE AI VOICE BUTTON */}
+          <button
+            onClick={toggleVoice}
+            style={{
+              background: voiceEnabled ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.25)',
+              border: `1px solid ${voiceEnabled ? '#22c55e' : '#ef4444'}`,
+              color: voiceEnabled ? '#22c55e' : '#ef4444',
+              padding: '3px 9px', borderRadius: 4, fontFamily: "'Share Tech Mono'",
+              fontSize: '0.55rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
+            }}
+            title="Stop or Start AI Voice Alerts"
+          >
+            {voiceEnabled ? <><Volume2 size={10} /> AI VOICE: ON</> : <><VolumeX size={10} /> STOP AI VOICE</>}
+          </button>
+        </div>
+      </div>
+
+      {/* SUSPECT PROFILES HEADER STRIP — serious portraits only */}
       {hasCritical && (
         <motion.div
           initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
           style={{
             display: 'flex', gap: 8, padding: '6px 10px',
             background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)',
-            borderRadius: 8, alignItems: 'center'
+            borderRadius: 8, alignItems: 'center', flexWrap: 'wrap'
           }}>
           <AlertTriangle size={12} color="#ef4444" />
           <span style={{ fontSize: '0.55rem', color: '#ef4444', fontFamily: "'Share Tech Mono'", letterSpacing: 2, marginRight: 8 }}>THREAT PROFILES DETECTED</span>
           {SUSPECT_PROFILES.map(p => (
             <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '4px 8px' }}>
               <img src={p.img} alt={p.label}
-                style={{ width: 28, height: 36, objectFit: 'cover', borderRadius: 3, filter: 'grayscale(40%) contrast(1.2)', border: '1px solid #ef4444' }}
+                style={{ width: 28, height: 36, objectFit: 'cover', borderRadius: 3, filter: 'grayscale(30%) contrast(1.2)', border: '1px solid #ef4444' }}
                 onError={e => { e.target.style.display = 'none'; }}
               />
               <div>
@@ -543,21 +815,23 @@ export default function CCTVGrid({ active = false, voiceRef, voiceEnabled, setDe
           return (
             <div key={cam.id} className={`cctv-feed ${isCritical ? 'critical' : hasDetections ? 'degraded' : ''}`}
               onClick={() => setExpandedCam(index)} style={{ position: 'relative' }}>
-              {/* Real Human Surveillance Photo backdrop */}
-              <img
-                src={cam.posterImg}
-                alt={cam.name}
-                style={{
-                  position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
-                  zIndex: 0, opacity: isOffline ? 0 : 0.75, filter: camFilters[cam.id] || 'none'
-                }}
-              />
-              <video autoPlay loop muted playsInline preload="metadata"
-                ref={el => videoRefs.current[index] = el}
-                onError={() => setFailedVideos(prev => ({ ...prev, [cam.id]: true }))}
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0, opacity: isOffline || failedVideos[cam.id] ? 0 : 0.65, filter: camFilters[cam.id] || 'none' }}
-                src={cam.videoUrl}
-              />
+              
+              {/* 3D AR/VR Vector Model Backdrop (NO coverpage photo) */}
+              {(!isSimActive || arModeOnly) ? (
+                <CameraARModel camId={cam.id} />
+              ) : (
+                <>
+                  <video autoPlay loop muted playsInline preload="metadata"
+                    ref={el => videoRefs.current[index] = el}
+                    onError={() => setFailedVideos(prev => ({ ...prev, [cam.id]: true }))}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0, opacity: isOffline || failedVideos[cam.id] ? 0 : 0.75, filter: camFilters[cam.id] || 'none' }}
+                    src={cam.videoUrl}
+                  />
+                  {failedVideos[cam.id] && (
+                    <CameraARModel camId={cam.id} />
+                  )}
+                </>
+              )}
 
               {/* 3D Human overlay images when person detected and video failed */}
               {!isOffline && failedVideos[cam.id] && hasDetections && phase.detections.some(d => d.class === 'person') && (

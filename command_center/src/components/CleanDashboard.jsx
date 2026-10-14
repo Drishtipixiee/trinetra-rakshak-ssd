@@ -109,8 +109,8 @@ function CCTVMatrix({ onClick }) {
       label: 'UNAUTHORIZED SENTRY',
       match: '88%',
       threat: 'HIGH',
-      // Real human suspect portrait matching Image 2 (African-American smiling man, beard, v-neck)
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80',
+      // Real serious tactical sentry (no smile)
+      photo: 'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=600&auto=format&fit=crop&q=80',
       coords: "N28°38'12\" E77°13'04\"",
       arData: { range: '142m', azimuth: '042°', elev: '+1.4m', target: 'BIO-TARGET [S-003]' },
       target: { box: { top: '14%', left: '32%', width: '36%', height: '64%' } },
@@ -124,8 +124,8 @@ function CCTVMatrix({ onClick }) {
       label: 'ARMED INTRUDER',
       match: '96%',
       threat: 'CRITICAL',
-      // Real human suspect portrait
-      photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80',
+      // Night hooded operative (serious, no smile)
+      photo: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80',
       coords: "N28°38'18\" E77°13'09\"",
       arData: { range: '085m', azimuth: '318°', elev: '+0.8m', target: 'HOSTILE INTRUDER [S-001]' },
       target: { box: { top: '12%', left: '28%', width: '44%', height: '68%' } },
@@ -139,8 +139,8 @@ function CCTVMatrix({ onClick }) {
       label: 'WANTED RECON SCOUT',
       match: '82%',
       threat: 'HIGH',
-      // Real human suspect portrait matching Image 2 (Young man in grey sweater)
-      photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=80',
+      // Cold, intense unsmiling adult male face
+      photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80',
       coords: "N28°38'15\" E77°13'15\"",
       arData: { range: '210m', azimuth: '112°', elev: '-2.1m', target: 'RECON UNIT [S-004]' },
       target: { box: { top: '15%', left: '30%', width: '38%', height: '64%' } },
@@ -154,8 +154,8 @@ function CCTVMatrix({ onClick }) {
       label: 'PERIMETER BREACHER',
       match: '93%',
       threat: 'CRITICAL',
-      // Real human suspect portrait
-      photo: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80',
+      // Serious security operative (no smile)
+      photo: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&auto=format&fit=crop&q=80',
       coords: "N28°38'10\" E77°13'00\"",
       arData: { range: '168m', azimuth: '275°', elev: '+3.2m', target: 'BREACH POINT [S-002]' },
       target: { box: { top: '14%', left: '28%', width: '42%', height: '66%' } },

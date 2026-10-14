@@ -1453,6 +1453,52 @@ export default function App() {
           </div>
         </div>
         <div className="header-right">
+          {/* Quick Action: Stop / Run Simulation */}
+          <button
+            onClick={() => {
+              const next = !simActive;
+              setSimActive(next);
+              addLog(`[SYS] ${next ? '▶ Border Sentry simulation active' : '⏹ Simulation STOPPED'}`, next ? 'safe' : 'warning');
+            }}
+            style={{
+              background: simActive ? 'rgba(239,68,68,0.25)' : 'rgba(34,197,94,0.12)',
+              border: `1px solid ${simActive ? '#ef4444' : 'rgba(34,197,94,0.4)'}`,
+              color: simActive ? '#ef4444' : '#22c55e',
+              padding: '3px 8px', borderRadius: 4, fontFamily: "'Share Tech Mono'",
+              fontSize: '0.55rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
+            }}
+            title="Stop or Start Defense Simulation"
+          >
+            {simActive ? <><Square size={10} /> STOP SIM</> : <><Play size={10} /> RUN SIM</>}
+          </button>
+
+          {/* Quick Action: Stop / Mute AI Voice */}
+          <button
+            onClick={() => {
+              const next = !voiceEnabled;
+              setVoiceEnabled(next);
+              if (voiceRef.current) {
+                if (next) {
+                  voiceRef.current.enable();
+                  voiceRef.current.speak('AI voice active.', 'normal');
+                } else {
+                  voiceRef.current.disable();
+                }
+              }
+              addLog(`[SYS] AI Voice ${next ? 'ENABLED' : 'STOPPED/MUTED'}`, 'normal');
+            }}
+            style={{
+              background: voiceEnabled ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.22)',
+              border: `1px solid ${voiceEnabled ? '#22c55e' : '#ef4444'}`,
+              color: voiceEnabled ? '#22c55e' : '#ef4444',
+              padding: '3px 8px', borderRadius: 4, fontFamily: "'Share Tech Mono'",
+              fontSize: '0.55rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
+            }}
+            title="Stop or Start AI Voice Alerts"
+          >
+            {voiceEnabled ? <><Volume2 size={10} /> AI VOICE: ON</> : <><VolumeX size={10} /> STOP VOICE</>}
+          </button>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div className="status-pulse-ring" style={{ backgroundColor: isAlert ? 'var(--danger)' : 'var(--safe)', color: isAlert ? 'var(--danger)' : 'var(--safe)' }} />
             <span style={{ fontFamily: "'Share Tech Mono'", fontSize: '0.6rem', color: isAlert ? 'var(--danger)' : 'var(--safe)', letterSpacing: 1 }}>
@@ -2350,7 +2396,20 @@ export default function App() {
             )}
 
             {/* ── CCTV ── */}
-            {activeTab === 'CCTV' && <CCTVGrid active={true} voiceRef={voiceRef} voiceEnabled={voiceEnabled} setDetectionData={setDetectionData} setSmsText={setSmsText} setSmsVisible={setSmsVisible} playDetectionBeep={playDetectionBeep} />}
+            {activeTab === 'CCTV' && (
+              <CCTVGrid
+                active={true}
+                voiceRef={voiceRef}
+                voiceEnabled={voiceEnabled}
+                setDetectionData={setDetectionData}
+                setSmsText={setSmsText}
+                setSmsVisible={setSmsVisible}
+                playDetectionBeep={playDetectionBeep}
+                simActive={simActive}
+                setSimActive={setSimActive}
+                setVoiceEnabled={setVoiceEnabled}
+              />
+            )}
 
             {/* -- GEO-EYE with REAL Sentinel-2 WMS + Documented Mining Zones -- */}
             {activeTab === 'GEO-EYE' && (
