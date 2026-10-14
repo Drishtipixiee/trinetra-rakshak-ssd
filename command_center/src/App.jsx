@@ -632,6 +632,7 @@ export default function App() {
   const [apiOffline, setApiOffline] = useState(false);
   const [activeTab, setActiveTab] = useState('DASHBOARD');
   const [sidebarView, setSidebarView] = useState('patrol'); // left sidebar panel
+  const [isOpsSidebarOpen, setIsOpsSidebarOpen] = useState(false); // Collapsible: hidden by default
   const [sessionTime, setSessionTime] = useState(7200);
   const [logs, setLogs] = useState([{ id: 1, text: "[SYS] All subsystems initialized. Defense grid online.", type: "normal" }]);
   const logsEndRef = useRef(null);
@@ -1459,63 +1460,112 @@ export default function App() {
         </div>
       </div>
 
-      {/* ═══ 3-PANEL GRID ═══ */}
-      <div className="main-grid">
+      {/* ═══ 3-PANEL GRID (Left Sidebar Collapsible) ═══ */}
+      <div className={`main-grid ${!isOpsSidebarOpen ? 'sidebar-hidden' : ''}`}>
 
-        {/* ═══ LEFT SIDEBAR ═══ */}
-        <div className="left-sidebar">
+        {/* Floating edge tab when sidebar is hidden */}
+        {!isOpsSidebarOpen && (
+          <button
+            className="sidebar-edge-tab"
+            onClick={() => setIsOpsSidebarOpen(true)}
+            title="Open Patrol & Incident Logs"
+          >
+            <Navigation size={10} />
+            <span>OPS PANEL ▶</span>
+          </button>
+        )}
 
-          {/* Sidebar nav */}
-          <div className="sidebar-nav">
-            {SIDEBAR_VIEWS.map(view => {
-              const Icon = view.icon;
-              return (
-                <button key={view.id}
-                  className={`sidebar-nav-btn ${sidebarView === view.id ? 'active' : ''} ${view.id === 'incidents' ? 'danger-btn' : ''}`}
-                  onClick={() => setSidebarView(view.id)}
-                >
-                  <Icon size={12} /> {view.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Sidebar content panel */}
-          <div className="sidebar-content">
-            {sidebarView === 'patrol' && (
-              <PatrolPanel addLog={addLog} />
-            )}
-            {sidebarView === 'incidents' && (
-              <IncidentLogPanel dbLogs={dbLogs} />
-            )}
-            {sidebarView === 'personnel' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: '0.6rem', color: 'var(--accent)', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
-                  DUTY ROSTER
-                </div>
-                <PersonnelRoster />
+        {/* ═══ LEFT SIDEBAR (COLLAPSIBLE — OPENED ON DEMAND) ═══ */}
+        {isOpsSidebarOpen && (
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 'var(--sidebar-w)', opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="left-sidebar"
+          >
+            {/* Header with Close ✕ */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border-dim)', background: 'rgba(0,0,0,0.5)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.62rem', color: '#22c55e', fontFamily: "'Share Tech Mono'", fontWeight: 'bold', letterSpacing: 1.5 }}>
+                <Shield size={12} /> TACTICAL OPS
               </div>
-            )}
-            {sidebarView === 'weather' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: '0.6rem', color: '#f59e0b', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
-                  WEATHER INTEL
+              <button
+                onClick={() => setIsOpsSidebarOpen(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
+                  color: 'var(--text-dim)', borderRadius: 4, width: 22, height: 22, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem'
+                }}
+                title="Hide sidebar"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Sidebar nav */}
+            <div className="sidebar-nav">
+              {SIDEBAR_VIEWS.map(view => {
+                const Icon = view.icon;
+                return (
+                  <button key={view.id}
+                    className={`sidebar-nav-btn ${sidebarView === view.id ? 'active' : ''} ${view.id === 'incidents' ? 'danger-btn' : ''}`}
+                    onClick={() => setSidebarView(view.id)}
+                  >
+                    <Icon size={12} /> {view.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Sidebar content panel */}
+            <div className="sidebar-content">
+              {sidebarView === 'patrol' && (
+                <PatrolPanel addLog={addLog} />
+              )}
+              {sidebarView === 'incidents' && (
+                <IncidentLogPanel dbLogs={dbLogs} />
+              )}
+              {sidebarView === 'personnel' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--accent)', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
+                    DUTY ROSTER
+                  </div>
+                  <PersonnelRoster />
                 </div>
-                <WeatherWidget />
-                <div className="sidebar-divider" />
-                <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
-                  THREAT TIMELINE
+              )}
+              {sidebarView === 'weather' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontSize: '0.6rem', color: '#f59e0b', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
+                    WEATHER INTEL
+                  </div>
+                  <WeatherWidget />
+                  <div className="sidebar-divider" />
+                  <div style={{ fontSize: '0.6rem', color: 'var(--text-dim)', fontFamily: "'Share Tech Mono'", letterSpacing: 2 }}>
+                    THREAT TIMELINE
+                  </div>
+                  <IncidentTimeline logs={logs} />
                 </div>
-                <IncidentTimeline logs={logs} />
-              </div>
-            )}
-          </div>
-        </div>
+              )}
+            </div>
+          </motion.div>
+        )}
 
         {/* ═══ MAIN VIEWPORT ═══ */}
         <div className="main-viewport">
           {/* Tab bar */}
           <div className="tab-bar">
+            {/* Ops Sidebar Toggle */}
+            <button
+              className={`ops-toggle-btn ${isOpsSidebarOpen ? 'active' : ''}`}
+              onClick={() => setIsOpsSidebarOpen(prev => !prev)}
+              title="Toggle Patrol, Incident Logs & Tactical Operations"
+            >
+              <Navigation size={11} />
+              <span>{isOpsSidebarOpen ? 'HIDE OPS' : 'PATROL & OPS'}</span>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', animation: 'breathe 1.5s infinite' }} />
+            </button>
+            <div style={{ width: 1, height: 16, background: 'var(--border-dim)', margin: '0 4px', flexShrink: 0 }} />
+
             {TABS.map(tab => {
               const Icon = tab.icon;
               return (
