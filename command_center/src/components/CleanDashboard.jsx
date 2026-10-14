@@ -112,6 +112,7 @@ function CCTVMatrix({ onClick }) {
       threat: 'HIGH',
       coords: "N28°38'12\" E77°13'04\"",
       arData: { range: '142m', azimuth: '042°', elev: '+1.4m', target: 'BIO-TARGET [S-003]' },
+      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80',
       target: { box: { top: '14%', left: '32%', width: '36%', height: '64%' } },
     },
     {
@@ -273,7 +274,7 @@ function CCTVMatrix({ onClick }) {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                    <BiometricARAvatar id={cam.suspectId} color={cam.color} width={22} height={22} />
+                    <img src={cam.photo} alt={cam.label} style={{ width: 22, height: 22, objectFit: 'cover', borderRadius: 3, border: `1px solid ${cam.color}` }} onError={e => { e.currentTarget.style.display = 'none'; }} />
                     <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                       <span style={{
                         fontSize: '0.46rem',
