@@ -296,7 +296,7 @@ body.alert-mode .hud-container {
    ═══════════════════════════════════════════ */
 .main-grid {
   display: grid;
-  grid-template-columns: 0px 1fr 0px;
+  grid-template-columns: 1fr;
   flex: 1;
   overflow: hidden;
   gap: 0;
@@ -305,23 +305,15 @@ body.alert-mode .hud-container {
 }
 
 .main-grid.left-open {
-  grid-template-columns: var(--sidebar-w) 1fr 0px;
+  grid-template-columns: var(--sidebar-w) 1fr;
 }
 
 .main-grid.right-open {
-  grid-template-columns: 0px 1fr var(--right-w);
+  grid-template-columns: 1fr var(--right-w);
 }
 
 .main-grid.left-open.right-open {
   grid-template-columns: var(--sidebar-w) 1fr var(--right-w);
-}
-
-/* Backward compat */
-.main-grid.sidebar-hidden {
-  grid-template-columns: 0px 1fr 0px;
-}
-.main-grid.sidebar-hidden.right-open {
-  grid-template-columns: 0px 1fr var(--right-w);
 }
 
 /* ── LEFT SIDEBAR — Navigation + Patrol + Incidents ── */

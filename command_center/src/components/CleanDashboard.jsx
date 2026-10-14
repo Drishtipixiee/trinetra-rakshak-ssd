@@ -95,82 +95,40 @@ function ModuleCard({ title, code, desc, status, statusColor, icon: Icon, onClic
   );
 }
 
-// ── CCTV Matrix Grid with Multiple AI Human Surveillance Photos ──
+// ── CCTV Matrix Grid with Dedicated Human Surveillance Detection Image ──
 function CCTVMatrix({ onClick }) {
-  const [photoCycle, setPhotoCycle] = useState(0);
-
-  // Cycle through surveillance human photos every 5.5s
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setPhotoCycle(prev => (prev + 1) % 3);
-    }, 5500);
-    return () => clearInterval(timer);
-  }, []);
-
   const feeds = [
     {
       id: 'CAM-01',
       name: 'NORTH GATE SEC-7A',
       status: 'ACTIVE',
       color: '#22c55e',
-      photos: [
-        'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80', // night watch guard
-        'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=600&auto=format&fit=crop&q=80', // tactical sentry
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80', // personnel gate
-      ],
-      targets: [
-        { label: 'SENTRY GUARD #07', conf: '96%', risk: 'SECURE', box: { top: '16%', left: '34%', width: '30%', height: '64%' } },
-        { label: 'PATROL OFFICER', conf: '94%', risk: 'SECURE', box: { top: '14%', left: '28%', width: '36%', height: '68%' } },
-        { label: 'PERSONNEL CONFIRMED', conf: '98%', risk: 'SECURE', box: { top: '18%', left: '32%', width: '32%', height: '62%' } },
-      ],
+      photo: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+      target: { label: 'HUMAN: SENTRY GUARD', conf: '96%', box: { top: '16%', left: '34%', width: '30%', height: '64%' } },
     },
     {
       id: 'CAM-02',
       name: 'FENCE PERIMETER SEC-7B',
       status: 'ALERT',
       color: '#ef4444',
-      photos: [
-        'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80', // night intruder perimeter
-        'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80', // intruder running
-        'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&auto=format&fit=crop&q=80', // breach target
-      ],
-      targets: [
-        { label: '!! INTRUDER: BREACH', conf: '94%', risk: 'CRITICAL', box: { top: '18%', left: '26%', width: '40%', height: '68%' } },
-        { label: '!! HOSTILE COMBATANT', conf: '91%', risk: 'HIGH', box: { top: '15%', left: '22%', width: '44%', height: '72%' } },
-        { label: '!! SUSPECT CLIMBING', conf: '89%', risk: 'CRITICAL', box: { top: '20%', left: '30%', width: '38%', height: '66%' } },
-      ],
+      photo: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80',
+      target: { label: '!! HUMAN: INTRUDER', conf: '94%', box: { top: '18%', left: '26%', width: '40%', height: '68%' } },
     },
     {
       id: 'CAM-03',
       name: 'RIVER BARRIER KM-14',
       status: 'ACTIVE',
       color: '#22c55e',
-      photos: [
-        'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=600&auto=format&fit=crop&q=80', // river patrol unit
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=80', // recon scout
-        'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80', // river watch
-      ],
-      targets: [
-        { label: 'RIVER UNIT PATROL', conf: '92%', risk: 'SECURE', box: { top: '18%', left: '32%', width: '32%', height: '64%' } },
-        { label: 'HUMAN TARGET #03', conf: '88%', risk: 'MONITORING', box: { top: '16%', left: '28%', width: '36%', height: '66%' } },
-        { label: 'SCOUT UNIT ACTIVE', conf: '95%', risk: 'SECURE', box: { top: '20%', left: '30%', width: '34%', height: '62%' } },
-      ],
+      photo: 'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=600&auto=format&fit=crop&q=80',
+      target: { label: 'HUMAN: RIVER PATROL', conf: '92%', box: { top: '18%', left: '32%', width: '32%', height: '64%' } },
     },
     {
       id: 'CAM-04',
       name: 'HIGHWAY OUTPOST SEC-12',
       status: 'ACTIVE',
       color: '#22c55e',
-      photos: [
-        'https://images.unsplash.com/photo-1584441405886-bc91be61e56a?w=600&auto=format&fit=crop&q=80', // checkpoint guard
-        'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80', // highway sentry
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80', // inspection team
-      ],
-      targets: [
-        { label: 'CHECKPOINT SENTRY', conf: '97%', risk: 'SECURE', box: { top: '14%', left: '30%', width: '36%', height: '68%' } },
-        { label: 'HIGHWAY SENTINEL', conf: '95%', risk: 'SECURE', box: { top: '16%', left: '26%', width: '38%', height: '66%' } },
-        { label: 'INSPECTION OFFICER', conf: '93%', risk: 'SECURE', box: { top: '15%', left: '32%', width: '34%', height: '68%' } },
-      ],
+      photo: 'https://images.unsplash.com/photo-1584441405886-bc91be61e56a?w=600&auto=format&fit=crop&q=80',
+      target: { label: 'HUMAN: CHECKPOINT SENTRY', conf: '97%', box: { top: '14%', left: '30%', width: '36%', height: '68%' } },
     },
   ];
 
@@ -203,132 +161,125 @@ function CCTVMatrix({ onClick }) {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {feeds.map(cam => {
-          const currentPhoto = cam.photos[photoCycle % cam.photos.length];
-          const currentTarget = cam.targets[photoCycle % cam.targets.length];
-
-          return (
-            <div
-              key={cam.id}
+        {feeds.map(cam => (
+          <div
+            key={cam.id}
+            style={{
+              position: 'relative',
+              borderRadius: 6,
+              overflow: 'hidden',
+              background: '#030804',
+              border: `1px solid ${cam.color}40`,
+              aspectRatio: '16/9',
+              boxShadow: cam.status === 'ALERT' ? '0 0 12px rgba(239,68,68,0.25)' : 'none',
+            }}
+          >
+            {/* Dedicated Human Surveillance Detection Image */}
+            <img
+              src={cam.photo}
+              alt={cam.name}
               style={{
-                position: 'relative',
-                borderRadius: 6,
-                overflow: 'hidden',
-                background: '#030804',
-                border: `1px solid ${cam.color}40`,
-                aspectRatio: '16/9',
-                boxShadow: cam.status === 'ALERT' ? '0 0 12px rgba(239,68,68,0.25)' : 'none',
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                filter: 'contrast(1.15) brightness(0.88) saturate(0.85)',
+              }}
+            />
+
+            {/* Night vision phosphor green overlay */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: cam.status === 'ALERT'
+                ? 'radial-gradient(ellipse at center, rgba(239,68,68,0.08) 0%, rgba(0,0,0,0.45) 100%)'
+                : 'radial-gradient(ellipse at center, rgba(34,197,94,0.08) 0%, rgba(0,0,0,0.45) 100%)',
+              pointerEvents: 'none'
+            }} />
+
+            {/* Scanline overlay */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.35) 0px, rgba(0,0,0,0.35) 1px, transparent 1px, transparent 2px)',
+              pointerEvents: 'none'
+            }} />
+
+            {/* AI Detection Bounding Box on Human Target */}
+            <div
+              style={{
+                position: 'absolute',
+                top: cam.target.box.top,
+                left: cam.target.box.left,
+                width: cam.target.box.width,
+                height: cam.target.box.height,
+                border: `1.5px solid ${cam.color}`,
+                boxShadow: `0 0 8px ${cam.color}60`,
+                pointerEvents: 'none',
               }}
             >
-              {/* Surveillance Image */}
-              <img
-                src={currentPhoto}
-                alt={cam.name}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  filter: 'contrast(1.15) brightness(0.88) saturate(0.85)',
-                  transition: 'opacity 0.6s ease-in-out',
-                }}
-              />
+              {/* Target Corner Brackets */}
+              <div style={{ position: 'absolute', top: -3, left: -3, width: 6, height: 6, borderTop: `2px solid ${cam.color}`, borderLeft: `2px solid ${cam.color}` }} />
+              <div style={{ position: 'absolute', top: -3, right: -3, width: 6, height: 6, borderTop: `2px solid ${cam.color}`, borderRight: `2px solid ${cam.color}` }} />
+              <div style={{ position: 'absolute', bottom: -3, left: -3, width: 6, height: 6, borderBottom: `2px solid ${cam.color}`, borderLeft: `2px solid ${cam.color}` }} />
+              <div style={{ position: 'absolute', bottom: -3, right: -3, width: 6, height: 6, borderBottom: `2px solid ${cam.color}`, borderRight: `2px solid ${cam.color}` }} />
 
-              {/* Night vision phosphor green overlay */}
-              <div style={{
-                position: 'absolute', inset: 0,
-                background: cam.status === 'ALERT'
-                  ? 'radial-gradient(ellipse at center, rgba(239,68,68,0.08) 0%, rgba(0,0,0,0.45) 100%)'
-                  : 'radial-gradient(ellipse at center, rgba(34,197,94,0.08) 0%, rgba(0,0,0,0.45) 100%)',
-                pointerEvents: 'none'
-              }} />
-
-              {/* Scanline overlay */}
-              <div style={{
-                position: 'absolute', inset: 0,
-                background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.35) 0px, rgba(0,0,0,0.35) 1px, transparent 1px, transparent 2px)',
-                pointerEvents: 'none'
-              }} />
-
-              {/* AI Detection Bounding Box on Human Target */}
+              {/* Target AI Label Tag */}
               <div
                 style={{
                   position: 'absolute',
-                  top: currentTarget.box.top,
-                  left: currentTarget.box.left,
-                  width: currentTarget.box.width,
-                  height: currentTarget.box.height,
-                  border: `1.5px solid ${cam.color}`,
-                  boxShadow: `0 0 8px ${cam.color}60`,
-                  pointerEvents: 'none',
-                  transition: 'all 0.5s ease',
+                  top: -16,
+                  left: 0,
+                  background: cam.status === 'ALERT' ? 'rgba(239,68,68,0.9)' : 'rgba(10,30,12,0.92)',
+                  color: cam.status === 'ALERT' ? '#fff' : '#22c55e',
+                  border: `1px solid ${cam.color}`,
+                  borderRadius: 2,
+                  padding: '1px 4px',
+                  fontSize: '0.4rem',
+                  fontFamily: "'Share Tech Mono'",
+                  fontWeight: 'bold',
+                  letterSpacing: 0.8,
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
                 }}
               >
-                {/* Target Corner Brackets */}
-                <div style={{ position: 'absolute', top: -3, left: -3, width: 6, height: 6, borderTop: `2px solid ${cam.color}`, borderLeft: `2px solid ${cam.color}` }} />
-                <div style={{ position: 'absolute', top: -3, right: -3, width: 6, height: 6, borderTop: `2px solid ${cam.color}`, borderRight: `2px solid ${cam.color}` }} />
-                <div style={{ position: 'absolute', bottom: -3, left: -3, width: 6, height: 6, borderBottom: `2px solid ${cam.color}`, borderLeft: `2px solid ${cam.color}` }} />
-                <div style={{ position: 'absolute', bottom: -3, right: -3, width: 6, height: 6, borderBottom: `2px solid ${cam.color}`, borderRight: `2px solid ${cam.color}` }} />
-
-                {/* Target AI Label Tag */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: -16,
-                    left: 0,
-                    background: cam.status === 'ALERT' ? 'rgba(239,68,68,0.9)' : 'rgba(10,30,12,0.92)',
-                    color: cam.status === 'ALERT' ? '#fff' : '#22c55e',
-                    border: `1px solid ${cam.color}`,
-                    borderRadius: 2,
-                    padding: '1px 4px',
-                    fontSize: '0.4rem',
-                    fontFamily: "'Share Tech Mono'",
-                    fontWeight: 'bold',
-                    letterSpacing: 0.8,
-                    whiteSpace: 'nowrap',
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
-                  }}
-                >
-                  {currentTarget.label} [{currentTarget.conf}]
-                </div>
-              </div>
-
-              {/* Top Bar with Camera ID and REC Dot */}
-              <div style={{ position: 'absolute', top: 5, left: 6, display: 'flex', alignItems: 'center', gap: 4, zIndex: 2 }}>
-                <div style={{
-                  width: 5, height: 5, borderRadius: '50%',
-                  background: cam.color,
-                  boxShadow: `0 0 6px ${cam.color}`,
-                  animation: 'breathe 1.2s infinite'
-                }} />
-                <span style={{ fontSize: '0.46rem', color: '#fff', fontFamily: "'Share Tech Mono'", textShadow: '0 1px 3px #000', fontWeight: 'bold', letterSpacing: 0.5 }}>
-                  {cam.id}
-                </span>
-                <span style={{ fontSize: '0.38rem', color: 'rgba(255,255,255,0.45)', fontFamily: "'Share Tech Mono'", marginLeft: 3 }}>
-                  • REC
-                </span>
-              </div>
-
-              {/* Bottom Info Bar */}
-              <div style={{ position: 'absolute', bottom: 4, left: 6, right: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2 }}>
-                <span style={{ fontSize: '0.42rem', color: 'rgba(255,255,255,0.85)', fontFamily: "'Share Tech Mono'", textShadow: '0 1px 3px #000', letterSpacing: 0.3 }}>
-                  {cam.name}
-                </span>
-                <span style={{
-                  fontSize: '0.4rem',
-                  color: cam.color,
-                  fontFamily: "'Share Tech Mono'",
-                  background: 'rgba(0,0,0,0.75)',
-                  border: `1px solid ${cam.color}40`,
-                  padding: '1px 5px',
-                  borderRadius: 2,
-                  fontWeight: 'bold'
-                }}>
-                  {cam.status}
-                </span>
+                {cam.target.label} [{cam.target.conf}]
               </div>
             </div>
-          );
-        })}
+
+            {/* Top Bar with Camera ID and REC Dot */}
+            <div style={{ position: 'absolute', top: 5, left: 6, display: 'flex', alignItems: 'center', gap: 4, zIndex: 2 }}>
+              <div style={{
+                width: 5, height: 5, borderRadius: '50%',
+                background: cam.color,
+                boxShadow: `0 0 6px ${cam.color}`,
+                animation: 'breathe 1.2s infinite'
+              }} />
+              <span style={{ fontSize: '0.46rem', color: '#fff', fontFamily: "'Share Tech Mono'", textShadow: '0 1px 3px #000', fontWeight: 'bold', letterSpacing: 0.5 }}>
+                {cam.id}
+              </span>
+              <span style={{ fontSize: '0.38rem', color: 'rgba(255,255,255,0.45)', fontFamily: "'Share Tech Mono'", marginLeft: 3 }}>
+                • REC
+              </span>
+            </div>
+
+            {/* Bottom Info Bar */}
+            <div style={{ position: 'absolute', bottom: 4, left: 6, right: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2 }}>
+              <span style={{ fontSize: '0.42rem', color: 'rgba(255,255,255,0.85)', fontFamily: "'Share Tech Mono'", textShadow: '0 1px 3px #000', letterSpacing: 0.3 }}>
+                {cam.name}
+              </span>
+              <span style={{
+                fontSize: '0.4rem',
+                color: cam.color,
+                fontFamily: "'Share Tech Mono'",
+                background: 'rgba(0,0,0,0.75)',
+                border: `1px solid ${cam.color}40`,
+                padding: '1px 5px',
+                borderRadius: 2,
+                fontWeight: 'bold'
+              }}>
+                {cam.status}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

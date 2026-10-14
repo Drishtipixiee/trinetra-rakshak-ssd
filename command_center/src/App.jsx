@@ -1461,59 +1461,59 @@ export default function App() {
         </div>
       </div>
 
+      {/* Floating edge tab when tactical ops sidebar is hidden (>) */}
+      {!isOpsSidebarOpen && (
+        <button
+          className="sidebar-edge-tab sidebar-edge-tab-left"
+          onClick={() => setIsOpsSidebarOpen(true)}
+          title="Open Tactical Operations (>)"
+        >
+          <span className="edge-tab-arrow">❯</span>
+          <span className="edge-tab-label">OPS</span>
+        </button>
+      )}
+
+      {/* Floating edge tab when tactical ops sidebar is open (<) */}
+      {isOpsSidebarOpen && (
+        <button
+          className="sidebar-edge-tab sidebar-edge-tab-left"
+          onClick={() => setIsOpsSidebarOpen(false)}
+          title="Close Tactical Operations (<)"
+          style={{ left: 240 }}
+        >
+          <span className="edge-tab-arrow">❮</span>
+        </button>
+      )}
+
+      {/* Floating edge tab when AI controls sidebar is hidden (<) */}
+      {!isAiControlsOpen && (
+        <button
+          className="sidebar-edge-tab sidebar-edge-tab-right"
+          onClick={() => setIsAiControlsOpen(true)}
+          title="Open AI Detection & Voice Controls (<)"
+        >
+          <span className="edge-tab-arrow">❮</span>
+          <span className="edge-tab-label">AI</span>
+          {(simActive || voiceEnabled) && (
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: simActive ? '#ef4444' : '#22c55e', marginTop: 4, animation: 'breathe 1.5s infinite' }} />
+          )}
+        </button>
+      )}
+
+      {/* Floating edge tab when AI controls sidebar is open (>) */}
+      {isAiControlsOpen && (
+        <button
+          className="sidebar-edge-tab sidebar-edge-tab-right"
+          onClick={() => setIsAiControlsOpen(false)}
+          title="Close AI Controls (>)"
+          style={{ right: 310 }}
+        >
+          <span className="edge-tab-arrow">❯</span>
+        </button>
+      )}
+
       {/* ═══ 3-PANEL GRID (Collapsible Left & Right Sidebars) ═══ */}
       <div className={`main-grid ${isOpsSidebarOpen ? 'left-open' : ''} ${isAiControlsOpen ? 'right-open' : ''}`}>
-
-        {/* Floating edge tab when tactical ops sidebar is hidden (>) */}
-        {!isOpsSidebarOpen && (
-          <button
-            className="sidebar-edge-tab sidebar-edge-tab-left"
-            onClick={() => setIsOpsSidebarOpen(true)}
-            title="Open Tactical Operations (>)"
-          >
-            <span className="edge-tab-arrow">❯</span>
-            <span className="edge-tab-label">OPS</span>
-          </button>
-        )}
-
-        {/* Floating edge tab when tactical ops sidebar is open (<) */}
-        {isOpsSidebarOpen && (
-          <button
-            className="sidebar-edge-tab sidebar-edge-tab-left"
-            onClick={() => setIsOpsSidebarOpen(false)}
-            title="Close Tactical Operations (<)"
-            style={{ left: 240 }}
-          >
-            <span className="edge-tab-arrow">❮</span>
-          </button>
-        )}
-
-        {/* Floating edge tab when AI controls sidebar is hidden (<) */}
-        {!isAiControlsOpen && (
-          <button
-            className="sidebar-edge-tab sidebar-edge-tab-right"
-            onClick={() => setIsAiControlsOpen(true)}
-            title="Open AI Detection & Voice Controls (<)"
-          >
-            <span className="edge-tab-arrow">❮</span>
-            <span className="edge-tab-label">AI</span>
-            {(simActive || voiceEnabled) && (
-              <div style={{ width: 5, height: 5, borderRadius: '50%', background: simActive ? '#ef4444' : '#22c55e', marginTop: 4, animation: 'breathe 1.5s infinite' }} />
-            )}
-          </button>
-        )}
-
-        {/* Floating edge tab when AI controls sidebar is open (>) */}
-        {isAiControlsOpen && (
-          <button
-            className="sidebar-edge-tab sidebar-edge-tab-right"
-            onClick={() => setIsAiControlsOpen(false)}
-            title="Close AI Controls (>)"
-            style={{ right: 310 }}
-          >
-            <span className="edge-tab-arrow">❯</span>
-          </button>
-        )}
 
         {/* ═══ LEFT SIDEBAR (COLLAPSIBLE — OPENED ON DEMAND) ═══ */}
         {isOpsSidebarOpen && (
