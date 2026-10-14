@@ -95,40 +95,70 @@ function ModuleCard({ title, code, desc, status, statusColor, icon: Icon, onClic
   );
 }
 
-// ── CCTV Matrix Grid with Dedicated Human Surveillance Detection Image ──
+// ── CCTV Matrix Grid with Real Human Suspect Profiles (Image 2) & AR/VR Mode ──
 function CCTVMatrix({ onClick }) {
+  const [cctvMode, setCctvMode] = useState('HUMAN'); // 'HUMAN' or 'ARVR'
+
   const feeds = [
     {
       id: 'CAM-01',
       name: 'NORTH GATE SEC-7A',
       status: 'ACTIVE',
       color: '#22c55e',
-      photo: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
-      target: { label: 'HUMAN: SENTRY GUARD', conf: '96%', box: { top: '16%', left: '34%', width: '30%', height: '64%' } },
+      suspectId: 'S-003',
+      label: 'UNAUTHORIZED SENTRY',
+      match: '88%',
+      threat: 'HIGH',
+      // Real human suspect portrait matching Image 2 (African-American smiling man, beard, v-neck)
+      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80',
+      coords: "N28°38'12\" E77°13'04\"",
+      arData: { range: '142m', azimuth: '042°', elev: '+1.4m', target: 'BIO-TARGET [S-003]' },
+      target: { box: { top: '14%', left: '32%', width: '36%', height: '64%' } },
     },
     {
       id: 'CAM-02',
       name: 'FENCE PERIMETER SEC-7B',
       status: 'ALERT',
       color: '#ef4444',
-      photo: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80',
-      target: { label: '!! HUMAN: INTRUDER', conf: '94%', box: { top: '18%', left: '26%', width: '40%', height: '68%' } },
+      suspectId: 'S-001',
+      label: 'ARMED INTRUDER',
+      match: '96%',
+      threat: 'CRITICAL',
+      // Real human suspect portrait
+      photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80',
+      coords: "N28°38'18\" E77°13'09\"",
+      arData: { range: '085m', azimuth: '318°', elev: '+0.8m', target: 'HOSTILE INTRUDER [S-001]' },
+      target: { box: { top: '12%', left: '28%', width: '44%', height: '68%' } },
     },
     {
       id: 'CAM-03',
       name: 'RIVER BARRIER KM-14',
       status: 'ACTIVE',
       color: '#22c55e',
-      photo: 'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=600&auto=format&fit=crop&q=80',
-      target: { label: 'HUMAN: RIVER PATROL', conf: '92%', box: { top: '18%', left: '32%', width: '32%', height: '64%' } },
+      suspectId: 'S-004',
+      label: 'WANTED RECON SCOUT',
+      match: '82%',
+      threat: 'HIGH',
+      // Real human suspect portrait matching Image 2 (Young man in grey sweater)
+      photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=80',
+      coords: "N28°38'15\" E77°13'15\"",
+      arData: { range: '210m', azimuth: '112°', elev: '-2.1m', target: 'RECON UNIT [S-004]' },
+      target: { box: { top: '15%', left: '30%', width: '38%', height: '64%' } },
     },
     {
       id: 'CAM-04',
       name: 'HIGHWAY OUTPOST SEC-12',
-      status: 'ACTIVE',
-      color: '#22c55e',
-      photo: 'https://images.unsplash.com/photo-1584441405886-bc91be61e56a?w=600&auto=format&fit=crop&q=80',
-      target: { label: 'HUMAN: CHECKPOINT SENTRY', conf: '97%', box: { top: '14%', left: '30%', width: '36%', height: '68%' } },
+      status: 'ALERT',
+      color: '#ef4444',
+      suspectId: 'S-002',
+      label: 'PERIMETER BREACHER',
+      match: '93%',
+      threat: 'CRITICAL',
+      // Real human suspect portrait
+      photo: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80',
+      coords: "N28°38'10\" E77°13'00\"",
+      arData: { range: '168m', azimuth: '275°', elev: '+3.2m', target: 'BREACH POINT [S-002]' },
+      target: { box: { top: '14%', left: '28%', width: '42%', height: '66%' } },
     },
   ];
 
@@ -136,8 +166,8 @@ function CCTVMatrix({ onClick }) {
     <div
       onClick={onClick}
       style={{
-        background: 'linear-gradient(135deg, rgba(8,16,10,0.9) 0%, rgba(2,6,3,0.85) 100%)',
-        border: '1px solid rgba(34,197,94,0.2)',
+        background: 'linear-gradient(135deg, rgba(8,16,10,0.92) 0%, rgba(2,6,3,0.9) 100%)',
+        border: '1px solid rgba(34,197,94,0.25)',
         borderRadius: 10,
         padding: 12,
         cursor: 'pointer',
@@ -145,14 +175,42 @@ function CCTVMatrix({ onClick }) {
         boxShadow: '0 4px 18px rgba(0,0,0,0.5)',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+      {/* Header with Title and Mode Switcher */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Video size={13} color="#22c55e" />
           <span style={{ fontSize: '0.62rem', color: '#22c55e', fontFamily: "'Share Tech Mono'", letterSpacing: 2, fontWeight: 'bold' }}>
             TACTICAL CCTV MATRIX
           </span>
         </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* AR/VR vs Human Mode Switch */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setCctvMode(prev => prev === 'HUMAN' ? 'ARVR' : 'HUMAN');
+            }}
+            style={{
+              fontSize: '0.48rem',
+              background: cctvMode === 'ARVR' ? 'rgba(56,189,248,0.2)' : 'rgba(34,197,94,0.18)',
+              color: cctvMode === 'ARVR' ? '#38bdf8' : '#22c55e',
+              padding: '2px 8px',
+              borderRadius: 3,
+              border: `1px solid ${cctvMode === 'ARVR' ? '#38bdf8' : '#22c55e'}55`,
+              fontFamily: "'Share Tech Mono'",
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              letterSpacing: 0.8,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+            title="Toggle between Real Human Suspect Intel and Blank AR/VR Wireframe HUD"
+          >
+            {cctvMode === 'HUMAN' ? '👤 HUMAN MODE' : '🥽 AR/VR HUD'}
+          </button>
+
           <span style={{ fontSize: '0.48rem', background: 'rgba(34,197,94,0.15)', color: '#22c55e', padding: '2px 6px', borderRadius: 3, border: '1px solid rgba(34,197,94,0.3)', fontFamily: "'Share Tech Mono'" }}>
             4/4 FEEDS ONLINE
           </span>
@@ -160,6 +218,7 @@ function CCTVMatrix({ onClick }) {
         </div>
       </div>
 
+      {/* 2x2 Camera Feeds Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {feeds.map(cam => (
           <div
@@ -168,114 +227,216 @@ function CCTVMatrix({ onClick }) {
               position: 'relative',
               borderRadius: 6,
               overflow: 'hidden',
-              background: '#030804',
-              border: `1px solid ${cam.color}40`,
+              background: '#020603',
+              border: `1px solid ${cam.color}45`,
               aspectRatio: '16/9',
-              boxShadow: cam.status === 'ALERT' ? '0 0 12px rgba(239,68,68,0.25)' : 'none',
+              boxShadow: cam.status === 'ALERT' ? '0 0 14px rgba(239,68,68,0.3)' : 'none',
             }}
           >
-            {/* Dedicated Human Surveillance Detection Image */}
-            <img
-              src={cam.photo}
-              alt={cam.name}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                filter: 'contrast(1.15) brightness(0.88) saturate(0.85)',
-              }}
-            />
+            {cctvMode === 'HUMAN' ? (
+              <>
+                {/* ── REAL HUMAN SUSPECT PHOTO MATCHING IMAGE 2 ── */}
+                <img
+                  src={cam.photo}
+                  alt={cam.name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    filter: 'contrast(1.1) brightness(0.85) saturate(0.9)',
+                  }}
+                />
 
-            {/* Night vision phosphor green overlay */}
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: cam.status === 'ALERT'
-                ? 'radial-gradient(ellipse at center, rgba(239,68,68,0.08) 0%, rgba(0,0,0,0.45) 100%)'
-                : 'radial-gradient(ellipse at center, rgba(34,197,94,0.08) 0%, rgba(0,0,0,0.45) 100%)',
-              pointerEvents: 'none'
-            }} />
+                {/* Night vision phosphor overlay */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: cam.status === 'ALERT'
+                    ? 'radial-gradient(ellipse at center, rgba(239,68,68,0.12) 0%, rgba(0,0,0,0.55) 100%)'
+                    : 'radial-gradient(ellipse at center, rgba(34,197,94,0.08) 0%, rgba(0,0,0,0.55) 100%)',
+                  pointerEvents: 'none'
+                }} />
 
-            {/* Scanline overlay */}
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.35) 0px, rgba(0,0,0,0.35) 1px, transparent 1px, transparent 2px)',
-              pointerEvents: 'none'
-            }} />
+                {/* Scanline overlay */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.35) 0px, rgba(0,0,0,0.35) 1px, transparent 1px, transparent 2px)',
+                  pointerEvents: 'none'
+                }} />
 
-            {/* AI Detection Bounding Box on Human Target */}
-            <div
-              style={{
-                position: 'absolute',
-                top: cam.target.box.top,
-                left: cam.target.box.left,
-                width: cam.target.box.width,
-                height: cam.target.box.height,
-                border: `1.5px solid ${cam.color}`,
-                boxShadow: `0 0 8px ${cam.color}60`,
-                pointerEvents: 'none',
-              }}
-            >
-              {/* Target Corner Brackets */}
-              <div style={{ position: 'absolute', top: -3, left: -3, width: 6, height: 6, borderTop: `2px solid ${cam.color}`, borderLeft: `2px solid ${cam.color}` }} />
-              <div style={{ position: 'absolute', top: -3, right: -3, width: 6, height: 6, borderTop: `2px solid ${cam.color}`, borderRight: `2px solid ${cam.color}` }} />
-              <div style={{ position: 'absolute', bottom: -3, left: -3, width: 6, height: 6, borderBottom: `2px solid ${cam.color}`, borderLeft: `2px solid ${cam.color}` }} />
-              <div style={{ position: 'absolute', bottom: -3, right: -3, width: 6, height: 6, borderBottom: `2px solid ${cam.color}`, borderRight: `2px solid ${cam.color}` }} />
+                {/* AI Facial Bounding Reticle on Human Target */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: cam.target.box.top,
+                    left: cam.target.box.left,
+                    width: cam.target.box.width,
+                    height: cam.target.box.height,
+                    border: `1.5px solid ${cam.color}`,
+                    boxShadow: `0 0 8px ${cam.color}60`,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <div style={{ position: 'absolute', top: -3, left: -3, width: 6, height: 6, borderTop: `2px solid ${cam.color}`, borderLeft: `2px solid ${cam.color}` }} />
+                  <div style={{ position: 'absolute', top: -3, right: -3, width: 6, height: 6, borderTop: `2px solid ${cam.color}`, borderRight: `2px solid ${cam.color}` }} />
+                  <div style={{ position: 'absolute', bottom: -3, left: -3, width: 6, height: 6, borderBottom: `2px solid ${cam.color}`, borderLeft: `2px solid ${cam.color}` }} />
+                  <div style={{ position: 'absolute', bottom: -3, right: -3, width: 6, height: 6, borderBottom: `2px solid ${cam.color}`, borderRight: `2px solid ${cam.color}` }} />
 
-              {/* Target AI Label Tag */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: -16,
-                  left: 0,
-                  background: cam.status === 'ALERT' ? 'rgba(239,68,68,0.9)' : 'rgba(10,30,12,0.92)',
-                  color: cam.status === 'ALERT' ? '#fff' : '#22c55e',
-                  border: `1px solid ${cam.color}`,
-                  borderRadius: 2,
-                  padding: '1px 4px',
-                  fontSize: '0.4rem',
-                  fontFamily: "'Share Tech Mono'",
-                  fontWeight: 'bold',
-                  letterSpacing: 0.8,
-                  whiteSpace: 'nowrap',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
-                }}
-              >
-                {cam.target.label} [{cam.target.conf}]
+                  {/* Crosshair reticle center */}
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', width: 8, height: 8, transform: 'translate(-50%, -50%)', border: `1px dashed ${cam.color}90`, borderRadius: '50%' }} />
+                </div>
+
+                {/* ── IMAGE 2 EXACT SUSPECT PROFILE CARD OVERLAY ── */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 6,
+                    left: 6,
+                    right: 6,
+                    background: 'rgba(6, 12, 8, 0.92)',
+                    border: `1px solid ${cam.color}90`,
+                    borderRadius: 4,
+                    padding: '3px 6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 6,
+                    backdropFilter: 'blur(6px)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.8)',
+                    zIndex: 2,
+                  }}
+                >
+                  {/* Human suspect thumbnail matching Image 2 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                    <div style={{
+                      width: 22, height: 22, borderRadius: 3, overflow: 'hidden',
+                      border: `1px solid ${cam.color}`, flexShrink: 0
+                    }}>
+                      <img src={cam.photo} alt={cam.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                      <span style={{
+                        fontSize: '0.46rem',
+                        color: '#fff',
+                        fontFamily: "'Share Tech Mono'",
+                        fontWeight: 'bold',
+                        letterSpacing: 0.5,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        {cam.label}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.40rem', fontFamily: "'Share Tech Mono'" }}>
+                        <span style={{ color: cam.status === 'ALERT' ? '#ef4444' : '#22c55e', fontWeight: 'bold' }}>
+                          MATCH: {cam.match}
+                        </span>
+                        <span style={{ color: 'rgba(255,255,255,0.45)' }}>
+                          ID: {cam.suspectId}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <span style={{
+                    fontSize: '0.38rem',
+                    color: cam.color,
+                    fontFamily: "'Share Tech Mono'",
+                    background: `${cam.color}20`,
+                    border: `1px solid ${cam.color}50`,
+                    padding: '1px 4px',
+                    borderRadius: 2,
+                    fontWeight: 'bold',
+                    flexShrink: 0
+                  }}>
+                    {cam.status}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* ── AR/VR WIREFRAME HUD MODE (CLEAN / BLANK TACTICAL SCAN) ── */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: 'linear-gradient(180deg, #020804 0%, #010402 100%)',
+                  overflow: 'hidden',
+                }}>
+                  {/* 3D Perspective Vector Wireframe Grid */}
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    backgroundImage: 'linear-gradient(rgba(34,197,94,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(34,197,94,0.12) 1px, transparent 1px)',
+                    backgroundSize: '16px 16px',
+                    transform: 'perspective(220px) rotateX(25deg)',
+                    transformOrigin: 'bottom center',
+                    opacity: 0.85
+                  }} />
+
+                  {/* Rotating LiDAR Radar Sweep */}
+                  <div style={{
+                    position: 'absolute', top: '50%', left: '50%',
+                    width: 140, height: 140,
+                    transform: 'translate(-50%, -50%)',
+                    borderRadius: '50%',
+                    border: '1px dashed rgba(56,189,248,0.3)',
+                    pointerEvents: 'none'
+                  }}>
+                    <div style={{
+                      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                      borderRadius: '50%',
+                      background: 'conic-gradient(from 0deg, rgba(56,189,248,0.2) 0deg, transparent 60deg, transparent 360deg)',
+                      animation: 'spin 4s linear infinite',
+                    }} />
+                    <div style={{ position: 'absolute', top: '50%', left: '50%', width: 4, height: 4, transform: 'translate(-50%, -50%)', background: '#38bdf8', borderRadius: '50%' }} />
+                  </div>
+
+                  {/* AR Vector Target Lock Crosshair */}
+                  <div style={{
+                    position: 'absolute',
+                    top: '32%', left: '38%',
+                    width: 44, height: 44,
+                    border: `1px solid ${cam.color}`,
+                    borderRadius: 3,
+                    boxShadow: `0 0 10px ${cam.color}40`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <div style={{ width: 6, height: 6, border: `1px solid ${cam.color}`, borderRadius: '50%' }} />
+                    <div style={{ position: 'absolute', top: -12, left: 0, fontSize: '0.38rem', color: cam.color, fontFamily: "'Share Tech Mono'", fontWeight: 'bold' }}>
+                      {cam.arData.target}
+                    </div>
+                  </div>
+
+                  {/* AR Telemetry Overlay */}
+                  <div style={{
+                    position: 'absolute', bottom: 6, left: 6, right: 6,
+                    background: 'rgba(0,0,0,0.85)', border: '1px solid rgba(56,189,248,0.3)',
+                    borderRadius: 3, padding: '2px 5px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    fontSize: '0.40rem', fontFamily: "'Share Tech Mono'", color: '#38bdf8'
+                  }}>
+                    <span>AR-HUD // RNG: {cam.arData.range} · AZ: {cam.arData.azimuth}</span>
+                    <span style={{ color: cam.color }}>{cam.status}</span>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Top Bar with Camera ID, REC Dot, Sector */}
+            <div style={{ position: 'absolute', top: 5, left: 6, right: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 3 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div style={{
+                  width: 5, height: 5, borderRadius: '50%',
+                  background: cam.color,
+                  boxShadow: `0 0 6px ${cam.color}`,
+                  animation: 'breathe 1.2s infinite'
+                }} />
+                <span style={{ fontSize: '0.46rem', color: '#fff', fontFamily: "'Share Tech Mono'", textShadow: '0 1px 3px #000', fontWeight: 'bold', letterSpacing: 0.5 }}>
+                  {cam.id}
+                </span>
+                <span style={{ fontSize: '0.38rem', color: 'rgba(255,255,255,0.45)', fontFamily: "'Share Tech Mono'", marginLeft: 2 }}>
+                  • REC
+                </span>
               </div>
-            </div>
-
-            {/* Top Bar with Camera ID and REC Dot */}
-            <div style={{ position: 'absolute', top: 5, left: 6, display: 'flex', alignItems: 'center', gap: 4, zIndex: 2 }}>
-              <div style={{
-                width: 5, height: 5, borderRadius: '50%',
-                background: cam.color,
-                boxShadow: `0 0 6px ${cam.color}`,
-                animation: 'breathe 1.2s infinite'
-              }} />
-              <span style={{ fontSize: '0.46rem', color: '#fff', fontFamily: "'Share Tech Mono'", textShadow: '0 1px 3px #000', fontWeight: 'bold', letterSpacing: 0.5 }}>
-                {cam.id}
-              </span>
-              <span style={{ fontSize: '0.38rem', color: 'rgba(255,255,255,0.45)', fontFamily: "'Share Tech Mono'", marginLeft: 3 }}>
-                • REC
-              </span>
-            </div>
-
-            {/* Bottom Info Bar */}
-            <div style={{ position: 'absolute', bottom: 4, left: 6, right: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2 }}>
-              <span style={{ fontSize: '0.42rem', color: 'rgba(255,255,255,0.85)', fontFamily: "'Share Tech Mono'", textShadow: '0 1px 3px #000', letterSpacing: 0.3 }}>
+              <span style={{ fontSize: '0.40rem', color: 'rgba(255,255,255,0.7)', fontFamily: "'Share Tech Mono'", textShadow: '0 1px 2px #000' }}>
                 {cam.name}
-              </span>
-              <span style={{
-                fontSize: '0.4rem',
-                color: cam.color,
-                fontFamily: "'Share Tech Mono'",
-                background: 'rgba(0,0,0,0.75)',
-                border: `1px solid ${cam.color}40`,
-                padding: '1px 5px',
-                borderRadius: 2,
-                fontWeight: 'bold'
-              }}>
-                {cam.status}
               </span>
             </div>
           </div>

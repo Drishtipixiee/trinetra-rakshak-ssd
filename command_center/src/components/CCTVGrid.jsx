@@ -3,20 +3,20 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Video, Maximize2, X, AlertTriangle, Shield, Camera, CameraOff, Download, User, Eye } from 'lucide-react';
 
-// ─── High-quality public domain human/surveillance images ───
+// ─── Real human surveillance & suspect portraits matching Image 2 ───
 const HUMAN_IMAGES = [
-  'https://images.unsplash.com/photo-1544717305-2782549b5136?w=500&auto=format&fit=crop&q=80', // Night guard
-  'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=500&auto=format&fit=crop&q=80', // Night intruder
-  'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=500&auto=format&fit=crop&q=80', // Tactical sentry
-  'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&auto=format&fit=crop&q=80', // Infiltrator
-  'https://images.unsplash.com/photo-1584441405886-bc91be61e56a?w=500&auto=format&fit=crop&q=80', // Checkpoint guard
-  'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=500&auto=format&fit=crop&q=80', // River scout
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&q=80', // male suspect 1
-  'https://images.unsplash.com/photo-1494790108755-2616b612b550?w=200&h=200&fit=crop&q=80', // female suspect 2
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&q=80', // male suspect 3
-  'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200&h=200&fit=crop&q=80', // male suspect 4
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&q=80', // female suspect 5
-  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&q=80', // male suspect 6
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80', // Male suspect 1 (Image 2 S-003)
+  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80', // Armed intruder suspect
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=80', // Male suspect 2 (Image 2 S-004)
+  'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80', // Infiltrator suspect
+  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&auto=format&fit=crop&q=80', // Checkpoint evader
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80', // Female suspect
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&q=80', // S-003 thumbnail (Image 2)
+  'https://images.unsplash.com/photo-1494790108755-2616b612b550?w=200&h=200&fit=crop&q=80', // S-002 thumbnail
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&q=80', // S-004 thumbnail (Image 2)
+  'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200&h=200&fit=crop&q=80', // S-005 thumbnail
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&q=80', // S-006 thumbnail
+  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&q=80', // S-001 thumbnail
 ];
 
 const SUSPECT_PROFILES = [
@@ -25,13 +25,13 @@ const SUSPECT_PROFILES = [
   { id: 'S-003', label: 'UNAUTHORIZED SENTRY', match: '88%', threat: 'HIGH', img: HUMAN_IMAGES[6] },
   { id: 'S-004', label: 'WANTED RECON SCOUT', match: '82%', threat: 'HIGH', img: HUMAN_IMAGES[8] },
   { id: 'S-005', label: 'UNIDENTIFIED INFILTRATOR', match: '78%', threat: 'WARNING', img: HUMAN_IMAGES[9] },
-  { id: 'S-006', label: 'CHECKPOINT EVADER', match: '74%', threat: 'WARNING', img: HUMAN_IMAGES[11] },
+  { id: 'S-006', label: 'CHECKPOINT EVADER', match: '74%', threat: 'WARNING', img: HUMAN_IMAGES[10] },
 ];
 
 const CAMERAS = [
   {
     id: 'CAM-01', name: 'MAIN GATE -- SEC-7A', coords: "N28°38'12\" E77°13'04\"",
-    posterImg: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=700&auto=format&fit=crop&q=80',
+    posterImg: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=700&auto=format&fit=crop&q=80',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-car-approaching-a-security-gate-at-night-42171-large.mp4',
     scenario: [
       { time: [0, 6], detections: [], status: 'CLEAR' },
@@ -42,7 +42,7 @@ const CAMERAS = [
   },
   {
     id: 'CAM-02', name: 'PERIMETER NORTH', coords: "N28°38'18\" E77°13'09\"",
-    posterImg: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=700&auto=format&fit=crop&q=80',
+    posterImg: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=700&auto=format&fit=crop&q=80',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-security-camera-recording-a-robbery-41484-large.mp4',
     scenario: [
       { time: [0, 8], detections: [], status: 'SCANNING' },
@@ -53,7 +53,7 @@ const CAMERAS = [
   },
   {
     id: 'CAM-03', name: 'EAST WATCHTOWER', coords: "N28°38'15\" E77°13'15\"",
-    posterImg: 'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=700&auto=format&fit=crop&q=80',
+    posterImg: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=700&auto=format&fit=crop&q=80',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-fence-with-barbed-wire-39853-large.mp4',
     scenario: [
       { time: [0, 20], detections: [], status: 'CLEAR' },
@@ -64,7 +64,7 @@ const CAMERAS = [
   },
   {
     id: 'CAM-04', name: 'COMMAND BUNKER', coords: "N28°38'10\" E77°13'00\"",
-    posterImg: 'https://images.unsplash.com/photo-1584441405886-bc91be61e56a?w=700&auto=format&fit=crop&q=80',
+    posterImg: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=700&auto=format&fit=crop&q=80',
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-guard-walking-in-the-snow-during-winter-39845-large.mp4',
     scenario: [
       { time: [0, 180], detections: [], status: 'SECURE -- NO MOVEMENT' },

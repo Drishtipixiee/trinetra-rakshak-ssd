@@ -819,37 +819,39 @@ export default function App() {
     } catch (err) { }
   };
 
-  // AI Voice — strict guard: active only after authenticated login + user interaction
+  // AI Voice — initialized and ready
   const voiceRef = useRef(null);
 
-  // Register user interaction once — gates all audio
+  // Register user interaction to unlock browser speech synthesis
   useEffect(() => {
     const handler = () => setUserInteracted();
-    document.addEventListener('click', handler, { once: true });
-    document.addEventListener('keydown', handler, { once: true });
+    window.addEventListener('click', handler);
+    window.addEventListener('keydown', handler);
     return () => {
-      document.removeEventListener('click', handler);
-      document.removeEventListener('keydown', handler);
+      window.removeEventListener('click', handler);
+      window.removeEventListener('keydown', handler);
     };
   }, []);
 
   // Sync auth state to voice system global
   useEffect(() => {
     setGlobalAuthState(isAuthenticated);
+    if (isAuthenticated) {
+      setUserInteracted();
+    }
   }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) {
       if (voiceRef.current) voiceRef.current.destroy();
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel();
       return;
     }
     voiceRef.current = new AIVoiceSystem();
-    // Voice starts disabled — user must explicitly enable
     if (voiceEnabled) voiceRef.current.enable();
     return () => {
       if (voiceRef.current) voiceRef.current.destroy();
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
@@ -2822,6 +2824,15 @@ export default function App() {
                   onClick={() => {
                     const newState = !voiceEnabled;
                     setVoiceEnabled(newState);
+                    setUserInteracted();
+                    if (voiceRef.current) {
+                      if (newState) {
+                        voiceRef.current.enable();
+                        voiceRef.current.speak('AI voice active. Perimeter defense audio online.', 'normal');
+                      } else {
+                        voiceRef.current.disable();
+                      }
+                    }
                     addLog(`[SYS] AI Voice ${newState ? 'ENABLED' : 'MUTED'}`, 'normal');
                   }}>
                   {voiceEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
@@ -2830,10 +2841,15 @@ export default function App() {
 
                 <button className="nav-btn btn-danger" style={{ width: '100%', fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
                   onClick={() => {
+                    setUserInteracted();
                     setDetectionData(prev => ({ ...prev, threatLevel: 'CRITICAL', riskScore: 98, primaryClass: 'TEST_HOSTILE', personCount: 1, label: 'TEST' }));
                     addLog('[SYS] ⚠ TEST BREACH initiated. Alert state active.', 'critical');
                     playSiren(2000);
-                    if (voiceRef.current && voiceEnabled) voiceRef.current.speak('Alert. Test breach protocol activated. All units standby.', 'critical');
+                    if (voiceRef.current) {
+                      voiceRef.current.enable();
+                      setVoiceEnabled(true);
+                      voiceRef.current.speak('Alert. Test breach protocol activated. Perimeter fence breach detected. All units standby.', 'critical');
+                    }
                   }}>
                   <AlertTriangle size={12} /> TEST BREACH
                 </button>

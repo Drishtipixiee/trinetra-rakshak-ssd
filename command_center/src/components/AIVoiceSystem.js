@@ -1,60 +1,106 @@
 /**
  * AI Voice Alert System — Trinetra Rakshak v2.0
- * FIXED: Voice no longer speaks before user interaction/authentication
- * Uses Web Speech API with strict guards
+ * Uses Web Speech API with automatic browser interaction unlocking
  */
 
-// Global flag — only set true after a real user gesture (click/keydown)
-let _userHasInteracted = false;
-let _isAuthenticatedGlobal = false;
+let _userHasInteracted = true; // Default true in modern browsers once mounted
+let _isAuthenticatedGlobal = true;
+
+// Auto-unlock speech synthesis on any user gesture anywhere on window
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    _userHasInteracted = true;
+    try {
+      if (window.speechSynthesis) {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+      }
+    } catch { /* ignore */ }
+  };
+  window.addEventListener('click', unlockAudio, { passive: true });
+  window.addEventListener('keydown', unlockAudio, { passive: true });
+  window.addEventListener('touchstart', unlockAudio, { passive: true });
+  window.addEventListener('pointerdown', unlockAudio, { passive: true });
+}
 
 export function setUserInteracted() {
   _userHasInteracted = true;
+  try {
+    if (typeof window !== 'undefined' && window.speechSynthesis?.paused) {
+      window.speechSynthesis.resume();
+    }
+  } catch { /* ignore */ }
 }
 
 export function setGlobalAuthState(authenticated) {
-  _isAuthenticatedGlobal = authenticated;
+  _isAuthenticatedGlobal = !!authenticated;
   if (!authenticated) {
-    // Always cancel speech when logged out
     try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
-    _userHasInteracted = false;
   }
 }
 
 class AIVoiceSystem {
   constructor() {
-    this.synth = window.speechSynthesis;
-    this.enabled = false; // START DISABLED — user must explicitly enable
+    this.synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
+    this.enabled = true; // Ready to speak when triggered
     this.queue = [];
     this.speaking = false;
     this.currentUtterance = null;
-    // Cancel any lingering speech immediately on construction
-    try { this.synth?.cancel(); } catch { /* ignore */ }
+    this.cachedVoice = null;
+
+    if (this.synth) {
+      try {
+        this.synth.cancel();
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+          window.speechSynthesis.onvoiceschanged = () => {
+            this.cachedVoice = this.getVoice();
+          };
+        }
+      } catch { /* ignore */ }
+    }
   }
 
   getVoice() {
+    if (!this.synth) return null;
     try {
-      const voices = this.synth.getVoices();
-      const indianFemale = voices.find(v =>
-        v.lang === 'en-IN' &&
-        (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('heera'))
+      const voices = this.synth.getVoices() || [];
+      if (!voices || voices.length === 0) return null;
+
+      // Prefer Indian English voices (Heera, Ravi, Neerja, en-IN)
+      const indianVoice = voices.find(v =>
+        v.lang?.toLowerCase().includes('en-in') ||
+        v.name?.toLowerCase().includes('india') ||
+        v.name?.toLowerCase().includes('heera') ||
+        v.name?.toLowerCase().includes('ravi')
       );
-      const genericIndian = voices.find(v => v.lang === 'en-IN');
-      return indianFemale || genericIndian || voices[0] || null;
+      if (indianVoice) return indianVoice;
+
+      // Fallback to any English voice
+      const enVoice = voices.find(v => v.lang?.toLowerCase().startsWith('en'));
+      return enVoice || voices[0] || null;
     } catch { return null; }
   }
 
-  // STRICT GUARD — must pass ALL conditions to speak
   _canSpeak() {
     if (!this.enabled) return false;
-    if (!_isAuthenticatedGlobal) return false;
-    if (!_userHasInteracted) return false;
-    if (!this.synth) return false;
-    return true;
+    if (!this.synth) {
+      if (typeof window !== 'undefined') this.synth = window.speechSynthesis;
+    }
+    return !!this.synth;
   }
 
   speak(text, priority = 'normal') {
+    if (!text) return;
+    setUserInteracted();
+
     if (!this._canSpeak()) return;
+
+    try {
+      if (this.synth.paused) {
+        this.synth.resume();
+      }
+    } catch { /* ignore */ }
 
     if (priority === 'critical') {
       try { this.synth.cancel(); } catch { /* ignore */ }
@@ -62,8 +108,7 @@ class AIVoiceSystem {
       this.speaking = false;
       this._utterNow(text, priority);
     } else {
-      // Limit queue to 3 items — prevents backlog on slow systems
-      if (this.queue.length < 3) {
+      if (this.queue.length < 4) {
         this.queue.push({ text, priority });
       }
       if (!this.speaking) {
@@ -87,52 +132,66 @@ class AIVoiceSystem {
     this._utterNow(msg.text, msg.priority, true);
   }
 
-  _utterNow(text, priority, fromQueue = false) {
+  _utterNow(text, priority) {
     if (!this._canSpeak()) return;
 
     try {
       if (this.synth.speaking && priority === 'critical') {
         this.synth.cancel();
       }
+      if (this.synth.paused) {
+        this.synth.resume();
+      }
 
       const utterance = new SpeechSynthesisUtterance(text);
       this.currentUtterance = utterance;
 
-      utterance.voice = this.getVoice();
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      utterance.volume = priority === 'critical' ? 1.0 : 0.8;
+      const voice = this.cachedVoice || this.getVoice();
+      if (voice) utterance.voice = voice;
 
-      // Chrome keep-alive fix
+      utterance.rate = 1.05;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      // Chrome keep-alive
       const keepAlive = setInterval(() => {
-        if (this.synth.speaking) {
+        if (this.synth && this.synth.speaking) {
           this.synth.pause();
           this.synth.resume();
         } else {
           clearInterval(keepAlive);
         }
-      }, 5000);
+      }, 4000);
 
-      utterance.onstart = () => { this.speaking = true; };
+      utterance.onstart = () => {
+        this.speaking = true;
+      };
 
       utterance.onend = () => {
         clearInterval(keepAlive);
         this.currentUtterance = null;
-        setTimeout(() => { this._processQueue(); }, 600);
+        setTimeout(() => { this._processQueue(); }, 350);
       };
 
       utterance.onerror = () => {
         clearInterval(keepAlive);
         this.currentUtterance = null;
         this.speaking = false;
+        setTimeout(() => { this._processQueue(); }, 350);
       };
 
       this.synth.speak(utterance);
-    } catch { /* silent fail */ }
+    } catch {
+      this.speaking = false;
+    }
   }
 
   enable() {
     this.enabled = true;
+    setUserInteracted();
+    try {
+      if (this.synth?.paused) this.synth.resume();
+    } catch { /* ignore */ }
   }
 
   disable() {
