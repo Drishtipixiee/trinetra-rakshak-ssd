@@ -36,7 +36,9 @@ export default function LiveFeedARBattleground({
 
     let animId;
     let lastTime = performance.now();
+    let lastRenderTime = 0;
     let angle = 0;
+    const frameInterval = 1000 / 24; // Keep complex 3D redraws within a lighter 24 FPS budget.
 
     // Tactical Unit Positions & Paths
     const units = {
@@ -89,7 +91,7 @@ export default function LiveFeedARBattleground({
 
     const handleResize = () => {
       const rect = canvas.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1);
       const w = rect.width || canvas.clientWidth || canvas.parentElement?.clientWidth || window.innerWidth || 800;
       const h = rect.height || canvas.clientHeight || canvas.parentElement?.clientHeight || window.innerHeight || 500;
       if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
@@ -102,8 +104,17 @@ export default function LiveFeedARBattleground({
 
     const render = (now) => {
       animId = requestAnimationFrame(render);
+
+      // Do not render hidden tabs; browsers can throttle timers unpredictably in the background.
+      if (document.hidden) {
+        lastTime = now;
+        return;
+      }
+      if (now - lastRenderTime < frameInterval) return;
+
       const dt = Math.min((now - lastTime) / 1000, 0.1);
       lastTime = now;
+      lastRenderTime = now;
       angle += dt * 0.8;
 
       if (canvas.width === 0 || canvas.height === 0) {

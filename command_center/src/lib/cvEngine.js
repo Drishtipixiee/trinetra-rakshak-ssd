@@ -77,34 +77,34 @@ export async function loadModel(onProgress = null) {
   _modelLoading = true;
   if (onProgress) onProgress(0.2, 'Initializing AI neural engine...');
 
-  // Setup safety timeout to avoid freezing page on slow connections
+  // Prefer GPU acceleration, but never let a slow neural backend stall the feed.
+  let timeoutId;
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Model loading timed out (activating fast local engine)')), 3800);
+    timeoutId = setTimeout(() => reject(new Error('Model loading timed out (activating fast local engine)')), 3800);
   });
 
   const loadPromise = (async () => {
-    try {
-      await tf.setBackend('webgl').catch(() => tf.setBackend('cpu'));
-      await tf.ready();
-      if (onProgress) onProgress(0.5, 'Neural backend initialized. Loading COCO-SSD weights...');
+    await tf.setBackend('webgl').catch(() => tf.setBackend('cpu'));
+    await tf.ready();
+    if (onProgress) onProgress(0.5, 'Neural backend initialized. Loading COCO-SSD weights...');
 
-      const model = await cocoSsd.load({
-        base: 'mobilenet_v2',
-      });
-      return model;
-    } catch (e) {
-      throw e;
-    }
+    return cocoSsd.load({
+      base: 'mobilenet_v2',
+    });
   })();
 
   try {
     _model = await Promise.race([loadPromise, timeoutPromise]);
+    clearTimeout(timeoutId);
     if (onProgress) onProgress(1.0, 'COCO-SSD Model Loaded — Real AI Active');
     _modelLoading = false;
     _modelLoadCallbacks.forEach(cb => cb(_model));
     _modelLoadCallbacks = [];
     return _model;
   } catch (err) {
+    clearTimeout(timeoutId);
+    // Prevent a late model-load completion from leaving a dangling rejected race or blocking retries.
+    loadPromise.catch(() => {});
     console.warn('[TF.js] Using High-Performance Tactical AI Fallback:', err.message);
     _useFallbackDetector = true;
     _model = null;
